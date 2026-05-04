@@ -4,6 +4,9 @@ services:
     image: racha:latest
     container_name: racha
     restart: unless-stopped
+    # 8080 stays mapped publicly for IP-based testing.
+    # Once HTTPS at racha.lbschmitz.com is verified, drop this to `expose: ["8080"]`
+    # so the only public surface is Caddy on 80/443.
     ports:
       - "8080:8080"
     volumes:
@@ -12,6 +15,25 @@ services:
       # Optional: set RACHA_TOKEN to require X-Racha-Token header on writes.
       # RACHA_TOKEN: "change-me"
       DB_PATH: /data/racha.db
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - racha
+
+volumes:
+  caddy_data:
+  caddy_config:
 
 # To enable continuous backup to S3, run a litestream sidecar:
 # https://litestream.io/install/

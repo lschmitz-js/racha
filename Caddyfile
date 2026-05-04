@@ -1,0 +1,4 @@
+racha.lbschmitz.com {
+	reverse_proxy racha:8080
+	encode gzip
+}
