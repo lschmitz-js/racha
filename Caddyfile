@@ -1,4 +1,4 @@
-racha.lbschmitz.com {
+racha.lbschmitz.ca {
 	reverse_proxy racha:8080
 	encode gzip
 }

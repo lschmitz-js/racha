@@ -5,7 +5,7 @@ services:
     container_name: racha
     restart: unless-stopped
     # 8080 stays mapped publicly for IP-based testing.
-    # Once HTTPS at racha.lbschmitz.com is verified, drop this to `expose: ["8080"]`
+    # Once HTTPS at racha.lbschmitz.ca is verified, drop this to `expose: ["8080"]`
     # so the only public surface is Caddy on 80/443.
     ports:
       - "8080:8080"
