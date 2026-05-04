@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Racha de Segunda — Architecture</title>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --bg2: #141414;
+    --bg3: #1f1f1f;
+    --border: #2a2a2a;
+    --text: #e7e7e7;
+    --muted: #9a9a9a;
+    --accent: #22c55e;
+    --amber: #f59e0b;
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: dark; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: 2rem 1rem 5rem;
+  }
+  main {
+    max-width: 880px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-size: 2rem;
+    margin: 0 0 .25rem;
+  }
+  h2 {
+    font-size: 1.3rem;
+    margin: 2.5rem 0 .75rem;
+    padding-top: .5rem;
+    border-top: 1px solid var(--border);
+  }
+  h3 {
+    font-size: 1.05rem;
+    margin: 1.5rem 0 .5rem;
+  }
+  p { margin: .5rem 0; }
+  .lead { color: var(--muted); margin-bottom: 2rem; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: .9em;
+    background: var(--bg3);
+    padding: .1em .35em;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+  pre {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    overflow-x: auto;
+    font-size: .85rem;
+  }
+  pre code { background: transparent; border: none; padding: 0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: .9rem;
+  }
+  th, td {
+    text-align: left;
+    padding: .5rem .65rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th {
+    color: var(--muted);
+    font-weight: 600;
+    font-size: .8rem;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+  }
+  tr:hover td { background: var(--bg2); }
+  .accent { color: var(--accent); }
+  .muted { color: var(--muted); }
+  .pill {
+    display: inline-block;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: .15em .65em;
+    font-size: .8rem;
+    margin: 0 .15em;
+  }
+  .diagram {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem 1rem;
+    margin: 1rem 0;
+    overflow-x: auto;
+  }
+  .diagram svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+  .callout {
+    background: var(--bg2);
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    padding: .75rem 1rem;
+    margin: 1rem 0;
+    color: var(--muted);
+  }
+  .callout strong { color: var(--text); }
+  ul { padding-left: 1.25rem; }
+  li { margin: .25rem 0; }
+  a { color: var(--accent); }
+  .stack-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: .75rem;
+    margin: 1rem 0;
+  }
+  .stack-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem;
+  }
+  .stack-card h3 {
+    margin: 0 0 .25rem;
+    font-size: .9rem;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+  .stack-card p { font-size: .85rem; color: var(--muted); margin: .25rem 0 0; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Racha de Segunda <span class="muted">— Architecture</span></h1>
+<p class="lead">A small webapp for Monday-night 5-a-side soccer: balanced 3-team draws, a 5-minute match clock, live event tracking, winner-stays rotation, and a season recap. Single Docker container, single SQLite file, deployable anywhere.</p>
+
+<h2>System overview</h2>
+<div class="diagram">
+<svg viewBox="0 0 720 540" xmlns="http://www.w3.org/2000/svg" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#9a9a9a"/>
+    </marker>
+  </defs>
+
+  <!-- Phone -->
+  <rect x="280" y="20" width="160" height="64" rx="14" fill="#1f1f1f" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="360" y="46" fill="#e7e7e7" text-anchor="middle" font-size="14">📱 Phone (PWA)</text>
+  <text x="360" y="66" fill="#9a9a9a" text-anchor="middle" font-size="11">Add to Home Screen</text>
+
+  <!-- arrow phone → DNS -->
+  <line x1="360" y1="84" x2="360" y2="118" stroke="#9a9a9a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="370" y="106" fill="#22c55e" font-size="11">https://racha.lbschmitz.ca</text>
+
+  <!-- DNS -->
+  <rect x="240" y="120" width="240" height="52" rx="10" fill="#141414" stroke="#2a2a2a"/>
+  <text x="360" y="142" fill="#e7e7e7" text-anchor="middle" font-size="13">DNS → 34.67.203.76</text>
+  <text x="360" y="160" fill="#9a9a9a" text-anchor="middle" font-size="11">Domain: lbschmitz.ca</text>
+
+  <!-- arrow DNS → VM -->
+  <line x1="360" y1="172" x2="360" y2="204" stroke="#9a9a9a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="370" y="192" fill="#9a9a9a" font-size="11">:443 / :80</text>
+
+  <!-- VM box -->
+  <rect x="60" y="210" width="600" height="290" rx="14" fill="#0a0a0a" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="80" y="230" fill="#22c55e" font-size="12">GCP e2-micro VM (us-central1-a, free tier)</text>
+
+  <!-- Caddy -->
+  <rect x="100" y="244" width="520" height="60" rx="8" fill="#1f1f1f" stroke="#2a2a2a"/>
+  <text x="360" y="268" fill="#e7e7e7" text-anchor="middle" font-size="13">Caddy 2 — reverse proxy + auto-TLS</text>
+  <text x="360" y="288" fill="#9a9a9a" text-anchor="middle" font-size="11">Let's Encrypt cert · HTTP→HTTPS redirect · gzip</text>
+
+  <!-- arrow Caddy → App -->
+  <line x1="360" y1="304" x2="360" y2="334" stroke="#9a9a9a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="370" y="322" fill="#9a9a9a" font-size="11">internal docker network · :8080</text>
+
+  <!-- App -->
+  <rect x="100" y="340" width="520" height="80" rx="8" fill="#1f1f1f" stroke="#2a2a2a"/>
+  <text x="360" y="364" fill="#e7e7e7" text-anchor="middle" font-size="13">Racha container — Node 20 + Hono</text>
+  <text x="360" y="384" fill="#9a9a9a" text-anchor="middle" font-size="11">/api/* (REST)  ·  fallback to SPA static (Vite/React build)</text>
+  <text x="360" y="402" fill="#9a9a9a" text-anchor="middle" font-size="11">Same origin — no CORS</text>
+
+  <!-- arrow App → DB -->
+  <line x1="360" y1="420" x2="360" y2="452" stroke="#9a9a9a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="370" y="440" fill="#9a9a9a" font-size="11">better-sqlite3 (WAL)</text>
+
+  <!-- DB -->
+  <rect x="220" y="456" width="280" height="36" rx="8" fill="#1f1f1f" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="360" y="479" fill="#22c55e" text-anchor="middle" font-size="13">SQLite · /data/racha.db</text>
+
+  <!-- Repo + GitHub side note -->
+  <rect x="500" y="510" width="200" height="22" rx="4" fill="none" stroke="none"/>
+  <text x="600" y="525" fill="#9a9a9a" text-anchor="middle" font-size="11">github.com/lschmitz-js/racha → git pull</text>
+</svg>
+</div>
+
+<div class="callout">
+<strong>The big idea:</strong> one Docker image with one mounted volume. The same artifact runs on AWS, GCP, or your future Proxmox box — only the host machine changes.
+</div>
+
+<h2>Stack at a glance</h2>
+<div class="stack-grid">
+  <div class="stack-card">
+    <h3>Frontend</h3>
+    <strong>Vite + React + TypeScript</strong>
+    <p>Tailwind for styling. TanStack Query for server state. wouter for routing (~1 kB router instead of react-router). PWA manifest so iOS treats it as a native app.</p>
+  </div>
+  <div class="stack-card">
+    <h3>Backend</h3>
+    <strong>Hono on Node.js 20</strong>
+    <p>Minimal HTTP framework. Same process serves <code>/api/*</code> and the SPA static build — single origin, no CORS gymnastics.</p>
+  </div>
+  <div class="stack-card">
+    <h3>Database</h3>
+    <strong>SQLite (better-sqlite3)</strong>
+    <p>Single file at <code>/data/racha.db</code>. WAL mode for concurrent reads. Backs up by copying one file.</p>
+  </div>
+  <div class="stack-card">
+    <h3>Shared types</h3>
+    <strong>Zod + TypeScript</strong>
+    <p>One package <code>@racha/shared</code> consumed by both frontend and backend so request/response shapes can't drift.</p>
+  </div>
+  <div class="stack-card">
+    <h3>Reverse proxy</h3>
+    <strong>Caddy 2</strong>
+    <p>Terminates TLS. Auto-fetches Let's Encrypt cert and renews it. 4 lines of config in <code>Caddyfile</code>.</p>
+  </div>
+  <div class="stack-card">
+    <h3>Container</h3>
+    <strong>Docker + docker-compose</strong>
+    <p>Multi-stage build, ~355 MB image, ~3-second cold boot. Two services: <code>racha</code> + <code>caddy</code>.</p>
+  </div>
+  <div class="stack-card">
+    <h3>Hosting</h3>
+    <strong>GCP Compute Engine</strong>
+    <p>e2-micro instance in us-central1-a — always-free tier. Static IP optional, costs $0.</p>
+  </div>
+  <div class="stack-card">
+    <h3>Source</h3>
+    <strong>GitHub</strong>
+    <p><a href="https://github.com/lschmitz-js/racha">lschmitz-js/racha</a>. Deploys are <code>git pull && docker compose up -d --build</code>.</p>
+  </div>
+</div>
+
+<h2>Yes, there's a database — here's the schema</h2>
+
+<p>SQLite, ~75 KB on disk for an empty install. Eight tables, all keyed on text IDs (compatible with the legacy app's <code>mo7…</code> format). Times stored as Unix milliseconds.</p>
+
+<table>
+  <thead>
+    <tr><th>Table</th><th>What it holds</th><th>Notable fields</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>players</code></td>
+      <td>Master roster (season + drop-ins)</td>
+      <td><code>type</code> (season/dropin), <code>role</code> (player/gk), <code>skills_json</code> (8 ratings 1–5)</td>
+    </tr>
+    <tr>
+      <td><code>sessions</code></td>
+      <td>One Monday night</td>
+      <td><code>date</code>, <code>status</code> (draft/live/done)</td>
+    </tr>
+    <tr>
+      <td><code>session_players</code></td>
+      <td>Who showed up that night</td>
+      <td>join table</td>
+    </tr>
+    <tr>
+      <td><code>session_teams</code></td>
+      <td>The 3 teams drawn for the night (white/black/green)</td>
+      <td><code>vest</code></td>
+    </tr>
+    <tr>
+      <td><code>session_team_players</code></td>
+      <td>Lineup per team</td>
+      <td>join table</td>
+    </tr>
+    <tr>
+      <td><code>matches</code></td>
+      <td>One 5-minute game inside a session</td>
+      <td><code>elapsed_ms</code> (canonical clock), <code>status</code>, <code>result</code>, <code>winner_team_id</code></td>
+    </tr>
+    <tr>
+      <td><code>match_players</code></td>
+      <td>Starting lineup for a match</td>
+      <td><code>starting</code> (1 = on the pitch at kickoff)</td>
+    </tr>
+    <tr>
+      <td><code>match_events</code></td>
+      <td>The event log — every goal, assist, sub, etc.</td>
+      <td><code>type</code>, <code>clock_ms</code>, <code>link_id</code> (pairs goal↔assist and sub_in↔sub_out)</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout">
+<strong>Everything funnels through <code>match_events</code>.</strong> Goals, assists, beautiful plays, silly mistakes, bad plays, GK saves, and substitutions are all rows in one table. The season recap is just a few <code>GROUP BY</code> queries against it.
+</div>
+
+<h3>Why SQLite instead of Postgres?</h3>
+<ul>
+  <li><strong>Backup is <code>cp racha.db</code>.</strong> No <code>pg_dump</code>, no port to expose.</li>
+  <li><strong>One process, no daemon.</strong> Lower idle memory on a free-tier VM.</li>
+  <li><strong>Scale fits the workload.</strong> 24 players × 30 weeks × 5 matches × 20 events ≈ 75 k rows/season. SQLite scans that in single-digit milliseconds.</li>
+  <li><strong>Trivially portable to Proxmox.</strong> Just move the <code>data/</code> folder. No DB migration.</li>
+</ul>
+
+<h2>What happens when you tap "Goal"</h2>
+<ol>
+  <li>SPA generates a UUID client-side and POSTs to <code>/api/events</code> with <code>{ id, match_id, type: 'goal', player_id, team_id, link_id }</code>.</li>
+  <li>Hono looks up the match, computes the current clock from <code>elapsed_ms + (now − started_at)</code>, and inserts the event with that <code>clock_ms</code>.</li>
+  <li>Insert is idempotent on the client UUID — a retry over flaky cellular doesn't double-count.</li>
+  <li>SPA shows a 4.5-second toast: "Joao ⚽ — tap a teammate for assist?" Tapping a teammate posts a paired <code>assist</code> event with the same <code>link_id</code> as the goal.</li>
+  <li>Undo deletes by <code>link_id</code>, so one tap reverts both rows.</li>
+</ol>
+
+<h2>Repo layout</h2>
+<pre><code>racha/
+├── apps/
+│   ├── api/        # Hono backend, REST routes, SQLite layer
+│   └── web/        # Vite + React SPA
+├── packages/
+│   └── shared/     # Zod schemas, ported balanceTeams algorithm
+├── Dockerfile      # Multi-stage build: shared → web → api → runtime
+├── docker-compose.yml
+├── Caddyfile       # Reverse proxy + TLS config
+└── data/           # Mounted volume — SQLite file lives here (gitignored)
+</code></pre>
+
+<h2>Day-to-day operations</h2>
+
+<table>
+  <thead>
+    <tr><th>What</th><th>How</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Local dev</td><td><code>npm run dev</code> — Vite on :5173 proxying to API on :8080</td></tr>
+    <tr><td>Run tests</td><td><code>npm test --workspace=packages/shared</code></td></tr>
+    <tr><td>Push a change</td><td><code>git push</code> from laptop, then <code>git pull && docker compose up -d --build</code> on VM</td></tr>
+    <tr><td>Backup the DB</td><td><code>scp racha:/home/leoschmitz/racha/data/racha.db .</code></td></tr>
+    <tr><td>Tail logs</td><td><code>sudo docker compose logs -f</code></td></tr>
+    <tr><td>Move to a new host</td><td><code>docker compose up -d</code> + restore <code>data/racha.db</code></td></tr>
+  </tbody>
+</table>
+
+<h2>What's deliberately not in the picture (yet)</h2>
+<ul>
+  <li><span class="pill">Auth</span> No login. Obscure URL only. Add a <code>RACHA_TOKEN</code> env var if you ever want to gate writes.</li>
+  <li><span class="pill">CDN</span> Caddy serves assets directly. The free-tier VM handles this fine for &lt; 100 users; revisit if traffic explodes.</li>
+  <li><span class="pill">Continuous backup</span> <code>litestream.yml</code> is committed but not running. When you self-host on Proxmox, point it at a NAS share.</li>
+  <li><span class="pill">CI/CD</span> No GitHub Actions yet. A workflow that builds and pushes to GHCR on every <code>main</code> commit would shrink VM rebuild time from 4 minutes to 10 seconds.</li>
+  <li><span class="pill">Monitoring</span> No metrics or uptime checks. A free Uptime Robot ping at <code>/api/health</code> is the cheapest add-on.</li>
+</ul>
+
+</main>
+</body>
+</html>
