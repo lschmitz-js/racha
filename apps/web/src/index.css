@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+  }
+  body {
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+    padding-top: env(safe-area-inset-top);
+  }
+  button {
+    -webkit-user-select: none;
+    user-select: none;
+    min-height: 44px;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-1 px-4 py-2.5 rounded-lg bg-bg3 border border-border text-text hover:border-accent active:scale-[0.98] transition disabled:opacity-40 disabled:pointer-events-none;
+    min-height: 44px;
+  }
+  .btn-primary {
+    @apply btn bg-accent text-black font-semibold border-accent hover:opacity-90;
+  }
+  .btn-danger {
+    @apply btn border-red-500/40 text-red-400 hover:border-red-500;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 px-4 py-2 rounded-full bg-bg2 border border-border text-sm cursor-pointer transition;
+    min-height: 44px;
+  }
+  .chip-on {
+    @apply bg-accent/20 border-accent text-accent;
+  }
+  .vest-white {
+    @apply bg-white_v/95 text-black border-white_v;
+  }
+  .vest-black {
+    @apply bg-black_v text-white border-black_v;
+  }
+  .vest-green {
+    @apply bg-green_v text-white border-green_v;
+  }
+  .card {
+    @apply bg-bg2 border border-border rounded-xl p-3;
+  }
+  .safe-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
+  }
+}

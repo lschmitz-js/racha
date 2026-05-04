@@ -1,0 +1,22 @@
+# Litestream config for continuous SQLite replication.
+# Install: https://litestream.io/install/
+# Run: litestream replicate -config litestream.yml
+#
+# This file is portable across AWS and Proxmox — only the destination URL changes.
+
+dbs:
+  - path: /data/racha.db
+    replicas:
+      # AWS: replicate to S3
+      - type: s3
+        bucket: ${LITESTREAM_BUCKET}
+        path: racha
+        region: ${LITESTREAM_REGION:-us-east-1}
+        access-key-id: ${AWS_ACCESS_KEY_ID}
+        secret-access-key: ${AWS_SECRET_ACCESS_KEY}
+        retention: 720h
+        snapshot-interval: 24h
+
+      # Proxmox / NAS option: replicate to a local mount point
+      # - type: file
+      #   path: /backups/racha

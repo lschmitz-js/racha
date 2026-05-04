@@ -1,0 +1,421 @@
+{
+  "db": [
+    {
+      "id": "mo7opi3e9bdt6vdsalp",
+      "name": "Jean",
+      "type": "season",
+      "role": "player",
+      "skills": [
+        5,
+        4,
+        3,
+        5,
+        5,
+        3,
+        4,
+        3
+      ]
+    },
+    {
+      "id": "mo7oqqdlg4xhnxi1e86",
+      "name": "Cunha",
+      "type": "season",
+      "role": "player",
+      "skills": [
+        3,
+        4,
+        4,
+        5,
+        5,
+        5,
+        4,
+        3
+      ]
+    },
+    {
+      "id": "mo7orgs89mtacu4ltbk",
+      "name": "Vini",
+      "type": "season",
+      "role": "player",
+      "skills": [
+        3,
+        4,
+        3,
+        5,
+        5,
+        5,
+        4,
+        3
+      ]
+    },
+    {
+      "id": "mo7os3xbn1oflmkfxm",
+      "name": "Felype",
+      "type": "season",
+      "role": "player",
+      "skills": [
+        3,
+        4,
+        4,
+        4,
+        4,
+        3,
+        4,
+        4
+      ]
+    },
+    {
+      "id": "mo7oulrwroektocr8y",
+      "name": "Doriva",
+      "type": "season",
+      "role": "player",
+      "skills": [
+        3,
+        4,
+        3,
+        5,
+        4,
+        3,
+        5,
+        3
+      ]
+    },
+    {
+      "id": "mo7ovo4pawg06vamuwl",
+      "name": "Owen",
+      "type": "season",
+      "role": "player",
+      "skills": [
+        2,
+        1,
+        4,
+        4,
+        2,
+        2,
+        2,
+        1
+      ]
+    },
+    {
+      "id": "mo7owjm5jd8prvyfl5i",
+      "name": "Johnny",
+      "type": "dropin",
+      "role": "player",
+      "skills": [
+        3,
+        3,
+        4,
+        1,
+        3,
+        3,
+        2,
+        3
+      ]
+    },
+    {
+      "id": "mo7ox9vafsz5tvo0mtk",
+      "name": "Adan",
+      "type": "season",
+      "role": "player",
+      "skills": [
+        4,
+        2,
+        4,
+        4,
+        2,
+        3,
+        3,
+        1
+      ]
+    },
+    {
+      "id": "mo7oygyyaqjpq1rjo04",
+      "name": "Derek",
+      "type": "season",
+      "role": "player",
+      "skills": [
+        2,
+        2,
+        3,
+        5,
+        3,
+        2,
+        3,
+        1
+      ]
+    },
+    {
+      "id": "mo7oz86li1844axhffq",
+      "name": "Kevin",
+      "type": "season",
+      "role": "player",
+      "skills": [
+        3,
+        3,
+        4,
+        4,
+        3,
+        3,
+        3,
+        2
+      ]
+    },
+    {
+      "id": "mo7ozumz3tafasl56y1",
+      "name": "Joao",
+      "type": "season",
+      "role": "player",
+      "skills": [
+        4,
+        4,
+        5,
+        3,
+        4,
+        4,
+        2,
+        5
+      ]
+    },
+    {
+      "id": "mo7p0dvdzbqr9o102zj",
+      "name": "Bruno",
+      "type": "dropin",
+      "role": "player",
+      "skills": [
+        4,
+        4,
+        4,
+        2,
+        5,
+        4,
+        2,
+        5
+      ]
+    },
+    {
+      "id": "mo7p0qs88w92hmjq6lh",
+      "name": "Gustavo",
+      "type": "dropin",
+      "role": "player",
+      "skills": [
+        3,
+        4,
+        3,
+        4,
+        4,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "id": "mo7p1h0ina1fnw11lw",
+      "name": "Dudu",
+      "type": "dropin",
+      "role": "gk",
+      "skills": [
+        2,
+        4,
+        3,
+        5,
+        5,
+        3,
+        5,
+        2
+      ]
+    },
+    {
+      "id": "mo7p1rwdkhsfv9itq77",
+      "name": "Felipe",
+      "type": "dropin",
+      "role": "player",
+      "skills": [
+        4,
+        4,
+        4,
+        3,
+        4,
+        4,
+        4,
+        4
+      ]
+    },
+    {
+      "id": "mo7p3fblkhvd1epbc9",
+      "name": "Fraser",
+      "type": "season",
+      "role": "player",
+      "skills": [
+        5,
+        3,
+        4,
+        4,
+        3,
+        3,
+        2,
+        4
+      ]
+    },
+    {
+      "id": "mo7p400iqlyxladhbd",
+      "name": "Alemao",
+      "type": "season",
+      "role": "gk",
+      "skills": [
+        1,
+        3,
+        2,
+        4,
+        3,
+        2,
+        5,
+        2
+      ]
+    },
+    {
+      "id": "mo7p4oiyi1meaz14f5",
+      "name": "Leo",
+      "type": "season",
+      "role": "player",
+      "skills": [
+        2,
+        3,
+        3,
+        4,
+        3,
+        3,
+        3,
+        1
+      ]
+    },
+    {
+      "id": "mo7p59cbwvb6uhcof8q",
+      "name": "Gui",
+      "type": "season",
+      "role": "player",
+      "skills": [
+        3,
+        5,
+        3,
+        5,
+        5,
+        4,
+        4,
+        2
+      ]
+    },
+    {
+      "id": "mo7p658h38wp75wxwmh",
+      "name": "Arthur",
+      "type": "season",
+      "role": "player",
+      "skills": [
+        3,
+        5,
+        4,
+        5,
+        5,
+        5,
+        4,
+        4
+      ]
+    },
+    {
+      "id": "mo7p6s8n0qbca84zwhz9",
+      "name": "Isaac",
+      "type": "season",
+      "role": "player",
+      "skills": [
+        1,
+        3,
+        3,
+        4,
+        4,
+        3,
+        4,
+        3
+      ]
+    },
+    {
+      "id": "mo7p7c6itvok6fq8zl",
+      "name": "Fernando",
+      "type": "season",
+      "role": "player",
+      "skills": [
+        3,
+        3,
+        3,
+        3,
+        4,
+        3,
+        4,
+        3
+      ]
+    },
+    {
+      "id": "mo7qprfwxo2beidm4tl",
+      "name": "David",
+      "type": "dropin",
+      "role": "player",
+      "skills": [
+        2,
+        2,
+        3,
+        4,
+        3,
+        2,
+        3,
+        2
+      ]
+    },
+    {
+      "id": "mohfknmpmdg01fwq6l",
+      "name": "Luiz Miguel",
+      "type": "dropin",
+      "role": "player",
+      "skills": [
+        5,
+        4,
+        5,
+        3,
+        5,
+        4,
+        2,
+        4
+      ]
+    },
+    {
+      "id": "mohfl6nm1em8dncqz1k",
+      "name": "Pedro",
+      "type": "dropin",
+      "role": "player",
+      "skills": [
+        3,
+        4,
+        3,
+        4,
+        4,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "id": "moho1986xo8ckmetu4c",
+      "name": "Enzo",
+      "type": "dropin",
+      "role": "player",
+      "skills": [
+        4,
+        4,
+        4,
+        4,
+        5,
+        4,
+        3,
+        5
+      ]
+    }
+  ],
+  "weekIds": []
+}

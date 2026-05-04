@@ -1,0 +1,18 @@
+services:
+  racha:
+    build: .
+    image: racha:latest
+    container_name: racha
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+    environment:
+      # Optional: set RACHA_TOKEN to require X-Racha-Token header on writes.
+      # RACHA_TOKEN: "change-me"
+      DB_PATH: /data/racha.db
+
+# To enable continuous backup to S3, run a litestream sidecar:
+# https://litestream.io/install/
+# Sample config in litestream.yml.
