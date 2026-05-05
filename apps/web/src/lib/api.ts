@@ -37,6 +37,22 @@ export const api = {
 
   players: {
     list: () => request<Player[]>(`/api/players`),
+    avatarUrl: (id: string, version?: string | number | null) =>
+      `/api/players/${id}/avatar${version ? `?v=${version}` : ''}`,
+    uploadAvatar: async (id: string, blob: Blob) => {
+      const fd = new FormData();
+      fd.append('file', blob, 'avatar');
+      const token = getAdminToken();
+      const res = await fetch(`/api/players/${id}/avatar`, {
+        method: 'POST',
+        body: fd,
+        headers: token ? { 'x-racha-token': token } : {},
+      });
+      if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+      return res.json() as Promise<{ ok: true; ext: string }>;
+    },
+    deleteAvatar: (id: string) =>
+      request<{ ok: true }>(`/api/players/${id}/avatar`, { method: 'DELETE' }),
     create: (input: Omit<Player, 'id' | 'active'> & { active?: boolean }) =>
       request<Player>(`/api/players`, { method: 'POST', body: JSON.stringify(input) }),
     update: (id: string, input: Omit<Player, 'id' | 'active'> & { active?: boolean }) =>
@@ -111,7 +127,7 @@ export const api = {
       clock_offset_ms?: number;
     }) =>
       request<any>(`/api/events`, { method: 'POST', body: JSON.stringify(input) }),
-    sub: (input: { match_id: string; team_id: string; out_player_id: string; in_player_id: string }) =>
+    sub: (input: { match_id: string; team_id: string; out_player_id?: string; in_player_id: string }) =>
       request<{ link_id: string; clock_ms: number }>(`/api/events/sub`, {
         method: 'POST',
         body: JSON.stringify(input),

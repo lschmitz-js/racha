@@ -15,7 +15,6 @@ stats.get('/season', (c) => {
          SUM(CASE WHEN e.type='goal' THEN 1 ELSE 0 END) AS goals,
          SUM(CASE WHEN e.type='assist' THEN 1 ELSE 0 END) AS assists,
          SUM(CASE WHEN e.type='beautiful' THEN 1 ELSE 0 END) AS beautiful,
-         SUM(CASE WHEN e.type='silly' THEN 1 ELSE 0 END) AS silly,
          SUM(CASE WHEN e.type='bad' THEN 1 ELSE 0 END) AS bad,
          SUM(CASE WHEN e.type='save' THEN 1 ELSE 0 END) AS saves
        FROM players p
@@ -28,21 +27,49 @@ stats.get('/season', (c) => {
   return c.json(rows);
 });
 
-// Per-week summary (one row per session)
+// Per-week summary (one row per session) including each session's leaderboard
+// so the client can compute MVP + best-of-the-day cards without an N+1 fetch.
 stats.get('/weeks', (c) => {
   const db = getDb();
-  const rows = db
+  const sessions = db
     .prepare(
-      `SELECT
-         s.id AS session_id, s.date, s.status,
-         COUNT(DISTINCT m.id) AS matches,
-         SUM(CASE WHEN e.type='goal' THEN 1 ELSE 0 END) AS goals
-       FROM sessions s
-       LEFT JOIN matches m ON m.session_id = s.id
-       LEFT JOIN match_events e ON e.match_id = m.id
-       GROUP BY s.id, s.date, s.status
-       ORDER BY s.date DESC, s.created_at DESC`
+      `SELECT id AS session_id, date, status, created_at
+       FROM sessions
+       ORDER BY date DESC, created_at DESC`
     )
-    .all();
-  return c.json(rows);
+    .all() as Array<{ session_id: string; date: string; status: string; created_at: number }>;
+
+  const matchCountStmt = db.prepare(
+    `SELECT COUNT(*) AS n FROM matches WHERE session_id = ?`
+  );
+  const goalCountStmt = db.prepare(
+    `SELECT COUNT(*) AS n
+       FROM match_events e
+       INNER JOIN matches m ON m.id = e.match_id
+       WHERE m.session_id = ? AND e.type = 'goal'`
+  );
+  const leaderboardStmt = db.prepare(
+    `SELECT
+       p.id, p.name, p.role,
+       SUM(CASE WHEN e.type='goal'      THEN 1 ELSE 0 END) AS goals,
+       SUM(CASE WHEN e.type='assist'    THEN 1 ELSE 0 END) AS assists,
+       SUM(CASE WHEN e.type='beautiful' THEN 1 ELSE 0 END) AS beautiful,
+       SUM(CASE WHEN e.type='bad'       THEN 1 ELSE 0 END) AS bad,
+       SUM(CASE WHEN e.type='save'      THEN 1 ELSE 0 END) AS saves
+     FROM players p
+     INNER JOIN match_events e ON e.player_id = p.id
+     INNER JOIN matches m       ON m.id      = e.match_id
+     WHERE m.session_id = ?
+     GROUP BY p.id, p.name, p.role`
+  );
+
+  const result = sessions.map((s) => ({
+    session_id: s.session_id,
+    date: s.date,
+    status: s.status,
+    matches: (matchCountStmt.get(s.session_id) as { n: number }).n,
+    goals: (goalCountStmt.get(s.session_id) as { n: number }).n,
+    leaderboard: leaderboardStmt.all(s.session_id),
+  }));
+  return c.json(result);
 });

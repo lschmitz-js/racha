@@ -27,7 +27,7 @@ const dict = {
     // nav
     'nav.home': 'Home',
     'nav.players': 'Players',
-    'nav.recap': 'Recap',
+    'nav.recap': 'Stats',
 
     // status
     'status.draft': 'draft',
@@ -66,6 +66,9 @@ const dict = {
     'session.pickTwo': 'Pick two teams above',
     'session.matchesTonight': 'Matches tonight',
     'session.matchN': 'Match {n}',
+    'session.endedNotice': 'This session has ended. No more matches can be started.',
+    'session.dangerZone': 'Danger zone',
+    'session.confirmEnd': 'End this session? You will not be able to start more matches.',
 
     // teamcard
     'team.playersCount': '{n} players',
@@ -90,6 +93,9 @@ const dict = {
     'match.backToSession': 'Back to session',
     'match.undo': 'Undo',
     'match.assistHint': '{name} ⚽ — tap a teammate for assist?',
+    'match.armedHint': 'Tap the player who did it.',
+    'match.events': 'Events',
+    'match.noEvents': 'No events yet.',
     'match.draw': 'Draw',
     'match.vestStays': '{vest} stays',
     'match.vestSits': '{vest} sits',
@@ -99,9 +105,8 @@ const dict = {
     // events
     'event.goal': 'Goal',
     'event.assist': 'Assist',
-    'event.beautiful': 'Beautiful',
-    'event.silly': 'Silly',
-    'event.bad': 'Bad',
+    'event.beautiful': 'Beautiful play',
+    'event.bad': 'Howler',
     'event.save': 'Save',
 
     // sub sheet
@@ -111,13 +116,25 @@ const dict = {
     'sub.ownBench': '{vest} bench',
     'sub.benchTeam': '{vest} (benched team)',
     'sub.confirm': 'Confirm sub',
+    'sub.confirmAdd': 'Add player',
+    'sub.optional': 'optional',
 
-    // recap
-    'recap.title': 'Season recap',
+    // recap (now: stats)
+    'recap.title': 'Stats',
     'recap.leaderboard': 'Leaderboard',
     'recap.player': 'Player',
+    'recap.pts': 'Pts',
     'recap.weeks': 'Weeks',
     'recap.matchesGoals': '{m} matches · {g} goals',
+    'recap.bestOfSeason': 'Best of the season',
+    'recap.bestOfDay': 'Best of the day',
+    'recap.noStats': 'No stats yet.',
+    'recap.cat.mvp': 'MVP',
+    'recap.cat.goals': 'Top scorer',
+    'recap.cat.assists': 'Top playmaker',
+    'recap.cat.beautiful': 'Most beautiful',
+    'recap.cat.bad': 'Most howlers',
+    'recap.cat.saves': 'Most saves',
 
     // playerdb
     'players.title': 'Players',
@@ -132,6 +149,8 @@ const dict = {
     'players.player': 'Player',
     'players.gk': 'Goalkeeper',
     'players.avg': 'avg {n}',
+    'players.changePhoto': 'Change photo',
+    'players.removePhoto': 'Remove photo',
 
     // vests
     'vest.white': 'White',
@@ -179,7 +198,7 @@ const dict = {
     // nav
     'nav.home': 'Início',
     'nav.players': 'Jogadores',
-    'nav.recap': 'Resumo',
+    'nav.recap': 'Estatísticas',
 
     // status
     'status.draft': 'rascunho',
@@ -219,6 +238,9 @@ const dict = {
     'session.pickTwo': 'Escolha dois times acima',
     'session.matchesTonight': 'Jogos de hoje',
     'session.matchN': 'Jogo {n}',
+    'session.endedNotice': 'Esta sessão foi encerrada. Não é possível iniciar mais jogos.',
+    'session.dangerZone': 'Zona de perigo',
+    'session.confirmEnd': 'Encerrar esta sessão? Não será possível iniciar mais jogos.',
 
     // teamcard
     'team.playersCount': '{n} jogadores',
@@ -243,6 +265,9 @@ const dict = {
     'match.backToSession': 'Voltar à sessão',
     'match.undo': 'Desfazer',
     'match.assistHint': '{name} ⚽ — toque em um colega para assistência?',
+    'match.armedHint': 'Toque no jogador que fez.',
+    'match.events': 'Eventos',
+    'match.noEvents': 'Nenhum evento ainda.',
     'match.draw': 'Empate',
     'match.vestStays': '{vest} fica',
     'match.vestSits': '{vest} sai',
@@ -252,9 +277,8 @@ const dict = {
     // events
     'event.goal': 'Gol',
     'event.assist': 'Assist.',
-    'event.beautiful': 'Bonito',
-    'event.silly': 'Bobeira',
-    'event.bad': 'Ruim',
+    'event.beautiful': 'Jogada bonita',
+    'event.bad': 'Cagada',
     'event.save': 'Defesa',
 
     // sub sheet
@@ -264,13 +288,25 @@ const dict = {
     'sub.ownBench': 'Banco do {vest}',
     'sub.benchTeam': '{vest} (time fora)',
     'sub.confirm': 'Confirmar sub',
+    'sub.confirmAdd': 'Adicionar jogador',
+    'sub.optional': 'opcional',
 
-    // recap
-    'recap.title': 'Resumo da temporada',
+    // recap (now: stats)
+    'recap.title': 'Estatísticas',
     'recap.leaderboard': 'Ranking',
     'recap.player': 'Jogador',
+    'recap.pts': 'Pts',
     'recap.weeks': 'Semanas',
     'recap.matchesGoals': '{m} jogos · {g} gols',
+    'recap.bestOfSeason': 'Melhores da temporada',
+    'recap.bestOfDay': 'Melhor da rodada',
+    'recap.noStats': 'Sem estatísticas ainda.',
+    'recap.cat.mvp': 'Melhor em campo',
+    'recap.cat.goals': 'Artilheiro',
+    'recap.cat.assists': 'Garçom',
+    'recap.cat.beautiful': 'Jogada bonita',
+    'recap.cat.bad': 'Cagada',
+    'recap.cat.saves': 'Defesas',
 
     // playerdb
     'players.title': 'Jogadores',
@@ -285,6 +321,8 @@ const dict = {
     'players.player': 'Jogador',
     'players.gk': 'Goleiro',
     'players.avg': 'média {n}',
+    'players.changePhoto': 'Mudar foto',
+    'players.removePhoto': 'Remover foto',
 
     // vests
     'vest.white': 'Branco',

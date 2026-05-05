@@ -98,26 +98,6 @@ export function Session({ params }: { params: { id: string } }) {
           <h1 className="text-xl font-bold">{data.session.date}</h1>
           <span className="text-xs text-muted">{t(`status.${data.session.status as 'draft' | 'live' | 'done'}`)}</span>
         </div>
-        <div className="flex gap-2">
-          {data.session.status !== 'done' && canEdit ? (
-            <button className="btn-danger" onClick={() => endSession.mutate()}>
-              {t('session.endSession')}
-            </button>
-          ) : null}
-          {canEdit ? (
-            <button
-              className="btn-danger"
-              disabled={deleteSession.isPending}
-              onClick={() => {
-                if (confirm(t('session.confirmDelete'))) {
-                  deleteSession.mutate();
-                }
-              }}
-            >
-              {t('common.delete')}
-            </button>
-          ) : null}
-        </div>
       </header>
 
       {!hasDraw ? (
@@ -172,45 +152,51 @@ export function Session({ params }: { params: { id: string } }) {
             </button>
           </section>
 
-          <section className="card space-y-2">
-            {liveMatch ? (
-              <>
-                <div className="text-sm text-muted">
-                  {t('session.liveMatchNotice', {
-                    n: liveMatch.ordinal,
-                    status: t(`status.${liveMatch.status as 'pending' | 'running' | 'paused'}`),
-                  })}
-                </div>
-                <button
-                  className="btn-primary w-full"
-                  onClick={() => setLocation(`/matches/${liveMatch.id}`)}
-                >
-                  {t('session.resumeMatch', { n: liveMatch.ordinal })}
-                </button>
-              </>
-            ) : (
-              <>
-                <div className="text-sm text-muted">{t('session.pickPrompt')}</div>
-                <button
-                  className="btn-primary w-full"
-                  disabled={!pickedTeams.a || !pickedTeams.b || createMatch.isPending}
-                  onClick={() => {
-                    if (!pickedTeams.a || !pickedTeams.b || !benchTeam) return;
-                    createMatch.mutate({
-                      session_id: sessionId,
-                      team_a_id: pickedTeams.a,
-                      team_b_id: pickedTeams.b,
-                      bench_team_id: benchTeam.id,
-                    });
-                  }}
-                >
-                  {pickedTeams.a && pickedTeams.b
-                    ? t('session.startMatch', { n: matches.length + 1 })
-                    : t('session.pickTwo')}
-                </button>
-              </>
-            )}
-          </section>
+          {data.session.status === 'done' ? (
+            <section className="card">
+              <div className="text-sm text-muted">{t('session.endedNotice')}</div>
+            </section>
+          ) : (
+            <section className="card space-y-2">
+              {liveMatch ? (
+                <>
+                  <div className="text-sm text-muted">
+                    {t('session.liveMatchNotice', {
+                      n: liveMatch.ordinal,
+                      status: t(`status.${liveMatch.status as 'pending' | 'running' | 'paused'}`),
+                    })}
+                  </div>
+                  <button
+                    className="btn-primary w-full"
+                    onClick={() => setLocation(`/matches/${liveMatch.id}`)}
+                  >
+                    {t('session.resumeMatch', { n: liveMatch.ordinal })}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="text-sm text-muted">{t('session.pickPrompt')}</div>
+                  <button
+                    className="btn-primary w-full"
+                    disabled={!pickedTeams.a || !pickedTeams.b || createMatch.isPending}
+                    onClick={() => {
+                      if (!pickedTeams.a || !pickedTeams.b || !benchTeam) return;
+                      createMatch.mutate({
+                        session_id: sessionId,
+                        team_a_id: pickedTeams.a,
+                        team_b_id: pickedTeams.b,
+                        bench_team_id: benchTeam.id,
+                      });
+                    }}
+                  >
+                    {pickedTeams.a && pickedTeams.b
+                      ? t('session.startMatch', { n: matches.length + 1 })
+                      : t('session.pickTwo')}
+                  </button>
+                </>
+              )}
+            </section>
+          )}
 
           {matches.length > 0 ? (
             <section>
@@ -227,6 +213,39 @@ export function Session({ params }: { params: { id: string } }) {
                   </button>
                 ))}
               </div>
+            </section>
+          ) : null}
+
+          {canEdit ? (
+            <section className="mt-12 pt-4 border-t border-border space-y-2">
+              <div className="text-xs uppercase tracking-wide text-muted">
+                {t('session.dangerZone')}
+              </div>
+              {data.session.status !== 'done' ? (
+                <button
+                  className="btn-danger w-full"
+                  disabled={endSession.isPending}
+                  onClick={() => {
+                    if (confirm(t('session.confirmEnd'))) {
+                      endSession.mutate();
+                    }
+                  }}
+                >
+                  {t('session.endSession')}
+                </button>
+              ) : (
+                <button
+                  className="btn-danger w-full"
+                  disabled={deleteSession.isPending}
+                  onClick={() => {
+                    if (confirm(t('session.confirmDelete'))) {
+                      deleteSession.mutate();
+                    }
+                  }}
+                >
+                  {t('common.delete')}
+                </button>
+              )}
             </section>
           ) : null}
         </>

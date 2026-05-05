@@ -30,6 +30,15 @@ const CreateMatchInput = z.object({
 matches.post('/', async (c) => {
   const body = CreateMatchInput.parse(await c.req.json());
   const db = getDb();
+
+  const session = db
+    .prepare('SELECT status FROM sessions WHERE id = ?')
+    .get(body.session_id) as { status: string } | undefined;
+  if (!session) return c.json({ error: 'session not found' }, 404);
+  if (session.status === 'done') {
+    return c.json({ error: 'session is ended' }, 409);
+  }
+
   const id = uid();
   const max = db
     .prepare('SELECT COALESCE(MAX(ordinal), 0) AS n FROM matches WHERE session_id = ?')

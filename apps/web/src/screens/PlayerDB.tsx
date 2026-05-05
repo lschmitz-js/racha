@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { api } from '../lib/api.js';
 import { useT } from '../lib/i18n.js';
 import { useCanEdit } from '../lib/auth.js';
+import { Avatar, resizeImageToBlob } from '../lib/avatar.js';
 
 type Editing = {
   id?: string;
@@ -11,6 +12,10 @@ type Editing = {
   type: 'season' | 'dropin';
   role: 'player' | 'gk';
   skills: number[];
+  pendingAvatar?: Blob | null;
+  removeAvatar?: boolean;
+  avatarPreviewUrl?: string | null;
+  avatarVersion?: number;
 };
 
 const EMPTY: Editing = {
@@ -30,8 +35,13 @@ export function PlayerDB() {
   const save = useMutation({
     mutationFn: async (e: Editing) => {
       const body = { name: e.name, type: e.type, role: e.role, skills: e.skills };
-      if (e.id) return api.players.update(e.id, body);
-      return api.players.create(body);
+      const saved = e.id ? await api.players.update(e.id, body) : await api.players.create(body);
+      if (e.pendingAvatar) {
+        await api.players.uploadAvatar(saved.id, e.pendingAvatar);
+      } else if (e.removeAvatar && e.id) {
+        await api.players.deleteAvatar(e.id);
+      }
+      return saved;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['players'] });
@@ -100,13 +110,16 @@ export function PlayerDB() {
 
       <div className="space-y-2">
         {players.map((p) => (
-          <div key={p.id} className="card flex items-center justify-between">
-            <div>
-              <div className="font-medium">{p.name}</div>
-              <div className="text-xs text-muted">
-                {p.type === 'season' ? t('players.season') : t('players.dropin')} ·{' '}
-                {p.role === 'gk' ? t('players.gk') : t('players.player')} ·{' '}
-                {t('players.avg', { n: avg(p.skills) })}
+          <div key={p.id} className="card flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <Avatar playerId={p.id} name={p.name} size={40} />
+              <div className="min-w-0">
+                <div className="font-medium truncate">{p.name}</div>
+                <div className="text-xs text-muted truncate">
+                  {p.type === 'season' ? t('players.season') : t('players.dropin')} ·{' '}
+                  {p.role === 'gk' ? t('players.gk') : t('players.player')} ·{' '}
+                  {t('players.avg', { n: avg(p.skills) })}
+                </div>
               </div>
             </div>
             {canEdit ? (
@@ -163,6 +176,33 @@ function Modal({
   saving: boolean;
 }) {
   const t = useT();
+
+  async function handlePickPhoto(file: File) {
+    try {
+      const blob = await resizeImageToBlob(file, 512);
+      const previewUrl = URL.createObjectURL(blob);
+      onChange({
+        ...editing,
+        pendingAvatar: blob,
+        removeAvatar: false,
+        avatarPreviewUrl: previewUrl,
+      });
+    } catch (err: any) {
+      alert(err?.message ?? 'Could not process image');
+    }
+  }
+
+  function handleRemovePhoto() {
+    onChange({
+      ...editing,
+      pendingAvatar: null,
+      removeAvatar: true,
+      avatarPreviewUrl: null,
+    });
+  }
+
+  const showExistingAvatar =
+    !!editing.id && !editing.pendingAvatar && !editing.removeAvatar;
   return (
     <div className="fixed inset-0 bg-black/70 z-40 flex items-end sm:items-center justify-center">
       <div className="bg-bg2 border border-border rounded-t-xl sm:rounded-xl p-4 w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
@@ -170,6 +210,51 @@ function Modal({
           {editing.id ? t('players.editTitle') : t('players.newTitle')}
         </h2>
         <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            {editing.avatarPreviewUrl ? (
+              <img
+                src={editing.avatarPreviewUrl}
+                alt=""
+                className="w-16 h-16 rounded-full object-cover bg-bg3 border border-border"
+              />
+            ) : showExistingAvatar ? (
+              <Avatar
+                playerId={editing.id!}
+                name={editing.name}
+                size={64}
+                version={editing.avatarVersion}
+              />
+            ) : (
+              <span className="w-16 h-16 rounded-full bg-bg3 border border-border inline-flex items-center justify-center text-base text-muted">
+                {(editing.name?.charAt(0) ?? '?').toUpperCase()}
+              </span>
+            )}
+            <div className="flex flex-col gap-1">
+              <label className="btn cursor-pointer text-sm">
+                {t('players.changePhoto')}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) void handlePickPhoto(f);
+                    e.currentTarget.value = '';
+                  }}
+                />
+              </label>
+              {(editing.pendingAvatar ||
+                (editing.id && !editing.removeAvatar)) ? (
+                <button
+                  type="button"
+                  className="btn-danger text-sm"
+                  onClick={handleRemovePhoto}
+                >
+                  {t('players.removePhoto')}
+                </button>
+              ) : null}
+            </div>
+          </div>
           <input
             className="w-full bg-bg3 border border-border rounded-lg px-3 py-2"
             placeholder={t('players.namePlaceholder')}

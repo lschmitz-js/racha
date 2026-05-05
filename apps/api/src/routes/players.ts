@@ -1,7 +1,36 @@
 import { Hono } from 'hono';
 import { ImportEnvelope, Player, uid } from '@racha/shared';
 import { z } from 'zod';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
+import { dirname, join } from 'node:path';
 import { getDb } from '../db/index.js';
+
+const AVATAR_DIR =
+  process.env.AVATAR_DIR ||
+  join(dirname(process.env.DB_PATH || join(process.cwd(), 'data', 'racha.db')), 'avatars');
+mkdirSync(AVATAR_DIR, { recursive: true });
+
+const MIME_TO_EXT: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
+const MAX_AVATAR_BYTES = 4 * 1024 * 1024;
+
+function findAvatarFile(playerId: string): { path: string; mime: string } | null {
+  for (const [mime, ext] of Object.entries(MIME_TO_EXT)) {
+    const path = join(AVATAR_DIR, `${playerId}.${ext}`);
+    if (existsSync(path)) return { path, mime };
+  }
+  return null;
+}
 
 type PlayerRow = {
   id: string;
@@ -101,6 +130,52 @@ players.post('/import', async (c) => {
   });
   tx(body.db);
   return c.json({ ok: true, imported: body.db.length });
+});
+
+// --- Avatars ---------------------------------------------------------------
+// Avatars are stored on disk under /data/avatars (mounted volume) so they
+// survive container rebuilds. Player JSON does not embed image data.
+
+players.post('/:id/avatar', async (c) => {
+  const id = c.req.param('id');
+  const db = getDb();
+  const exists = db.prepare('SELECT 1 FROM players WHERE id = ?').get(id);
+  if (!exists) return c.json({ error: 'not found' }, 404);
+
+  const body = await c.req.parseBody();
+  const file = body.file;
+  if (!(file instanceof File)) return c.json({ error: 'no file provided' }, 400);
+  const ext = MIME_TO_EXT[file.type];
+  if (!ext) return c.json({ error: 'unsupported image type' }, 400);
+  if (file.size > MAX_AVATAR_BYTES) return c.json({ error: 'too large' }, 413);
+
+  // Wipe any prior avatar (possibly with a different extension) so we don't
+  // end up with stale orphans on the disk.
+  const prior = findAvatarFile(id);
+  if (prior) unlinkSync(prior.path);
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  writeFileSync(join(AVATAR_DIR, `${id}.${ext}`), buffer);
+  return c.json({ ok: true, ext });
+});
+
+players.get('/:id/avatar', (c) => {
+  const id = c.req.param('id');
+  const file = findAvatarFile(id);
+  if (!file) return c.notFound();
+  const buffer = readFileSync(file.path);
+  const stats = statSync(file.path);
+  c.header('content-type', file.mime);
+  c.header('cache-control', 'no-cache, must-revalidate');
+  c.header('etag', `"${stats.mtime.getTime()}"`);
+  return c.body(buffer);
+});
+
+players.delete('/:id/avatar', (c) => {
+  const id = c.req.param('id');
+  const file = findAvatarFile(id);
+  if (file) unlinkSync(file.path);
+  return c.json({ ok: true });
 });
 
 players.get('/export', (c) => {

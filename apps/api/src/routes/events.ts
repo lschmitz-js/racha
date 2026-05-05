@@ -48,10 +48,12 @@ events.post('/', async (c) => {
   return c.json(row, 201);
 });
 
+// out_player_id is optional: if omitted, this is an add-only action (a player
+// joins the team mid-match without anyone subbing off).
 const SubInput = z.object({
   match_id: z.string(),
   team_id: z.string(),
-  out_player_id: z.string(),
+  out_player_id: z.string().optional(),
   in_player_id: z.string(),
 });
 
@@ -65,10 +67,12 @@ events.post('/sub', async (c) => {
   const now = Date.now();
 
   const tx = db.transaction(() => {
-    db.prepare(
-      `INSERT INTO match_events (id, match_id, clock_ms, type, player_id, team_id, link_id, created_at)
-       VALUES (?, ?, ?, 'sub_out', ?, ?, ?, ?)`
-    ).run(uid(), body.match_id, clock, body.out_player_id, body.team_id, link_id, now);
+    if (body.out_player_id) {
+      db.prepare(
+        `INSERT INTO match_events (id, match_id, clock_ms, type, player_id, team_id, link_id, created_at)
+         VALUES (?, ?, ?, 'sub_out', ?, ?, ?, ?)`
+      ).run(uid(), body.match_id, clock, body.out_player_id, body.team_id, link_id, now);
+    }
     db.prepare(
       `INSERT INTO match_events (id, match_id, clock_ms, type, player_id, team_id, link_id, created_at)
        VALUES (?, ?, ?, 'sub_in', ?, ?, ?, ?)`

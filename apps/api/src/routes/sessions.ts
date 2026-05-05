@@ -250,7 +250,6 @@ sessions.get('/:id/recap', (c) => {
          SUM(CASE WHEN e.type='goal' THEN 1 ELSE 0 END) AS goals,
          SUM(CASE WHEN e.type='assist' THEN 1 ELSE 0 END) AS assists,
          SUM(CASE WHEN e.type='beautiful' THEN 1 ELSE 0 END) AS beautiful,
-         SUM(CASE WHEN e.type='silly' THEN 1 ELSE 0 END) AS silly,
          SUM(CASE WHEN e.type='bad' THEN 1 ELSE 0 END) AS bad,
          SUM(CASE WHEN e.type='save' THEN 1 ELSE 0 END) AS saves
        FROM players p

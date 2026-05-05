@@ -14,13 +14,12 @@ const VEST_COLORS: Record<Vest, string> = {
 
 const TARGET_MS = 5 * 60 * 1000;
 
-const EVENT_BUTTONS: Array<{ type: EventType; icon: string; gkOnly?: boolean }> = [
+const EVENT_BUTTONS: Array<{ type: EventType; icon: string }> = [
   { type: 'goal', icon: '⚽' },
   { type: 'assist', icon: '🅰' },
   { type: 'beautiful', icon: '✨' },
-  { type: 'silly', icon: '😬' },
-  { type: 'bad', icon: '💀' },
-  { type: 'save', icon: '🧤', gkOnly: true },
+  { type: 'bad', icon: '💩' },
+  { type: 'save', icon: '🧤' },
 ];
 
 interface Toast {
@@ -82,7 +81,7 @@ export function Match({ params }: { params: { id: string } }) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['match', matchId] }),
   });
 
-  const [selectedPlayer, setSelectedPlayer] = useState<{ id: string; teamId: string } | null>(null);
+  const [armedEvent, setArmedEvent] = useState<EventType | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const [subSheet, setSubSheet] = useState<{ teamId: string } | null>(null);
   const buzzedRef = useRef(false);
@@ -163,8 +162,7 @@ export function Match({ params }: { params: { id: string } }) {
   const isPaused = m.status === 'paused';
   const isPending = m.status === 'pending';
 
-  function logEvent(type: EventType) {
-    if (!selectedPlayer) return;
+  function logEvent(type: EventType, playerId: string, teamId: string) {
     const id = uid();
     const linkId = type === 'goal' ? uid() : null;
     submitEvent.mutate(
@@ -172,40 +170,50 @@ export function Match({ params }: { params: { id: string } }) {
         id,
         match_id: matchId,
         type,
-        player_id: selectedPlayer.id,
-        team_id: selectedPlayer.teamId,
+        player_id: playerId,
+        team_id: teamId,
         link_id: linkId,
       },
       {
         onSuccess: () => {
+          const player = playerById.get(playerId);
           if (type === 'goal') {
-            const player = playerById.get(selectedPlayer.id);
             setToast({
               text: t('match.assistHint', { name: player?.name ?? '?' }),
               eventId: id,
               linkId: linkId!,
               type,
-              scorerTeamId: selectedPlayer.teamId,
+              scorerTeamId: teamId,
               scorerName: player?.name ?? '',
               expiresAt: Date.now() + 4500,
             });
           } else {
-            const player = playerById.get(selectedPlayer.id);
             const icon = EVENT_BUTTONS.find((b) => b.type === type)?.icon ?? '';
             setToast({
               text: `${player?.name ?? '?'} ${icon}`,
               eventId: id,
               linkId: id,
               type,
-              scorerTeamId: selectedPlayer.teamId,
+              scorerTeamId: teamId,
               scorerName: player?.name ?? '',
               expiresAt: Date.now() + 3000,
             });
           }
-          setSelectedPlayer(null);
+          setArmedEvent(null);
         },
       }
     );
+  }
+
+  function handlePlayerTap(playerId: string, teamId: string) {
+    // Goal-assist follow-up: if we just logged a goal for this team, tapping
+    // another player on the same team is interpreted as the assist.
+    if (toast?.type === 'goal' && toast.scorerTeamId === teamId) {
+      logAssist(playerId);
+      return;
+    }
+    if (!armedEvent) return;
+    logEvent(armedEvent, playerId, teamId);
   }
 
   function logAssist(playerId: string) {
@@ -278,7 +286,7 @@ export function Match({ params }: { params: { id: string } }) {
       </div>
 
       {/* Players grid */}
-      <div className="grid grid-cols-2 gap-2 px-2 py-2 flex-1">
+      <div className="grid grid-cols-2 gap-2 px-2 py-2">
         {[teamA, teamB].map((team) =>
           team ? (
             <TeamPanel
@@ -286,43 +294,48 @@ export function Match({ params }: { params: { id: string } }) {
               team={team}
               onPitch={onPitchByTeam.get(team.id) ?? new Set()}
               players={players}
-              selected={selectedPlayer}
-              onSelect={(pid) => setSelectedPlayer({ id: pid, teamId: team.id })}
+              armedEvent={armedEvent}
+              onPlayerTap={(pid) => handlePlayerTap(pid, team.id)}
               onSubClick={() => setSubSheet({ teamId: team.id })}
               isSubAssistTarget={
                 toast?.type === 'goal' && toast.scorerTeamId === team.id ? toast : null
               }
-              onAssistClick={(pid) => logAssist(pid)}
             />
           ) : null
         )}
       </div>
 
-      {/* Selected player + event bar */}
-      {selectedPlayer ? (
-        <div className="border-t border-border bg-bg2 p-3 sticky bottom-0 z-10 safe-bottom">
-          <div className="flex items-center justify-between mb-2">
-            <span className="font-medium">
-              {t('match.selected', { name: playerById.get(selectedPlayer.id)?.name ?? '?' })}
-            </span>
-            <button className="text-muted" onClick={() => setSelectedPlayer(null)}>
-              ×
-            </button>
-          </div>
+      {/* Event log */}
+      <EventLog
+        events={events}
+        players={players}
+        teamA={teamA}
+        teamB={teamB}
+      />
+
+      {/* Always-visible event bar */}
+      {!isOver ? (
+        <div className="border-t border-border bg-bg2 p-2 sticky bottom-0 z-10 safe-bottom">
+          {armedEvent ? (
+            <div className="text-[11px] text-accent mb-1">{t('match.armedHint')}</div>
+          ) : null}
           <div className="grid grid-cols-3 gap-2">
-            {EVENT_BUTTONS.filter(
-              (b) => !b.gkOnly || playerById.get(selectedPlayer.id)?.role === 'gk'
-            ).map((b) => (
-              <button
-                key={b.type}
-                className="btn justify-center"
-                onClick={() => logEvent(b.type)}
-                disabled={!isRunning && !isPaused}
-              >
-                <span className="text-lg">{b.icon}</span>
-                <span>{t(`event.${b.type}` as any)}</span>
-              </button>
-            ))}
+            {EVENT_BUTTONS.map((b) => {
+              const armed = armedEvent === b.type;
+              return (
+                <button
+                  key={b.type}
+                  className={`btn justify-center ${armed ? 'btn-primary ring-2 ring-accent' : ''}`}
+                  onClick={() =>
+                    setArmedEvent((prev) => (prev === b.type ? null : b.type))
+                  }
+                  disabled={!isRunning && !isPaused}
+                >
+                  <span className="text-lg">{b.icon}</span>
+                  <span>{t(`event.${b.type}` as any)}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       ) : null}
@@ -361,7 +374,12 @@ export function Match({ params }: { params: { id: string } }) {
           onClose={() => setSubSheet(null)}
           onConfirm={(out_id, in_id) =>
             submitSub.mutate(
-              { match_id: matchId, team_id: subSheet.teamId, out_player_id: out_id, in_player_id: in_id },
+              {
+                match_id: matchId,
+                team_id: subSheet.teamId,
+                out_player_id: out_id ?? undefined,
+                in_player_id: in_id,
+              },
               { onSuccess: () => setSubSheet(null) }
             )
           }
@@ -396,20 +414,18 @@ function TeamPanel({
   team,
   onPitch,
   players,
-  selected,
-  onSelect,
+  armedEvent,
+  onPlayerTap,
   onSubClick,
   isSubAssistTarget,
-  onAssistClick,
 }: {
   team: { id: string; vest: Vest; player_ids: string[] };
   onPitch: Set<string>;
   players: Player[];
-  selected: { id: string; teamId: string } | null;
-  onSelect: (id: string) => void;
+  armedEvent: EventType | null;
+  onPlayerTap: (id: string) => void;
   onSubClick: () => void;
   isSubAssistTarget: Toast | null;
-  onAssistClick: (id: string) => void;
 }) {
   const t = useT();
   const onPitchPlayers = team.player_ids
@@ -423,26 +439,20 @@ function TeamPanel({
       </div>
       <div className="flex flex-col gap-1">
         {liveOnPitch.map((p) => {
-          const isSel = selected?.id === p.id;
           const isAssistTarget =
             isSubAssistTarget && p.id !== getNameFromId(isSubAssistTarget.scorerName, players);
+          const isArmedTarget = !!armedEvent && !isSubAssistTarget;
           return (
             <button
               key={p.id}
               className={`text-left px-3 py-2 rounded-lg border transition ${
-                isSel
-                  ? 'bg-accent text-black border-accent'
-                  : isAssistTarget
+                isAssistTarget
                   ? 'border-amber-500 bg-amber-500/10'
+                  : isArmedTarget
+                  ? 'border-accent bg-accent/10'
                   : 'bg-bg2 border-border'
               }`}
-              onClick={() => {
-                if (isSubAssistTarget) {
-                  onAssistClick(p.id);
-                } else {
-                  onSelect(p.id);
-                }
-              }}
+              onClick={() => onPlayerTap(p.id)}
               style={{ minHeight: 40 }}
             >
               <span className="font-medium">{p.name}</span>
@@ -454,6 +464,63 @@ function TeamPanel({
       <button className="btn w-full mt-1" onClick={onSubClick}>
         {t('match.sub')}
       </button>
+    </div>
+  );
+}
+
+function EventLog({
+  events,
+  players,
+  teamA,
+  teamB,
+}: {
+  events: Array<{ id: string; type: EventType; player_id: string; team_id: string; clock_ms: number }>;
+  players: Player[];
+  teamA?: { id: string; vest: Vest };
+  teamB?: { id: string; vest: Vest };
+}) {
+  const t = useT();
+  const visible = events.filter((e) => e.type !== 'sub_in' && e.type !== 'sub_out');
+  const byPlayer = new Map(players.map((p) => [p.id, p]));
+  const teamById = new Map(
+    [teamA, teamB].filter(Boolean).map((tt) => [tt!.id, tt!] as const)
+  );
+  return (
+    <div className="px-3 py-2 flex-1 overflow-y-auto">
+      <div className="text-[10px] uppercase tracking-wide text-muted mb-1">
+        {t('match.events')}
+      </div>
+      {visible.length === 0 ? (
+        <div className="text-xs text-muted">{t('match.noEvents')}</div>
+      ) : (
+        <div className="flex flex-col gap-1">
+          {visible
+            .slice()
+            .reverse()
+            .map((e) => {
+              const icon = EVENT_BUTTONS.find((b) => b.type === e.type)?.icon ?? '';
+              const team = teamById.get(e.team_id);
+              return (
+                <div key={e.id} className="flex items-center gap-2 text-sm">
+                  <span className="font-mono text-xs tabular-nums text-muted w-10">
+                    {formatClock(e.clock_ms)}
+                  </span>
+                  <span className="text-base">{icon}</span>
+                  <span className="font-medium flex-1">
+                    {byPlayer.get(e.player_id)?.name ?? '?'}
+                  </span>
+                  {team ? (
+                    <span
+                      className={`text-[10px] px-1.5 py-0.5 rounded ${VEST_COLORS[team.vest]}`}
+                    >
+                      {t(`vest.${team.vest}`)}
+                    </span>
+                  ) : null}
+                </div>
+              );
+            })}
+        </div>
+      )}
     </div>
   );
 }
@@ -477,7 +544,7 @@ function SubSheet({
   onPitchByTeam: Map<string, Set<string>>;
   players: Player[];
   onClose: () => void;
-  onConfirm: (out_id: string, in_id: string) => void;
+  onConfirm: (out_id: string | null, in_id: string) => void;
 }) {
   const t = useT();
   const onPitchHere = onPitchByTeam.get(team.id) ?? new Set<string>();
@@ -510,7 +577,9 @@ function SubSheet({
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <div className="text-xs text-muted mb-1">{t('sub.off')}</div>
+            <div className="text-xs text-muted mb-1">
+              {t('sub.off')} <span className="opacity-60">({t('sub.optional')})</span>
+            </div>
             <div className="flex flex-col gap-1">
               {onPitchList.map((p) => (
                 <button
@@ -518,7 +587,7 @@ function SubSheet({
                   className={`px-2 py-2 rounded-lg border text-sm ${
                     outId === p.id ? 'bg-red-500/20 border-red-500' : 'bg-bg3 border-border'
                   }`}
-                  onClick={() => setOutId(p.id)}
+                  onClick={() => setOutId((prev) => (prev === p.id ? null : p.id))}
                 >
                   {p.name}
                 </button>
@@ -572,10 +641,10 @@ function SubSheet({
         </div>
         <button
           className="btn-primary w-full mt-3"
-          disabled={!outId || !inId}
-          onClick={() => onConfirm(outId!, inId!)}
+          disabled={!inId}
+          onClick={() => onConfirm(outId, inId!)}
         >
-          {t('sub.confirm')}
+          {outId ? t('sub.confirm') : t('sub.confirmAdd')}
         </button>
       </div>
     </div>
