@@ -5,7 +5,8 @@ import { api } from '../lib/api.js';
 import { useT } from '../lib/i18n.js';
 import { useCanEdit } from '../lib/auth.js';
 import { BestGrid } from '../components/Bests.js';
-import { bestOfEachCategory, type StatRow } from '../lib/points.js';
+import { Leaderboard } from '../components/Leaderboard.js';
+import { bestOfEachCategory, calcPoints, type StatRow } from '../lib/points.js';
 import { calcScore, type Player, type Vest } from '@racha/shared';
 
 const VEST_COLORS: Record<Vest, string> = {
@@ -290,6 +291,9 @@ function DoneSessionLayout({
 }) {
   const t = useT();
   const bests = recap ? bestOfEachCategory(recap) : [];
+  const leaderboardRows = recap
+    ? recap.map((r) => ({ ...r, points: calcPoints(r) }))
+    : [];
   return (
     <>
       <section>
@@ -300,6 +304,13 @@ function DoneSessionLayout({
           <div className="card text-sm text-muted">{t('recap.noStats')}</div>
         )}
       </section>
+
+      {leaderboardRows.length > 0 ? (
+        <section>
+          <h2 className="text-lg font-semibold mb-2">{t('recap.leaderboard')}</h2>
+          <Leaderboard rows={leaderboardRows} showMatches={false} showSessions={false} />
+        </section>
+      ) : null}
 
       {matches.length > 0 ? (
         <section>
