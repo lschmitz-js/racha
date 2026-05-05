@@ -1,10 +1,25 @@
 import type { ImportEnvelope, Player } from '@racha/shared';
 
+const ADMIN_TOKEN_KEY = 'racha.adminToken';
+
+export function getAdminToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return window.localStorage.getItem(ADMIN_TOKEN_KEY);
+}
+
+export function setAdminToken(token: string | null) {
+  if (typeof window === 'undefined') return;
+  if (token) window.localStorage.setItem(ADMIN_TOKEN_KEY, token);
+  else window.localStorage.removeItem(ADMIN_TOKEN_KEY);
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const token = getAdminToken();
   const res = await fetch(path, {
     ...init,
     headers: {
       'content-type': 'application/json',
+      ...(token ? { 'x-racha-token': token } : {}),
       ...(init.headers ?? {}),
     },
   });
@@ -18,6 +33,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 export const api = {
   health: () => request<{ ok: true }>(`/api/health`),
+  authCheck: () => request<{ required: boolean; ok: boolean }>(`/api/auth/check`),
 
   players: {
     list: () => request<Player[]>(`/api/players`),
@@ -54,6 +70,15 @@ export const api = {
     remove: (id: string) =>
       request<{ ok: true }>(`/api/sessions/${id}`, { method: 'DELETE' }),
     recap: (id: string) => request<any[]>(`/api/sessions/${id}/recap`),
+    assignPlayerToTeam: (sessionId: string, teamId: string, playerId: string) =>
+      request<any>(`/api/sessions/${sessionId}/teams/${teamId}/players`, {
+        method: 'POST',
+        body: JSON.stringify({ player_id: playerId }),
+      }),
+    removePlayerFromTeam: (sessionId: string, teamId: string, playerId: string) =>
+      request<any>(`/api/sessions/${sessionId}/teams/${teamId}/players/${playerId}`, {
+        method: 'DELETE',
+      }),
   },
 
   matches: {

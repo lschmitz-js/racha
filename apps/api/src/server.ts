@@ -24,20 +24,49 @@ getDb();
 const app = new Hono();
 app.use(logger());
 
-// Optional shared write token gate. If RACHA_TOKEN is set, mutating routes
-// require the X-Racha-Token header. Read routes are always open.
+// Optional shared admin token. If RACHA_TOKEN is set, the routes below require
+// the X-Racha-Token header: editing players (any write under /api/players)
+// and creating, deleting, or ending a session. Live match recording (events,
+// match clock, draws, team-roster edits, subs) stays open so games are not
+// interrupted by auth prompts.
 const TOKEN = process.env.RACHA_TOKEN;
-if (TOKEN) {
-  app.use('/api/*', async (c, next) => {
-    if (c.req.method === 'GET' || c.req.method === 'OPTIONS' || c.req.method === 'HEAD') {
-      return next();
-    }
-    if (c.req.header('x-racha-token') !== TOKEN) {
-      return c.json({ error: 'unauthorized' }, 401);
-    }
+const requireAdmin = async (c: any, next: any) => {
+  if (!TOKEN) return next();
+  if (c.req.header('x-racha-token') !== TOKEN) {
+    return c.json({ error: 'unauthorized' }, 401);
+  }
+  return next();
+};
+const gateWrites = async (c: any, next: any) => {
+  if (c.req.method === 'GET' || c.req.method === 'HEAD' || c.req.method === 'OPTIONS') {
     return next();
-  });
+  }
+  return requireAdmin(c, next);
+};
+
+if (TOKEN) {
+  // All player writes (create, update, delete, import) are admin-only.
+  app.use('/api/players', gateWrites);
+  app.use('/api/players/*', gateWrites);
+  // Specific session writes are admin-only; other session mutations stay open.
+  app.use('/api/sessions', async (c, next) =>
+    c.req.method === 'POST' ? requireAdmin(c, next) : next()
+  );
+  app.use('/api/sessions/:id', async (c, next) =>
+    c.req.method === 'DELETE' ? requireAdmin(c, next) : next()
+  );
+  app.use('/api/sessions/:id/end', async (c, next) =>
+    c.req.method === 'POST' ? requireAdmin(c, next) : next()
+  );
 }
+
+// Tells the client whether admin auth is configured, and (when called with the
+// header) whether the given token is valid. Used to drive UI gating.
+app.get('/api/auth/check', (c) => {
+  if (!TOKEN) return c.json({ required: false, ok: true });
+  const ok = c.req.header('x-racha-token') === TOKEN;
+  return c.json({ required: true, ok });
+});
 
 app.get('/api/health', (c) => c.json({ ok: true }));
 app.route('/api/players', players);

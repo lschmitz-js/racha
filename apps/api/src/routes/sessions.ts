@@ -183,6 +183,62 @@ sessions.delete('/:id', (c) => {
   return c.json({ ok: true });
 });
 
+// Assign a player to a vest team within a session. Atomically ensures the
+// player is in session_players, removes them from any other team in the same
+// session, then adds them to this team. Acts as both add and move.
+const AssignToTeamInput = z.object({ player_id: z.string() });
+
+sessions.post('/:id/teams/:teamId/players', async (c) => {
+  const id = c.req.param('id');
+  const teamId = c.req.param('teamId');
+  const body = AssignToTeamInput.parse(await c.req.json());
+  const db = getDb();
+
+  const team = db
+    .prepare('SELECT id FROM session_teams WHERE id = ? AND session_id = ?')
+    .get(teamId, id);
+  if (!team) return c.json({ error: 'team not found' }, 404);
+
+  const player = db.prepare('SELECT id FROM players WHERE id = ?').get(body.player_id);
+  if (!player) return c.json({ error: 'player not found' }, 404);
+
+  const tx = db.transaction(() => {
+    db.prepare('INSERT OR IGNORE INTO session_players (session_id, player_id) VALUES (?, ?)')
+      .run(id, body.player_id);
+    db.prepare(
+      `DELETE FROM session_team_players
+       WHERE player_id = ?
+         AND session_team_id IN (SELECT id FROM session_teams WHERE session_id = ?)`
+    ).run(body.player_id, id);
+    db.prepare(
+      'INSERT OR IGNORE INTO session_team_players (session_team_id, player_id) VALUES (?, ?)'
+    ).run(teamId, body.player_id);
+  });
+  tx();
+
+  const data = loadFullSession(id);
+  return c.json(data);
+});
+
+sessions.delete('/:id/teams/:teamId/players/:playerId', (c) => {
+  const id = c.req.param('id');
+  const teamId = c.req.param('teamId');
+  const playerId = c.req.param('playerId');
+  const db = getDb();
+
+  const team = db
+    .prepare('SELECT id FROM session_teams WHERE id = ? AND session_id = ?')
+    .get(teamId, id);
+  if (!team) return c.json({ error: 'team not found' }, 404);
+
+  db.prepare(
+    'DELETE FROM session_team_players WHERE session_team_id = ? AND player_id = ?'
+  ).run(teamId, playerId);
+
+  const data = loadFullSession(id);
+  return c.json(data);
+});
+
 // Session leaderboard (the night's recap)
 sessions.get('/:id/recap', (c) => {
   const id = c.req.param('id');

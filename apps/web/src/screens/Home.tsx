@@ -2,11 +2,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { useState, useMemo } from 'react';
 import { api } from '../lib/api.js';
+import { useT } from '../lib/i18n.js';
+import { useCanEdit } from '../lib/auth.js';
 import type { Player } from '@racha/shared';
 
 export function Home() {
   const [, setLocation] = useLocation();
   const qc = useQueryClient();
+  const t = useT();
+  const canEdit = useCanEdit();
 
   const playersQ = useQuery({ queryKey: ['players'], queryFn: api.players.list });
   const activeQ = useQuery({ queryKey: ['session', 'active'], queryFn: api.sessions.active });
@@ -36,35 +40,35 @@ export function Home() {
     });
   }
 
-  if (playersQ.isLoading) return <div className="p-4 text-muted">Loading…</div>;
+  if (playersQ.isLoading) return <div className="p-4 text-muted">{t('common.loading')}</div>;
 
   return (
     <div className="p-4 pb-32 space-y-4">
       <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Racha de Segunda</h1>
+        <h1 className="text-2xl font-bold">{t('home.title')}</h1>
       </header>
 
       {activeQ.data ? (
         <div className="card flex items-center justify-between">
           <div>
-            <div className="text-sm text-muted">Active session</div>
+            <div className="text-sm text-muted">{t('home.activeSession')}</div>
             <div className="font-semibold">{activeQ.data.date}</div>
           </div>
           <button className="btn-primary" onClick={() => setLocation(`/sessions/${activeQ.data.id}`)}>
-            Open →
+            {t('home.open')}
           </button>
         </div>
       ) : null}
 
       <section>
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-semibold">Tonight's lineup</h2>
-          <span className="text-sm text-muted">{selected.size} selected</span>
+          <h2 className="text-lg font-semibold">{t('home.lineup')}</h2>
+          <span className="text-sm text-muted">{t('home.selected', { n: selected.size })}</span>
         </div>
 
         <div className="card space-y-3">
           <div>
-            <div className="text-xs text-muted mb-2">Season players</div>
+            <div className="text-xs text-muted mb-2">{t('home.seasonPlayers')}</div>
             <div className="flex flex-wrap gap-2">
               {sessionPlayers.map((p) => (
                 <PlayerChip
@@ -77,7 +81,7 @@ export function Home() {
             </div>
           </div>
           <div>
-            <div className="text-xs text-muted mb-2">Drop-ins</div>
+            <div className="text-xs text-muted mb-2">{t('home.dropins')}</div>
             <div className="flex flex-wrap gap-2">
               {dropinPlayers.map((p) => (
                 <PlayerChip
@@ -94,20 +98,26 @@ export function Home() {
         <div className="mt-3 flex gap-2">
           <button
             className="btn-primary flex-1"
-            disabled={selected.size < 6 || create.isPending}
+            disabled={!canEdit || selected.size < 6 || create.isPending}
+            title={!canEdit ? t('auth.adminOnly') : undefined}
             onClick={() => create.mutate(Array.from(selected))}
           >
-            {selected.size < 6 ? `Select ${6 - selected.size} more` : 'Start session →'}
+            {selected.size < 6
+              ? t('home.selectMore', { n: 6 - selected.size })
+              : t('home.startSession')}
           </button>
           <button className="btn" onClick={() => setSelected(new Set())} disabled={selected.size === 0}>
-            Clear
+            {t('common.clear')}
           </button>
         </div>
+        {!canEdit ? (
+          <div className="text-xs text-muted mt-2">{t('auth.adminOnly')}</div>
+        ) : null}
       </section>
 
       {sessionsQ.data && sessionsQ.data.length > 0 ? (
         <section>
-          <h2 className="text-lg font-semibold mb-2">Past sessions</h2>
+          <h2 className="text-lg font-semibold mb-2">{t('home.pastSessions')}</h2>
           <div className="space-y-2">
             {sessionsQ.data.slice(0, 10).map((s: any) => (
               <button
@@ -117,7 +127,7 @@ export function Home() {
               >
                 <div className="text-left">
                   <div className="font-medium">{s.date}</div>
-                  <div className="text-xs text-muted capitalize">{s.status}</div>
+                  <div className="text-xs text-muted">{t(`status.${s.status as 'draft' | 'live' | 'done'}`)}</div>
                 </div>
                 <span className="text-muted">→</span>
               </button>

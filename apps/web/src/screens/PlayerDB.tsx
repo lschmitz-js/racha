@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { SKILLS, type Player, ImportEnvelope } from '@racha/shared';
 import { useState } from 'react';
 import { api } from '../lib/api.js';
+import { useT } from '../lib/i18n.js';
+import { useCanEdit } from '../lib/auth.js';
 
 type Editing = {
   id?: string;
@@ -22,6 +24,8 @@ export function PlayerDB() {
   const qc = useQueryClient();
   const playersQ = useQuery({ queryKey: ['players'], queryFn: api.players.list });
   const [editing, setEditing] = useState<Editing | null>(null);
+  const t = useT();
+  const canEdit = useCanEdit();
 
   const save = useMutation({
     mutationFn: async (e: Editing) => {
@@ -45,7 +49,7 @@ export function PlayerDB() {
     const parsed = ImportEnvelope.parse(JSON.parse(text));
     await api.players.import(parsed);
     qc.invalidateQueries({ queryKey: ['players'] });
-    alert(`Imported ${parsed.db.length} players.`);
+    alert(t('players.imported', { n: parsed.db.length }));
   }
 
   async function handleExport() {
@@ -57,35 +61,42 @@ export function PlayerDB() {
     a.click();
   }
 
-  if (playersQ.isLoading) return <div className="p-4 text-muted">Loading…</div>;
+  if (playersQ.isLoading) return <div className="p-4 text-muted">{t('common.loading')}</div>;
   const players = (playersQ.data ?? []).filter((p) => p.active);
 
   return (
     <div className="p-4 pb-32 space-y-3">
       <header className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Players</h1>
+        <h1 className="text-xl font-bold">{t('players.title')}</h1>
         <div className="flex gap-2">
           <button className="btn" onClick={handleExport}>
-            Export
+            {t('common.export')}
           </button>
-          <label className="btn cursor-pointer">
-            Import
-            <input
-              type="file"
-              accept=".json,application/json"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) handleImport(f).catch((err) => alert(`Import failed: ${err.message}`));
-                e.currentTarget.value = '';
-              }}
-            />
-          </label>
-          <button className="btn-primary" onClick={() => setEditing({ ...EMPTY })}>
-            + New
-          </button>
+          {canEdit ? (
+            <>
+              <label className="btn cursor-pointer">
+                {t('common.import')}
+                <input
+                  type="file"
+                  accept=".json,application/json"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleImport(f).catch((err) => alert(t('players.importFailed', { msg: err.message })));
+                    e.currentTarget.value = '';
+                  }}
+                />
+              </label>
+              <button className="btn-primary" onClick={() => setEditing({ ...EMPTY })}>
+                {t('common.new')}
+              </button>
+            </>
+          ) : null}
         </div>
       </header>
+      {!canEdit ? (
+        <div className="text-xs text-muted">{t('auth.adminOnly')}</div>
+      ) : null}
 
       <div className="space-y-2">
         {players.map((p) => (
@@ -93,23 +104,26 @@ export function PlayerDB() {
             <div>
               <div className="font-medium">{p.name}</div>
               <div className="text-xs text-muted">
-                {p.type === 'season' ? 'Season' : 'Drop-in'} ·{' '}
-                {p.role === 'gk' ? 'Goalkeeper' : 'Player'} · avg {avg(p.skills)}
+                {p.type === 'season' ? t('players.season') : t('players.dropin')} ·{' '}
+                {p.role === 'gk' ? t('players.gk') : t('players.player')} ·{' '}
+                {t('players.avg', { n: avg(p.skills) })}
               </div>
             </div>
-            <div className="flex gap-2">
-              <button className="btn" onClick={() => setEditing(toEditing(p))}>
-                Edit
-              </button>
-              <button
-                className="btn-danger"
-                onClick={() => {
-                  if (confirm(`Remove ${p.name}?`)) remove.mutate(p.id);
-                }}
-              >
-                ×
-              </button>
-            </div>
+            {canEdit ? (
+              <div className="flex gap-2">
+                <button className="btn" onClick={() => setEditing(toEditing(p))}>
+                  {t('common.edit')}
+                </button>
+                <button
+                  className="btn-danger"
+                  onClick={() => {
+                    if (confirm(t('players.confirmRemove', { name: p.name }))) remove.mutate(p.id);
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            ) : null}
           </div>
         ))}
       </div>
@@ -148,14 +162,17 @@ function Modal({
   onSave: () => void;
   saving: boolean;
 }) {
+  const t = useT();
   return (
     <div className="fixed inset-0 bg-black/70 z-40 flex items-end sm:items-center justify-center">
       <div className="bg-bg2 border border-border rounded-t-xl sm:rounded-xl p-4 w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
-        <h2 className="text-lg font-semibold mb-3">{editing.id ? 'Edit player' : 'New player'}</h2>
+        <h2 className="text-lg font-semibold mb-3">
+          {editing.id ? t('players.editTitle') : t('players.newTitle')}
+        </h2>
         <div className="space-y-3">
           <input
             className="w-full bg-bg3 border border-border rounded-lg px-3 py-2"
-            placeholder="Name"
+            placeholder={t('players.namePlaceholder')}
             value={editing.name}
             onChange={(e) => onChange({ ...editing, name: e.target.value })}
           />
@@ -167,8 +184,8 @@ function Modal({
                 onChange({ ...editing, type: e.target.value as 'season' | 'dropin' })
               }
             >
-              <option value="season">Season</option>
-              <option value="dropin">Drop-in</option>
+              <option value="season">{t('players.season')}</option>
+              <option value="dropin">{t('players.dropin')}</option>
             </select>
             <select
               className="flex-1 bg-bg3 border border-border rounded-lg px-3 py-2"
@@ -177,15 +194,15 @@ function Modal({
                 onChange({ ...editing, role: e.target.value as 'player' | 'gk' })
               }
             >
-              <option value="player">Player</option>
-              <option value="gk">Goalkeeper</option>
+              <option value="player">{t('players.player')}</option>
+              <option value="gk">{t('players.gk')}</option>
             </select>
           </div>
           <div className="space-y-2">
             {SKILLS.map((label, i) => (
               <SkillRow
                 key={label}
-                label={label}
+                label={t(`skill.${label}` as any)}
                 value={editing.skills[i] ?? 3}
                 onChange={(v) => {
                   const next = [...editing.skills];
@@ -198,14 +215,14 @@ function Modal({
         </div>
         <div className="mt-4 flex gap-2">
           <button className="btn flex-1" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             className="btn-primary flex-1"
             disabled={saving || !editing.name.trim()}
             onClick={onSave}
           >
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? t('common.saving') : t('common.save')}
           </button>
         </div>
       </div>

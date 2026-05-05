@@ -10,7 +10,8 @@ stats.get('/season', (c) => {
     .prepare(
       `SELECT
          p.id, p.name, p.type, p.role,
-         COUNT(DISTINCT mp.match_id) AS matches_played,
+         (SELECT COUNT(DISTINCT mp.match_id)
+            FROM match_players mp WHERE mp.player_id = p.id) AS matches_played,
          SUM(CASE WHEN e.type='goal' THEN 1 ELSE 0 END) AS goals,
          SUM(CASE WHEN e.type='assist' THEN 1 ELSE 0 END) AS assists,
          SUM(CASE WHEN e.type='beautiful' THEN 1 ELSE 0 END) AS beautiful,
@@ -18,7 +19,6 @@ stats.get('/season', (c) => {
          SUM(CASE WHEN e.type='bad' THEN 1 ELSE 0 END) AS bad,
          SUM(CASE WHEN e.type='save' THEN 1 ELSE 0 END) AS saves
        FROM players p
-       LEFT JOIN match_players mp ON mp.player_id = p.id
        LEFT JOIN match_events e ON e.player_id = p.id
        WHERE p.active = 1
        GROUP BY p.id, p.name, p.type, p.role

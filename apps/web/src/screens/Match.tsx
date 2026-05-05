@@ -3,9 +3,9 @@ import { useLocation } from 'wouter';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { uid, type EventType, type Player, type Vest } from '@racha/shared';
 import { api } from '../lib/api.js';
+import { useT } from '../lib/i18n.js';
 import { formatClock, useClock, computeClockMs } from '../lib/clock.js';
 
-const VEST_LABEL: Record<Vest, string> = { white: 'White', black: 'Black', green: 'Green' };
 const VEST_COLORS: Record<Vest, string> = {
   white: 'bg-gray-100 text-black',
   black: 'bg-gray-900 text-white',
@@ -14,13 +14,13 @@ const VEST_COLORS: Record<Vest, string> = {
 
 const TARGET_MS = 5 * 60 * 1000;
 
-const EVENT_BUTTONS: Array<{ type: EventType; label: string; icon: string; gkOnly?: boolean }> = [
-  { type: 'goal', label: 'Goal', icon: '⚽' },
-  { type: 'assist', label: 'Assist', icon: '🅰' },
-  { type: 'beautiful', label: 'Beautiful', icon: '✨' },
-  { type: 'silly', label: 'Silly', icon: '😬' },
-  { type: 'bad', label: 'Bad', icon: '💀' },
-  { type: 'save', label: 'Save', icon: '🧤', gkOnly: true },
+const EVENT_BUTTONS: Array<{ type: EventType; icon: string; gkOnly?: boolean }> = [
+  { type: 'goal', icon: '⚽' },
+  { type: 'assist', icon: '🅰' },
+  { type: 'beautiful', icon: '✨' },
+  { type: 'silly', icon: '😬' },
+  { type: 'bad', icon: '💀' },
+  { type: 'save', icon: '🧤', gkOnly: true },
 ];
 
 interface Toast {
@@ -37,6 +37,7 @@ export function Match({ params }: { params: { id: string } }) {
   const matchId = params.id;
   const [, setLocation] = useLocation();
   const qc = useQueryClient();
+  const t = useT();
 
   const matchQ = useQuery({
     queryKey: ['match', matchId],
@@ -127,13 +128,13 @@ export function Match({ params }: { params: { id: string } }) {
       setToast(null);
       return;
     }
-    const t = setTimeout(() => setToast(null), remaining);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setToast(null), remaining);
+    return () => clearTimeout(timer);
   }, [toast]);
 
-  if (matchQ.isLoading || sessionQ.isLoading) return <div className="p-4 text-muted">Loading…</div>;
+  if (matchQ.isLoading || sessionQ.isLoading) return <div className="p-4 text-muted">{t('common.loading')}</div>;
   const data = matchQ.data;
-  if (!data) return <div className="p-4">Not found.</div>;
+  if (!data) return <div className="p-4">{t('common.notFound')}</div>;
 
   const m = data.match;
   const lineup = data.lineup as Array<{ player_id: string; team_id: string }>;
@@ -180,7 +181,7 @@ export function Match({ params }: { params: { id: string } }) {
           if (type === 'goal') {
             const player = playerById.get(selectedPlayer.id);
             setToast({
-              text: `${player?.name ?? '?'} ⚽ — tap a teammate for assist?`,
+              text: t('match.assistHint', { name: player?.name ?? '?' }),
               eventId: id,
               linkId: linkId!,
               type,
@@ -240,7 +241,7 @@ export function Match({ params }: { params: { id: string } }) {
     <div className="min-h-screen flex flex-col">
       <header className="px-4 py-2 flex items-center justify-between border-b border-border bg-bg2 sticky top-0 z-10">
         <button className="text-sm text-muted" onClick={() => setLocation(`/sessions/${m.session_id}`)}>
-          ← Session
+          {t('common.session')}
         </button>
         <div className="text-2xl font-mono tabular-nums">
           {formatClock(liveClock)}
@@ -249,22 +250,22 @@ export function Match({ params }: { params: { id: string } }) {
         <div className="flex gap-2">
           {isPending && (
             <button className="btn-primary" onClick={() => start.mutate()}>
-              Start
+              {t('match.start')}
             </button>
           )}
           {isRunning && (
             <button className="btn" onClick={() => pause.mutate()}>
-              Pause
+              {t('match.pause')}
             </button>
           )}
           {isPaused && (
             <button className="btn-primary" onClick={() => resume.mutate()}>
-              Resume
+              {t('match.resume')}
             </button>
           )}
           {(isRunning || isPaused) && (
             <button className="btn-danger" onClick={() => end.mutate(undefined)}>
-              End
+              {t('match.end')}
             </button>
           )}
         </div>
@@ -302,7 +303,7 @@ export function Match({ params }: { params: { id: string } }) {
         <div className="border-t border-border bg-bg2 p-3 sticky bottom-0 z-10 safe-bottom">
           <div className="flex items-center justify-between mb-2">
             <span className="font-medium">
-              Selected: {playerById.get(selectedPlayer.id)?.name ?? '?'}
+              {t('match.selected', { name: playerById.get(selectedPlayer.id)?.name ?? '?' })}
             </span>
             <button className="text-muted" onClick={() => setSelectedPlayer(null)}>
               ×
@@ -319,7 +320,7 @@ export function Match({ params }: { params: { id: string } }) {
                 disabled={!isRunning && !isPaused}
               >
                 <span className="text-lg">{b.icon}</span>
-                <span>{b.label}</span>
+                <span>{t(`event.${b.type}` as any)}</span>
               </button>
             ))}
           </div>
@@ -331,7 +332,7 @@ export function Match({ params }: { params: { id: string } }) {
         <div className="fixed left-2 right-2 bottom-24 z-30 bg-bg3 border border-border rounded-xl p-3 flex items-center justify-between shadow-lg">
           <span className="text-sm">{toast.text}</span>
           <button className="btn-danger" onClick={undoToast}>
-            Undo
+            {t('match.undo')}
           </button>
         </div>
       ) : null}
@@ -353,9 +354,9 @@ export function Match({ params }: { params: { id: string } }) {
       {/* Sub sheet */}
       {subSheet ? (
         <SubSheet
-          teamId={subSheet.teamId}
           team={teams.find((t) => t.id === subSheet.teamId)!}
-          onPitch={onPitchByTeam.get(subSheet.teamId) ?? new Set()}
+          benchTeam={benchTeam ?? null}
+          onPitchByTeam={onPitchByTeam}
           players={players}
           onClose={() => setSubSheet(null)}
           onConfirm={(out_id, in_id) =>
@@ -379,11 +380,12 @@ function ScoreSide({
   goals: number;
   align?: 'right';
 }) {
+  const t = useT();
   if (!team) return <div />;
   return (
     <div className={`flex items-center gap-2 ${align === 'right' ? 'justify-end' : ''}`}>
       <span className={`px-2 py-1 rounded-md text-sm ${VEST_COLORS[team.vest]}`}>
-        {VEST_LABEL[team.vest]}
+        {t(`vest.${team.vest}`)}
       </span>
       <span className="text-3xl font-mono tabular-nums font-bold">{goals}</span>
     </div>
@@ -409,6 +411,7 @@ function TeamPanel({
   isSubAssistTarget: Toast | null;
   onAssistClick: (id: string) => void;
 }) {
+  const t = useT();
   const onPitchPlayers = team.player_ids
     .map((pid) => players.find((p) => p.id === pid))
     .filter(Boolean) as Player[];
@@ -416,7 +419,7 @@ function TeamPanel({
   return (
     <div className="space-y-1">
       <div className={`text-xs px-2 py-1 rounded ${VEST_COLORS[team.vest]} inline-block`}>
-        {VEST_LABEL[team.vest]}
+        {t(`vest.${team.vest}`)}
       </div>
       <div className="flex flex-col gap-1">
         {liveOnPitch.map((p) => {
@@ -449,7 +452,7 @@ function TeamPanel({
         })}
       </div>
       <button className="btn w-full mt-1" onClick={onSubClick}>
-        Sub
+        {t('match.sub')}
       </button>
     </div>
   );
@@ -463,35 +466,51 @@ function getNameFromId(name: string, players: Player[]): string {
 
 function SubSheet({
   team,
-  onPitch,
+  benchTeam,
+  onPitchByTeam,
   players,
   onClose,
   onConfirm,
 }: {
-  teamId: string;
   team: { id: string; vest: Vest; player_ids: string[] };
-  onPitch: Set<string>;
+  benchTeam: { id: string; vest: Vest; player_ids: string[] } | null;
+  onPitchByTeam: Map<string, Set<string>>;
   players: Player[];
   onClose: () => void;
   onConfirm: (out_id: string, in_id: string) => void;
 }) {
-  const teamPlayers = team.player_ids
-    .map((pid) => players.find((p) => p.id === pid))
+  const t = useT();
+  const onPitchHere = onPitchByTeam.get(team.id) ?? new Set<string>();
+  // Anyone currently on pitch in any team is unavailable to sub in.
+  const allOnPitch = new Set<string>();
+  for (const set of onPitchByTeam.values()) for (const pid of set) allOnPitch.add(pid);
+
+  const playerById = new Map(players.map((p) => [p.id, p]));
+  const ownTeamPlayers = team.player_ids
+    .map((pid) => playerById.get(pid))
     .filter(Boolean) as Player[];
-  const onPitchList = teamPlayers.filter((p) => onPitch.has(p.id));
-  const benchList = teamPlayers.filter((p) => !onPitch.has(p.id));
+
+  const onPitchList = ownTeamPlayers.filter((p) => onPitchHere.has(p.id));
+  const ownBench = ownTeamPlayers.filter((p) => !allOnPitch.has(p.id));
+  const fromBenchTeam = (benchTeam?.player_ids ?? [])
+    .map((pid) => playerById.get(pid))
+    .filter(Boolean)
+    .filter((p) => !allOnPitch.has((p as Player).id)) as Player[];
+
   const [outId, setOutId] = useState<string | null>(null);
   const [inId, setInId] = useState<string | null>(null);
   return (
     <div className="fixed inset-0 bg-black/70 z-40 flex items-end">
       <div className="bg-bg2 border-t border-border rounded-t-xl p-4 w-full max-h-[80vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-semibold">Substitution</h2>
+          <h2 className="text-lg font-semibold">
+            {t('sub.title', { vest: t(`vest.${team.vest}`) })}
+          </h2>
           <button className="text-muted" onClick={onClose}>×</button>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <div className="text-xs text-muted mb-1">Off</div>
+            <div className="text-xs text-muted mb-1">{t('sub.off')}</div>
             <div className="flex flex-col gap-1">
               {onPitchList.map((p) => (
                 <button
@@ -507,23 +526,47 @@ function SubSheet({
             </div>
           </div>
           <div>
-            <div className="text-xs text-muted mb-1">On</div>
-            <div className="flex flex-col gap-1">
-              {benchList.length === 0 ? (
-                <div className="text-xs text-muted">No bench players</div>
-              ) : (
-                benchList.map((p) => (
-                  <button
-                    key={p.id}
-                    className={`px-2 py-2 rounded-lg border text-sm ${
-                      inId === p.id ? 'bg-accent/20 border-accent' : 'bg-bg3 border-border'
-                    }`}
-                    onClick={() => setInId(p.id)}
-                  >
-                    {p.name}
-                  </button>
-                ))
-              )}
+            <div className="text-xs text-muted mb-1">{t('sub.on')}</div>
+            <div className="flex flex-col gap-2">
+              {ownBench.length > 0 ? (
+                <div className="flex flex-col gap-1">
+                  <div className="text-[10px] uppercase tracking-wide text-muted">
+                    {t('sub.ownBench', { vest: t(`vest.${team.vest}`) })}
+                  </div>
+                  {ownBench.map((p) => (
+                    <button
+                      key={p.id}
+                      className={`px-2 py-2 rounded-lg border text-sm ${
+                        inId === p.id ? 'bg-accent/20 border-accent' : 'bg-bg3 border-border'
+                      }`}
+                      onClick={() => setInId(p.id)}
+                    >
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              {benchTeam && fromBenchTeam.length > 0 ? (
+                <div className="flex flex-col gap-1">
+                  <div className="text-[10px] uppercase tracking-wide text-muted">
+                    {t('sub.benchTeam', { vest: t(`vest.${benchTeam.vest}`) })}
+                  </div>
+                  {fromBenchTeam.map((p) => (
+                    <button
+                      key={p.id}
+                      className={`px-2 py-2 rounded-lg border text-sm ${
+                        inId === p.id ? 'bg-accent/20 border-accent' : 'bg-bg3 border-border'
+                      }`}
+                      onClick={() => setInId(p.id)}
+                    >
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              {ownBench.length === 0 && fromBenchTeam.length === 0 ? (
+                <div className="text-xs text-muted">{t('team.noneAvailable')}</div>
+              ) : null}
             </div>
           </div>
         </div>
@@ -532,7 +575,7 @@ function SubSheet({
           disabled={!outId || !inId}
           onClick={() => onConfirm(outId!, inId!)}
         >
-          Confirm sub
+          {t('sub.confirm')}
         </button>
       </div>
     </div>
@@ -560,6 +603,7 @@ function PostMatchPanel({
 }) {
   const qc = useQueryClient();
   const [, setLocation] = useLocation();
+  const t = useT();
   const setResult = useMutation({
     mutationFn: (r: 'a' | 'b' | 'draw') => api.matches.setResult(matchId, { result: r }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['match', matchId] }),
@@ -596,9 +640,7 @@ function PostMatchPanel({
 
   return (
     <div className="border-t border-border bg-bg2 p-4 space-y-3">
-      <h3 className="font-semibold">
-        Match over — {goalsA} : {goalsB}. Who stays?
-      </h3>
+      <h3 className="font-semibold">{t('match.over', { a: goalsA, b: goalsB })}</h3>
       <div className="grid grid-cols-3 gap-2">
         <button
           className={`btn ${stayPicked === 'a' ? 'btn-primary' : ''}`}
@@ -607,7 +649,7 @@ function PostMatchPanel({
             setResult.mutate('a');
           }}
         >
-          {VEST_LABEL[teamA.vest]} stays
+          {t('match.vestStays', { vest: t(`vest.${teamA.vest}`) })}
         </button>
         <button
           className={`btn ${stayPicked === 'b' ? 'btn-primary' : ''}`}
@@ -616,7 +658,7 @@ function PostMatchPanel({
             setResult.mutate('b');
           }}
         >
-          {VEST_LABEL[teamB.vest]} stays
+          {t('match.vestStays', { vest: t(`vest.${teamB.vest}`) })}
         </button>
         <button
           className={`btn ${stayPicked === 'draw' ? 'btn-primary' : ''}`}
@@ -625,21 +667,21 @@ function PostMatchPanel({
             setResult.mutate('draw');
           }}
         >
-          Draw
+          {t('match.draw')}
         </button>
       </div>
 
       {stayPicked === 'draw' ? (
         <div>
-          <div className="text-sm text-muted mb-1">Pick who benches next.</div>
+          <div className="text-sm text-muted mb-1">{t('match.pickBench')}</div>
           <div className="flex gap-2">
-            {[teamA, teamB].map((t) => (
+            {[teamA, teamB].map((tm) => (
               <button
-                key={t.id}
-                className={`btn flex-1 ${benchSwap === t.id ? 'btn-primary' : ''}`}
-                onClick={() => setBenchSwap(t.id)}
+                key={tm.id}
+                className={`btn flex-1 ${benchSwap === tm.id ? 'btn-primary' : ''}`}
+                onClick={() => setBenchSwap(tm.id)}
               >
-                {VEST_LABEL[t.vest]} sits
+                {t('match.vestSits', { vest: t(`vest.${tm.vest}`) })}
               </button>
             ))}
           </div>
@@ -651,10 +693,10 @@ function PostMatchPanel({
         disabled={!stayPicked || (stayPicked === 'draw' && !benchSwap) || createMatch.isPending}
         onClick={next}
       >
-        Start next match ({VEST_LABEL[benchTeam.vest]} comes on)
+        {t('match.startNext', { vest: t(`vest.${benchTeam.vest}`) })}
       </button>
       <button className="btn w-full" onClick={() => setLocation(`/sessions/${sessionId}`)}>
-        Back to session
+        {t('match.backToSession')}
       </button>
     </div>
   );
