@@ -96,6 +96,18 @@ const CreateSessionInput = z.object({
 sessions.post('/', async (c) => {
   const body = CreateSessionInput.parse(await c.req.json());
   const db = getDb();
+
+  // Block creating a new session while one is already active.
+  const active = db
+    .prepare(`SELECT id FROM sessions WHERE status IN ('draft','live') LIMIT 1`)
+    .get();
+  if (active) {
+    return c.json(
+      { error: 'an active session already exists', activeId: (active as any).id },
+      409
+    );
+  }
+
   const id = uid();
   const date = body.date ?? todayIso();
   const tx = db.transaction(() => {

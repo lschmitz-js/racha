@@ -60,60 +60,62 @@ export function Home() {
         </div>
       ) : null}
 
-      <section>
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-semibold">{t('home.lineup')}</h2>
-          <span className="text-sm text-muted">{t('home.selected', { n: selected.size })}</span>
-        </div>
+      {!activeQ.data ? (
+        <section>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-lg font-semibold">{t('home.lineup')}</h2>
+            <span className="text-sm text-muted">{t('home.selected', { n: selected.size })}</span>
+          </div>
 
-        <div className="card space-y-3">
-          <div>
-            <div className="text-xs text-muted mb-2">{t('home.seasonPlayers')}</div>
-            <div className="flex flex-wrap gap-2">
-              {sessionPlayers.map((p) => (
-                <PlayerChip
-                  key={p.id}
-                  p={p}
-                  on={selected.has(p.id)}
-                  onClick={() => toggle(p.id)}
-                />
-              ))}
+          <div className="card space-y-3">
+            <div>
+              <div className="text-xs text-muted mb-2">{t('home.seasonPlayers')}</div>
+              <div className="flex flex-wrap gap-2">
+                {sessionPlayers.map((p) => (
+                  <PlayerChip
+                    key={p.id}
+                    p={p}
+                    on={selected.has(p.id)}
+                    onClick={() => toggle(p.id)}
+                  />
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-muted mb-2">{t('home.dropins')}</div>
+              <div className="flex flex-wrap gap-2">
+                {dropinPlayers.map((p) => (
+                  <PlayerChip
+                    key={p.id}
+                    p={p}
+                    on={selected.has(p.id)}
+                    onClick={() => toggle(p.id)}
+                  />
+                ))}
+              </div>
             </div>
           </div>
-          <div>
-            <div className="text-xs text-muted mb-2">{t('home.dropins')}</div>
-            <div className="flex flex-wrap gap-2">
-              {dropinPlayers.map((p) => (
-                <PlayerChip
-                  key={p.id}
-                  p={p}
-                  on={selected.has(p.id)}
-                  onClick={() => toggle(p.id)}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
 
-        <div className="mt-3 flex gap-2">
-          <button
-            className="btn-primary flex-1"
-            disabled={!canEdit || selected.size < 6 || create.isPending}
-            title={!canEdit ? t('auth.adminOnly') : undefined}
-            onClick={() => create.mutate(Array.from(selected))}
-          >
-            {selected.size < 6
-              ? t('home.selectMore', { n: 6 - selected.size })
-              : t('home.startSession')}
-          </button>
-          <button className="btn" onClick={() => setSelected(new Set())} disabled={selected.size === 0}>
-            {t('common.clear')}
-          </button>
-        </div>
-        {!canEdit ? (
-          <div className="text-xs text-muted mt-2">{t('auth.adminOnly')}</div>
-        ) : null}
-      </section>
+          <div className="mt-3 flex gap-2">
+            <button
+              className="btn-primary flex-1"
+              disabled={!canEdit || selected.size < 6 || create.isPending}
+              title={!canEdit ? t('auth.adminOnly') : undefined}
+              onClick={() => create.mutate(Array.from(selected))}
+            >
+              {selected.size < 6
+                ? t('home.selectMore', { n: 6 - selected.size })
+                : t('home.startSession')}
+            </button>
+            <button className="btn" onClick={() => setSelected(new Set())} disabled={selected.size === 0}>
+              {t('common.clear')}
+            </button>
+          </div>
+          {!canEdit ? (
+            <div className="text-xs text-muted mt-2">{t('auth.adminOnly')}</div>
+          ) : null}
+        </section>
+      ) : null}
 
       {sessionsQ.data && sessionsQ.data.length > 0 ? (
         <section>

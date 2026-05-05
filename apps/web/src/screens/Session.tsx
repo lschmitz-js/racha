@@ -232,24 +232,26 @@ export function Session({ params }: { params: { id: string } }) {
             </section>
           ) : null}
 
-          {canEdit ? (
-            <section className="mt-12 pt-4 border-t border-border space-y-2">
-              <div className="text-xs uppercase tracking-wide text-muted">
-                {t('session.dangerZone')}
-              </div>
-              <button
-                className="btn-danger w-full"
-                disabled={endSession.isPending}
-                onClick={() => {
-                  if (confirm(t('session.confirmEnd'))) {
-                    endSession.mutate();
-                  }
-                }}
-              >
-                {t('session.endSession')}
-              </button>
-            </section>
-          ) : null}
+          <section className="mt-12 pt-4 border-t border-border space-y-2">
+            <div className="text-xs uppercase tracking-wide text-muted">
+              {t('session.dangerZone')}
+            </div>
+            <button
+              className="btn-danger w-full"
+              disabled={!canEdit || endSession.isPending}
+              title={!canEdit ? t('auth.adminOnly') : undefined}
+              onClick={() => {
+                if (confirm(t('session.confirmEnd'))) {
+                  endSession.mutate();
+                }
+              }}
+            >
+              {t('session.endSession')}
+            </button>
+            {!canEdit ? (
+              <div className="text-xs text-muted">{t('auth.adminOnly')}</div>
+            ) : null}
+          </section>
         </>
       )}
 
@@ -345,20 +347,22 @@ function DoneSessionLayout({
         </div>
       </section>
 
-      {canEdit ? (
-        <section className="mt-12 pt-4 border-t border-border space-y-2">
-          <div className="text-xs uppercase tracking-wide text-muted">
-            {t('session.dangerZone')}
-          </div>
-          <button
-            className="btn-danger w-full"
-            disabled={deletePending}
-            onClick={onDelete}
-          >
-            {t('common.delete')}
-          </button>
-        </section>
-      ) : null}
+      <section className="mt-12 pt-4 border-t border-border space-y-2">
+        <div className="text-xs uppercase tracking-wide text-muted">
+          {t('session.dangerZone')}
+        </div>
+        <button
+          className="btn-danger w-full"
+          disabled={!canEdit || deletePending}
+          title={!canEdit ? t('auth.adminOnly') : undefined}
+          onClick={onDelete}
+        >
+          {t('common.delete')}
+        </button>
+        {!canEdit ? (
+          <div className="text-xs text-muted">{t('auth.adminOnly')}</div>
+        ) : null}
+      </section>
     </>
   );
 }
