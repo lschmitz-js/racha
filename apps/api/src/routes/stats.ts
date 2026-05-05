@@ -12,6 +12,8 @@ stats.get('/season', (c) => {
          p.id, p.name, p.type, p.role,
          (SELECT COUNT(DISTINCT mp.match_id)
             FROM match_players mp WHERE mp.player_id = p.id) AS matches_played,
+         (SELECT COUNT(*)
+            FROM session_players sp WHERE sp.player_id = p.id) AS sessions_played,
          SUM(CASE WHEN e.type='goal' THEN 1 ELSE 0 END) AS goals,
          SUM(CASE WHEN e.type='assist' THEN 1 ELSE 0 END) AS assists,
          SUM(CASE WHEN e.type='beautiful' THEN 1 ELSE 0 END) AS beautiful,
