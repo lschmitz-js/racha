@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react';
 import { api } from '../lib/api.js';
 import { useT } from '../lib/i18n.js';
 import { useCanEdit } from '../lib/auth.js';
+import { BestGrid } from '../components/Bests.js';
+import { bestOfEachCategory, type StatRow } from '../lib/points.js';
 import { calcScore, type Player, type Vest } from '@racha/shared';
 
 const VEST_COLORS: Record<Vest, string> = {
@@ -23,6 +25,11 @@ export function Session({ params }: { params: { id: string } }) {
   const sessionQ = useQuery({
     queryKey: ['session', sessionId],
     queryFn: () => api.sessions.get(sessionId),
+  });
+  const recapQ = useQuery({
+    queryKey: ['session', sessionId, 'recap'],
+    queryFn: () => api.sessions.recap(sessionId) as Promise<StatRow[]>,
+    enabled: sessionQ.data?.session?.status === 'done',
   });
 
   const draw = useMutation({
@@ -114,6 +121,20 @@ export function Session({ params }: { params: { id: string } }) {
             </button>
           </div>
         </section>
+      ) : data.session.status === 'done' ? (
+        <DoneSessionLayout
+          session={data.session}
+          teams={teams}
+          matches={matches}
+          playerById={playerById}
+          recap={recapQ.data}
+          onOpenMatch={(id) => setLocation(`/matches/${id}`)}
+          canEdit={canEdit}
+          onDelete={() => {
+            if (confirm(t('session.confirmDelete'))) deleteSession.mutate();
+          }}
+          deletePending={deleteSession.isPending}
+        />
       ) : (
         <>
           <section className="space-y-2">
@@ -152,51 +173,45 @@ export function Session({ params }: { params: { id: string } }) {
             </button>
           </section>
 
-          {data.session.status === 'done' ? (
-            <section className="card">
-              <div className="text-sm text-muted">{t('session.endedNotice')}</div>
-            </section>
-          ) : (
-            <section className="card space-y-2">
-              {liveMatch ? (
-                <>
-                  <div className="text-sm text-muted">
-                    {t('session.liveMatchNotice', {
-                      n: liveMatch.ordinal,
-                      status: t(`status.${liveMatch.status as 'pending' | 'running' | 'paused'}`),
-                    })}
-                  </div>
-                  <button
-                    className="btn-primary w-full"
-                    onClick={() => setLocation(`/matches/${liveMatch.id}`)}
-                  >
-                    {t('session.resumeMatch', { n: liveMatch.ordinal })}
-                  </button>
-                </>
-              ) : (
-                <>
-                  <div className="text-sm text-muted">{t('session.pickPrompt')}</div>
-                  <button
-                    className="btn-primary w-full"
-                    disabled={!pickedTeams.a || !pickedTeams.b || createMatch.isPending}
-                    onClick={() => {
-                      if (!pickedTeams.a || !pickedTeams.b || !benchTeam) return;
-                      createMatch.mutate({
-                        session_id: sessionId,
-                        team_a_id: pickedTeams.a,
-                        team_b_id: pickedTeams.b,
-                        bench_team_id: benchTeam.id,
-                      });
-                    }}
-                  >
-                    {pickedTeams.a && pickedTeams.b
-                      ? t('session.startMatch', { n: matches.length + 1 })
-                      : t('session.pickTwo')}
-                  </button>
-                </>
-              )}
-            </section>
-          )}
+          <section className="card space-y-2">
+            {liveMatch ? (
+              <>
+                <div className="text-sm text-muted">
+                  {t('session.liveMatchNotice', {
+                    n: liveMatch.ordinal,
+                    status: t(`status.${liveMatch.status as 'pending' | 'running' | 'paused'}`),
+                  })}
+                </div>
+                <button
+                  className="btn-primary w-full"
+                  onClick={() => setLocation(`/matches/${liveMatch.id}`)}
+                >
+                  {t('session.resumeMatch', { n: liveMatch.ordinal })}
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="text-sm text-muted">{t('session.pickPrompt')}</div>
+                <button
+                  className="btn-primary w-full"
+                  disabled={!pickedTeams.a || !pickedTeams.b || createMatch.isPending}
+                  onClick={() => {
+                    if (!pickedTeams.a || !pickedTeams.b || !benchTeam) return;
+                    createMatch.mutate({
+                      session_id: sessionId,
+                      team_a_id: pickedTeams.a,
+                      team_b_id: pickedTeams.b,
+                      bench_team_id: benchTeam.id,
+                    });
+                  }}
+                >
+                  {pickedTeams.a && pickedTeams.b
+                    ? t('session.startMatch', { n: matches.length + 1 })
+                    : t('session.pickTwo')}
+                </button>
+              </>
+            )}
+          </section>
 
           {matches.length > 0 ? (
             <section>
@@ -221,31 +236,17 @@ export function Session({ params }: { params: { id: string } }) {
               <div className="text-xs uppercase tracking-wide text-muted">
                 {t('session.dangerZone')}
               </div>
-              {data.session.status !== 'done' ? (
-                <button
-                  className="btn-danger w-full"
-                  disabled={endSession.isPending}
-                  onClick={() => {
-                    if (confirm(t('session.confirmEnd'))) {
-                      endSession.mutate();
-                    }
-                  }}
-                >
-                  {t('session.endSession')}
-                </button>
-              ) : (
-                <button
-                  className="btn-danger w-full"
-                  disabled={deleteSession.isPending}
-                  onClick={() => {
-                    if (confirm(t('session.confirmDelete'))) {
-                      deleteSession.mutate();
-                    }
-                  }}
-                >
-                  {t('common.delete')}
-                </button>
-              )}
+              <button
+                className="btn-danger w-full"
+                disabled={endSession.isPending}
+                onClick={() => {
+                  if (confirm(t('session.confirmEnd'))) {
+                    endSession.mutate();
+                  }
+                }}
+              >
+                {t('session.endSession')}
+              </button>
             </section>
           ) : null}
         </>
@@ -262,6 +263,126 @@ export function Session({ params }: { params: { id: string } }) {
           }
         />
       ) : null}
+    </div>
+  );
+}
+
+function DoneSessionLayout({
+  session,
+  teams,
+  matches,
+  playerById,
+  recap,
+  onOpenMatch,
+  canEdit,
+  onDelete,
+  deletePending,
+}: {
+  session: { date: string; status: string };
+  teams: { id: string; vest: Vest; player_ids: string[] }[];
+  matches: any[];
+  playerById: Map<string, Player>;
+  recap: StatRow[] | undefined;
+  onOpenMatch: (id: string) => void;
+  canEdit: boolean;
+  onDelete: () => void;
+  deletePending: boolean;
+}) {
+  const t = useT();
+  const bests = recap ? bestOfEachCategory(recap) : [];
+  return (
+    <>
+      <section>
+        <h2 className="text-lg font-semibold mb-2">{t('recap.bestOfDay')}</h2>
+        {recap && bests.length > 0 ? (
+          <BestGrid bests={bests} />
+        ) : (
+          <div className="card text-sm text-muted">{t('recap.noStats')}</div>
+        )}
+      </section>
+
+      {matches.length > 0 ? (
+        <section>
+          <h2 className="text-lg font-semibold mb-2">{t('session.matchesTonight')}</h2>
+          <div className="space-y-1">
+            {matches.map((m) => (
+              <button
+                key={m.id}
+                className="card w-full flex items-center justify-between hover:border-accent"
+                onClick={() => onOpenMatch(m.id)}
+              >
+                <span>{t('session.matchN', { n: m.ordinal })}</span>
+                <span className="text-xs text-muted">
+                  {t(`status.${m.status as 'pending' | 'running' | 'paused' | 'done'}`)}
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="space-y-2">
+        <h2 className="text-lg font-semibold">{t('session.teams')}</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {teams.map((tm) => (
+            <ReadOnlyTeamCard
+              key={tm.id}
+              team={tm}
+              players={tm.player_ids.map((id) => playerById.get(id)!).filter(Boolean)}
+            />
+          ))}
+        </div>
+      </section>
+
+      {canEdit ? (
+        <section className="mt-12 pt-4 border-t border-border space-y-2">
+          <div className="text-xs uppercase tracking-wide text-muted">
+            {t('session.dangerZone')}
+          </div>
+          <button
+            className="btn-danger w-full"
+            disabled={deletePending}
+            onClick={onDelete}
+          >
+            {t('common.delete')}
+          </button>
+        </section>
+      ) : null}
+    </>
+  );
+}
+
+function ReadOnlyTeamCard({
+  team,
+  players,
+}: {
+  team: { id: string; vest: Vest };
+  players: Player[];
+}) {
+  const t = useT();
+  const totalScore = players.reduce((s, p) => s + calcScore(p.skills), 0);
+  const avg = players.length ? Math.round((totalScore / players.length) * 10) / 10 : 0;
+  return (
+    <div className="p-3 rounded-xl border border-border">
+      <div className="flex items-center justify-between mb-2">
+        <div className={`px-2 py-1 rounded-md inline-block ${VEST_COLORS[team.vest]}`}>
+          {t(`vest.${team.vest}`)} ({avg})
+        </div>
+        <span className="text-xs text-muted">
+          {t('team.playersCount', { n: players.length })}
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {players.map((p) => (
+          <span
+            key={p.id}
+            className="text-xs px-2 py-0.5 rounded-full bg-bg3 border border-border"
+          >
+            {p.name}
+            {p.role === 'gk' ? ' 🧤' : ''}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

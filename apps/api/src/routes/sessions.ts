@@ -246,7 +246,7 @@ sessions.get('/:id/recap', (c) => {
   const rows = db
     .prepare(
       `SELECT
-         p.id, p.name,
+         p.id, p.name, p.role,
          SUM(CASE WHEN e.type='goal' THEN 1 ELSE 0 END) AS goals,
          SUM(CASE WHEN e.type='assist' THEN 1 ELSE 0 END) AS assists,
          SUM(CASE WHEN e.type='beautiful' THEN 1 ELSE 0 END) AS beautiful,
@@ -256,7 +256,7 @@ sessions.get('/:id/recap', (c) => {
        INNER JOIN match_events e ON e.player_id = p.id
        INNER JOIN matches m ON m.id = e.match_id
        WHERE m.session_id = ?
-       GROUP BY p.id, p.name
+       GROUP BY p.id, p.name, p.role
        ORDER BY goals DESC, assists DESC, p.name`
     )
     .all(id);
