@@ -29,6 +29,12 @@ const VEST_BORDER: Record<Vest, string> = {
   green: 'border-green_v/60',
 };
 
+const VEST_PANEL_BG: Record<Vest, string> = {
+  white: 'bg-slate-200/10',
+  black: 'bg-black/60',
+  green: 'bg-green-900/30',
+};
+
 export function Session({ params }: { params: { id: string } }) {
   const sessionId = params.id;
   const [, setLocation] = useLocation();
@@ -392,7 +398,9 @@ function ReadOnlyTeamCard({
   const totalScore = players.reduce((s, p) => s + calcScore(p.skills), 0);
   const avg = players.length ? Math.round((totalScore / players.length) * 10) / 10 : 0;
   return (
-    <div className={`p-3 rounded-xl border-2 ${VEST_BORDER[team.vest]}`}>
+    <div
+      className={`p-3 rounded-xl border-2 ${VEST_BORDER[team.vest]} ${VEST_PANEL_BG[team.vest]}`}
+    >
       <div className="flex items-center justify-between mb-2">
         <div className={`px-2 py-1 rounded-md inline-block ${VEST_COLORS[team.vest]}`}>
           {t(`vest.${team.vest}`)} ({avg})
@@ -439,7 +447,7 @@ function TeamCard({
   const avg = players.length ? Math.round((totalScore / players.length) * 10) / 10 : 0;
   return (
     <div
-      className={`p-3 rounded-xl border-2 ${
+      className={`p-3 rounded-xl border-2 ${VEST_PANEL_BG[team.vest]} ${
         selectedSide
           ? 'border-accent ring-2 ring-accent/30'
           : VEST_BORDER[team.vest]

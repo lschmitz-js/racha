@@ -25,6 +25,12 @@ const VEST_BORDER: Record<Vest, string> = {
   green: 'border-green_v/60',
 };
 
+const VEST_PANEL_BG: Record<Vest, string> = {
+  white: 'bg-slate-200/10',
+  black: 'bg-black/60',
+  green: 'bg-green-900/30',
+};
+
 const TARGET_MS = 5 * 60 * 1000;
 
 const EVENT_BUTTONS: Array<{ type: EventType; icon: string }> = [
@@ -257,16 +263,6 @@ export function Match({ params }: { params: { id: string } }) {
           <span className="text-xs text-muted ml-1">/ {formatClock(TARGET_MS)}</span>
         </div>
         <div className="flex gap-1 shrink-0">
-          {!isOver ? (
-            <button
-              className="btn px-3"
-              onClick={() => setBenchOpen(true)}
-              aria-label={t('sub.title')}
-              title={t('sub.title')}
-            >
-              🔄
-            </button>
-          ) : null}
           {isPending && (
             <button className="btn-primary" onClick={() => start.mutate()}>
               {t('match.start')}
@@ -313,6 +309,17 @@ export function Match({ params }: { params: { id: string } }) {
           ) : null
         )}
       </div>
+
+      {!isOver ? (
+        <div className="px-2 pb-2">
+          <button
+            className="btn w-full justify-center font-semibold"
+            onClick={() => setBenchOpen(true)}
+          >
+            🔄 {t('sub.title')}
+          </button>
+        </div>
+      ) : null}
 
       <EventLog
         events={events}
@@ -426,7 +433,9 @@ function TeamPanel({
     .map((pid) => byId.get(pid))
     .filter(Boolean) as Player[];
   return (
-    <div className={`space-y-1 p-2 rounded-xl border ${VEST_BORDER[team.vest]}`}>
+    <div
+      className={`space-y-1 p-2 rounded-xl border ${VEST_BORDER[team.vest]} ${VEST_PANEL_BG[team.vest]}`}
+    >
       <div className={`text-xs px-2 py-1 rounded ${VEST_COLORS[team.vest]} inline-block`}>
         {t(`vest.${team.vest}`)}
       </div>
