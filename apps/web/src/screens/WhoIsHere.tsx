@@ -66,21 +66,10 @@ export function WhoIsHere() {
 
   return (
     <div className="pb-32">
-      <div className="sticky top-0 z-20 bg-bg/95 backdrop-blur border-b border-border px-4 pt-3 pb-2 space-y-1">
-        <div className="flex items-center justify-between gap-2">
-          <button className="text-sm text-muted" onClick={() => setLocation('/')}>
-            {t('lineup.cancel')}
-          </button>
-          <span
-            className={`px-3 py-1 rounded-full text-sm font-semibold tabular-nums ${
-              selected.size >= 6
-                ? 'bg-accent/20 text-accent border border-accent/40'
-                : 'bg-bg3 text-muted border border-border'
-            }`}
-          >
-            {t('home.selected', { n: selected.size })}
-          </span>
-        </div>
+      <div className="sticky top-0 z-20 bg-bg/95 backdrop-blur border-b border-border px-4 pt-3 pb-2">
+        <button className="text-sm text-muted" onClick={() => setLocation('/')}>
+          {t('lineup.cancel')}
+        </button>
         <h1 className="text-2xl font-bold">{t('lineup.title')}</h1>
       </div>
 
@@ -115,7 +104,10 @@ export function WhoIsHere() {
             title={!canEdit ? t('auth.adminOnly') : undefined}
             onClick={() => create.mutate(Array.from(selected))}
           >
-            {remaining > 0 ? t('lineup.needMore', { n: remaining }) : t('lineup.start')}
+            <span>
+              {remaining > 0 ? t('lineup.needMore', { n: remaining }) : t('lineup.start')}
+            </span>
+            <span className="ml-2 tabular-nums opacity-80">({selected.size})</span>
           </button>
           {selected.size > 0 ? (
             <button className="btn" onClick={() => setSelected(new Set())}>
