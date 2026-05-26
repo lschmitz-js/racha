@@ -118,7 +118,7 @@ const dict = {
     'event.bad': 'Howler',
     'event.save': 'Save',
     'event.caneta': 'Nutmeg',
-    'event.quasegol': 'Near miss',
+    'event.quasegol': 'Open miss',
 
     // sub sheet
     'sub.title': 'Bench & subs',
@@ -156,7 +156,7 @@ const dict = {
     'recap.cat.bad': 'Most howlers',
     'recap.cat.saves': 'Most saves',
     'recap.cat.canetas': 'Most nutmegs',
-    'recap.cat.quasegols': 'Most near misses',
+    'recap.cat.quasegols': 'Most open misses',
 
     // playerdb
     'players.title': 'Players',
@@ -312,7 +312,7 @@ const dict = {
     'event.bad': 'Cagada',
     'event.save': 'Defesa',
     'event.caneta': 'Caneta',
-    'event.quasegol': 'Quase Gol',
+    'event.quasegol': 'Perdeu na cara',
 
     // sub sheet
     'sub.title': 'Banco & subs',
@@ -350,7 +350,7 @@ const dict = {
     'recap.cat.bad': 'Cagada',
     'recap.cat.saves': 'Defesas',
     'recap.cat.canetas': 'Mais canetas',
-    'recap.cat.quasegols': 'Mais quase gols',
+    'recap.cat.quasegols': 'Mais perdidas na cara',
 
     // playerdb
     'players.title': 'Jogadores',
