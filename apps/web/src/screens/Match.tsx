@@ -492,7 +492,7 @@ function EventLog({
     [teamA, teamB].filter(Boolean).map((tt) => [tt!.id, tt!] as const)
   );
   return (
-    <div className="px-3 py-2 flex-1 overflow-y-auto">
+    <div className="px-3 py-2 max-h-[35vh] overflow-y-auto">
       <div className="text-[10px] uppercase tracking-wide text-muted mb-1">
         {t('match.events')}
       </div>
