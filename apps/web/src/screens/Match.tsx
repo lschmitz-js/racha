@@ -563,12 +563,6 @@ function BenchSheet({
     return team.player_ids.map((pid) => byId.get(pid)).filter(Boolean) as Player[];
   }
 
-  const sections: Array<{ team: SessionTeam; label: string }> = [
-    { team: teamA, label: t('sub.playingA', { vest: t(`vest.${teamA.vest}`) }) },
-    { team: teamB, label: t('sub.playingB', { vest: t(`vest.${teamB.vest}`) }) },
-    { team: benchTeam, label: t('sub.bench') },
-  ];
-
   const selectedTeam = selectedId ? teamOf(selectedId) : null;
   const selectedPlayer = selectedId ? byId.get(selectedId) ?? null : null;
 
@@ -577,6 +571,49 @@ function BenchSheet({
     onMove(selectedId, targetId);
     setSelectedId(null);
   }
+
+  function renderPlayerChip(p: Player, team: SessionTeam) {
+    const isSelected = selectedId === p.id;
+    return (
+      <button
+        key={p.id}
+        type="button"
+        onClick={() => setSelectedId((prev) => (prev === p.id ? null : p.id))}
+        className={`flex items-center gap-2 px-2 py-1 rounded-lg border text-left transition ${
+          isSelected
+            ? 'border-accent bg-accent/10 ring-2 ring-accent'
+            : `bg-bg3 ${VEST_BORDER[team.vest]}`
+        }`}
+        style={{ minHeight: 44 }}
+      >
+        <Avatar playerId={p.id} name={p.name} size={28} />
+        <span className={`text-sm truncate flex-1 ${VEST_TEXT[team.vest]}`}>
+          {p.name}
+          {p.role === 'gk' ? <span className="ml-1 text-xs">🧤</span> : null}
+        </span>
+      </button>
+    );
+  }
+
+  function renderHeader(team: SessionTeam, label: string, count: number) {
+    return (
+      <div className="flex items-center gap-2 mb-1">
+        <span className={`text-xs px-2 py-0.5 rounded ${VEST_COLORS[team.vest]}`}>
+          {t(`vest.${team.vest}`)}
+        </span>
+        <span className="text-xs text-muted truncate">{label}</span>
+        <span className="ml-auto text-xs text-muted">
+          {t('team.playersCount', { n: count })}
+        </span>
+      </div>
+    );
+  }
+
+  const playingTeams: Array<{ team: SessionTeam; label: string }> = [
+    { team: teamA, label: t('sub.playingA', { vest: t(`vest.${teamA.vest}`) }) },
+    { team: teamB, label: t('sub.playingB', { vest: t(`vest.${teamB.vest}`) }) },
+  ];
+  const benchList = listFor(benchTeam);
 
   return (
     <div className="fixed inset-0 bg-black/70 z-40 flex items-end">
@@ -590,58 +627,43 @@ function BenchSheet({
         <p className="text-xs text-muted mb-3">{t('sub.hint')}</p>
 
         <div className="space-y-4">
-          {sections.map(({ team, label }) => {
-            const list = listFor(team);
-            return (
-              <div key={team.id}>
-                <div className="flex items-center gap-2 mb-1">
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded ${VEST_COLORS[team.vest]}`}
-                  >
-                    {t(`vest.${team.vest}`)}
-                  </span>
-                  <span className="text-xs text-muted">{label}</span>
-                  <span className="ml-auto text-xs text-muted">
-                    {t('team.playersCount', { n: list.length })}
-                  </span>
+          {/* Two playing teams side-by-side, players stacked vertically per column */}
+          <div className="grid grid-cols-2 gap-2">
+            {playingTeams.map(({ team, label }) => {
+              const list = listFor(team);
+              return (
+                <div
+                  key={team.id}
+                  className={`rounded-xl border p-2 ${VEST_BORDER[team.vest]} ${VEST_PANEL_BG[team.vest]}`}
+                >
+                  {renderHeader(team, label, list.length)}
+                  {list.length === 0 ? (
+                    <div className="text-xs text-muted px-1 py-1">
+                      {t('team.noneAvailable')}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-1">
+                      {list.map((p) => renderPlayerChip(p, team))}
+                    </div>
+                  )}
                 </div>
-                {list.length === 0 ? (
-                  <div className="text-xs text-muted px-1 py-1">
-                    {team === benchTeam ? t('sub.benchEmpty') : t('team.noneAvailable')}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-1">
-                    {list.map((p) => {
-                      const isSelected = selectedId === p.id;
-                      return (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() =>
-                            setSelectedId((prev) => (prev === p.id ? null : p.id))
-                          }
-                          className={`flex items-center gap-2 px-2 py-1 rounded-lg border text-left transition ${
-                            isSelected
-                              ? 'border-accent bg-accent/10 ring-2 ring-accent'
-                              : `bg-bg3 ${VEST_BORDER[team.vest]}`
-                          }`}
-                          style={{ minHeight: 44 }}
-                        >
-                          <Avatar playerId={p.id} name={p.name} size={28} />
-                          <span
-                            className={`text-sm truncate flex-1 ${VEST_TEXT[team.vest]}`}
-                          >
-                            {p.name}
-                            {p.role === 'gk' ? <span className="ml-1 text-xs">🧤</span> : null}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+              );
+            })}
+          </div>
+
+          {/* Bench team full-width, players in a horizontal grid */}
+          <div
+            className={`rounded-xl border p-2 ${VEST_BORDER[benchTeam.vest]} ${VEST_PANEL_BG[benchTeam.vest]}`}
+          >
+            {renderHeader(benchTeam, t('sub.bench'), benchList.length)}
+            {benchList.length === 0 ? (
+              <div className="text-xs text-muted px-1 py-1">{t('sub.benchEmpty')}</div>
+            ) : (
+              <div className="grid grid-cols-2 gap-1">
+                {benchList.map((p) => renderPlayerChip(p, benchTeam))}
               </div>
-            );
-          })}
+            )}
+          </div>
         </div>
       </div>
 
