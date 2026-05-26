@@ -3,7 +3,7 @@ import { useLocation } from 'wouter';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { uid, type EventType, type Player, type Vest } from '@racha/shared';
 import { api } from '../lib/api.js';
-import { useT } from '../lib/i18n.js';
+import { LanguageToggle, useT } from '../lib/i18n.js';
 import { Avatar } from '../lib/avatar.js';
 import { formatClock, useClock, computeClockMs } from '../lib/clock.js';
 
@@ -257,9 +257,12 @@ export function Match({ params }: { params: { id: string } }) {
   return (
     <div className="min-h-screen flex flex-col">
       <header className="px-3 py-2 flex items-center justify-between gap-2 border-b border-border bg-bg2 sticky top-0 z-10">
-        <button className="text-sm text-muted shrink-0" onClick={() => setLocation(`/sessions/${m.session_id}`)}>
-          {t('common.session')}
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button className="text-sm text-muted" onClick={() => setLocation(`/sessions/${m.session_id}`)}>
+            {t('common.session')}
+          </button>
+          <LanguageToggle />
+        </div>
         <div className="text-2xl font-mono tabular-nums">
           {formatClock(liveClock)}
           <span className="text-xs text-muted ml-1">/ {formatClock(TARGET_MS)}</span>
