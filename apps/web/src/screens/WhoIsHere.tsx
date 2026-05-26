@@ -65,15 +65,27 @@ export function WhoIsHere() {
   const remaining = Math.max(0, 6 - selected.size);
 
   return (
-    <div className="p-4 pb-32 space-y-4">
-      <header className="space-y-1">
-        <button className="text-sm text-muted" onClick={() => setLocation('/')}>
-          {t('lineup.cancel')}
-        </button>
+    <div className="pb-32">
+      <div className="sticky top-0 z-20 bg-bg/95 backdrop-blur border-b border-border px-4 pt-3 pb-2 space-y-1">
+        <div className="flex items-center justify-between gap-2">
+          <button className="text-sm text-muted" onClick={() => setLocation('/')}>
+            {t('lineup.cancel')}
+          </button>
+          <span
+            className={`px-3 py-1 rounded-full text-sm font-semibold tabular-nums ${
+              selected.size >= 6
+                ? 'bg-accent/20 text-accent border border-accent/40'
+                : 'bg-bg3 text-muted border border-border'
+            }`}
+          >
+            {t('home.selected', { n: selected.size })}
+          </span>
+        </div>
         <h1 className="text-2xl font-bold">{t('lineup.title')}</h1>
+      </div>
+
+      <div className="p-4 space-y-4">
         <p className="text-sm text-muted">{t('lineup.subtitle')}</p>
-        <div className="text-xs text-muted">{t('home.selected', { n: selected.size })}</div>
-      </header>
 
       {sessionPlayers.length > 0 ? (
         <section>
@@ -92,6 +104,8 @@ export function WhoIsHere() {
           <PlayerGrid players={dropinPlayers} selected={selected} onToggle={toggle} />
         </section>
       ) : null}
+
+      </div>
 
       <div className="fixed bottom-16 inset-x-0 px-4 safe-bottom pointer-events-none">
         <div className="pointer-events-auto flex gap-2">
