@@ -14,9 +14,12 @@ export function Home() {
 
   return (
     <div className="p-4 pb-32 space-y-6">
-      <header className="pt-8 pb-2 text-center">
-        <div className="text-4xl">⚽</div>
-        <h1 className="text-3xl font-bold mt-2">{t('home.welcome')}</h1>
+      <header className="pt-6 pb-2 flex justify-center">
+        <img
+          src="/logo-512.png"
+          alt={t('home.welcome')}
+          className="w-56 h-56 sm:w-64 sm:h-64 object-contain"
+        />
       </header>
 
       {activeQ.data ? (
