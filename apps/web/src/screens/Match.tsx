@@ -37,8 +37,10 @@ const EVENT_BUTTONS: Array<{ type: EventType; icon: string }> = [
   { type: 'goal', icon: '⚽' },
   { type: 'assist', icon: '🅰' },
   { type: 'beautiful', icon: '✨' },
-  { type: 'bad', icon: '💩' },
+  { type: 'caneta', icon: '🪡' },
   { type: 'save', icon: '🧤' },
+  { type: 'bad', icon: '💩' },
+  { type: 'quasegol', icon: '😱' },
 ];
 
 interface Toast {

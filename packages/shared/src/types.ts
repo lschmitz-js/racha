@@ -83,6 +83,8 @@ export const EventType = z.enum([
   'silly',
   'bad',
   'save',
+  'caneta',
+  'quasegol',
   'sub_in',
   'sub_out',
 ]);

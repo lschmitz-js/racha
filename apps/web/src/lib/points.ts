@@ -7,15 +7,19 @@ export interface StatRow {
   beautiful: number;
   bad: number;
   saves: number;
+  canetas: number;
+  quasegols: number;
 }
 
-// Player-of-the-day formula: 2G + 1A + 0.25✨ − 0.25💩 + 1🧤
+// Player-of-the-day formula: 2G + 1A + 0.25✨ − 0.25💩 + 1🧤 + 0.25🪡 − 0.25😱
 export const POINTS_WEIGHTS = {
   goal: 2,
   assist: 1,
   beautiful: 0.25,
   bad: -0.25,
   save: 1,
+  caneta: 0.25,
+  quasegol: -0.25,
 } as const;
 
 export function calcPoints(r: StatRow): number {
@@ -24,7 +28,9 @@ export function calcPoints(r: StatRow): number {
     r.assists * POINTS_WEIGHTS.assist +
     r.beautiful * POINTS_WEIGHTS.beautiful +
     r.bad * POINTS_WEIGHTS.bad +
-    r.saves * POINTS_WEIGHTS.save
+    r.saves * POINTS_WEIGHTS.save +
+    (r.canetas ?? 0) * POINTS_WEIGHTS.caneta +
+    (r.quasegols ?? 0) * POINTS_WEIGHTS.quasegol
   );
 }
 
@@ -34,7 +40,15 @@ export function fmtPoints(n: number): string {
   return Number.isInteger(rounded) ? rounded.toString() : rounded.toFixed(1);
 }
 
-type Category = 'mvp' | 'goals' | 'assists' | 'beautiful' | 'bad' | 'saves';
+type Category =
+  | 'mvp'
+  | 'goals'
+  | 'assists'
+  | 'beautiful'
+  | 'bad'
+  | 'saves'
+  | 'canetas'
+  | 'quasegols';
 
 export interface BestEntry {
   category: Category;
@@ -78,5 +92,7 @@ export function bestOfEachCategory(rows: StatRow[]): BestEntry[] {
   pick('beautiful', (r) => r.beautiful);
   pick('bad', (r) => r.bad);
   pick('saves', (r) => r.saves);
+  pick('canetas', (r) => r.canetas ?? 0);
+  pick('quasegols', (r) => r.quasegols ?? 0);
   return out;
 }

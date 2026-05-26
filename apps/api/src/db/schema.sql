@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS match_events (
   match_id   TEXT NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
   clock_ms   INTEGER NOT NULL,
   type       TEXT NOT NULL CHECK(type IN
-             ('goal','assist','beautiful','silly','bad','save','sub_in','sub_out')),
+             ('goal','assist','beautiful','silly','bad','save','caneta','quasegol','sub_in','sub_out')),
   player_id  TEXT NOT NULL REFERENCES players(id),
   team_id    TEXT NOT NULL REFERENCES session_teams(id),
   link_id    TEXT,

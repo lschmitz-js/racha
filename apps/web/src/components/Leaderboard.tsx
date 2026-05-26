@@ -10,6 +10,8 @@ export type SortKey =
   | 'beautiful'
   | 'bad'
   | 'saves'
+  | 'canetas'
+  | 'quasegols'
   | 'matches_played'
   | 'sessions_played'
   | 'points';
@@ -68,6 +70,8 @@ export function Leaderboard({
     { key: 'beautiful', label: '✨' },
     { key: 'bad', label: '💩' },
     { key: 'saves', label: '🧤' },
+    { key: 'canetas', label: '🪡' },
+    { key: 'quasegols', label: '😱' },
     ...(showMatches
       ? [{ key: 'matches_played' as const, label: t('recap.matchesShort') }]
       : []),
@@ -117,6 +121,8 @@ export function Leaderboard({
               <td className="p-1 text-right tabular-nums">{r.beautiful}</td>
               <td className="p-1 text-right tabular-nums">{r.bad}</td>
               <td className="p-1 text-right tabular-nums">{r.saves}</td>
+              <td className="p-1 text-right tabular-nums">{r.canetas ?? 0}</td>
+              <td className="p-1 text-right tabular-nums">{r.quasegols ?? 0}</td>
               {showMatches ? (
                 <td className="p-1 text-right tabular-nums">{r.matches_played ?? 0}</td>
               ) : null}

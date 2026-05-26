@@ -283,7 +283,9 @@ sessions.get('/:id/recap', (c) => {
          SUM(CASE WHEN e.type='assist' THEN 1 ELSE 0 END) AS assists,
          SUM(CASE WHEN e.type='beautiful' THEN 1 ELSE 0 END) AS beautiful,
          SUM(CASE WHEN e.type='bad' THEN 1 ELSE 0 END) AS bad,
-         SUM(CASE WHEN e.type='save' THEN 1 ELSE 0 END) AS saves
+         SUM(CASE WHEN e.type='save' THEN 1 ELSE 0 END) AS saves,
+         SUM(CASE WHEN e.type='caneta' THEN 1 ELSE 0 END) AS canetas,
+         SUM(CASE WHEN e.type='quasegol' THEN 1 ELSE 0 END) AS quasegols
        FROM players p
        INNER JOIN match_events e ON e.player_id = p.id
        INNER JOIN matches m ON m.id = e.match_id

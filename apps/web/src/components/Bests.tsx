@@ -9,6 +9,8 @@ const CATEGORY_ICON: Record<BestEntry['category'], string> = {
   beautiful: '✨',
   bad: '💩',
   saves: '🧤',
+  canetas: '🪡',
+  quasegols: '😱',
 };
 
 export function BestGrid({

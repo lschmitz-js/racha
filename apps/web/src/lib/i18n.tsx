@@ -117,6 +117,8 @@ const dict = {
     'event.beautiful': 'Beautiful play',
     'event.bad': 'Howler',
     'event.save': 'Save',
+    'event.caneta': 'Nutmeg',
+    'event.quasegol': 'Near miss',
 
     // sub sheet
     'sub.title': 'Bench & subs',
@@ -153,6 +155,8 @@ const dict = {
     'recap.cat.beautiful': 'Most beautiful',
     'recap.cat.bad': 'Most howlers',
     'recap.cat.saves': 'Most saves',
+    'recap.cat.canetas': 'Most nutmegs',
+    'recap.cat.quasegols': 'Most near misses',
 
     // playerdb
     'players.title': 'Players',
@@ -307,6 +311,8 @@ const dict = {
     'event.beautiful': 'Jogada bonita',
     'event.bad': 'Cagada',
     'event.save': 'Defesa',
+    'event.caneta': 'Caneta',
+    'event.quasegol': 'Quase Gol',
 
     // sub sheet
     'sub.title': 'Banco & subs',
@@ -343,6 +349,8 @@ const dict = {
     'recap.cat.beautiful': 'Jogada bonita',
     'recap.cat.bad': 'Cagada',
     'recap.cat.saves': 'Defesas',
+    'recap.cat.canetas': 'Mais canetas',
+    'recap.cat.quasegols': 'Mais quase gols',
 
     // playerdb
     'players.title': 'Jogadores',
