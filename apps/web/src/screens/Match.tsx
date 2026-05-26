@@ -4,12 +4,25 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { uid, type EventType, type Player, type Vest } from '@racha/shared';
 import { api } from '../lib/api.js';
 import { useT } from '../lib/i18n.js';
+import { Avatar } from '../lib/avatar.js';
 import { formatClock, useClock, computeClockMs } from '../lib/clock.js';
 
 const VEST_COLORS: Record<Vest, string> = {
   white: 'bg-gray-100 text-black',
   black: 'bg-gray-900 text-white',
   green: 'bg-green-700 text-white',
+};
+
+const VEST_TEXT: Record<Vest, string> = {
+  white: 'text-white',
+  black: 'text-slate-300',
+  green: 'text-green-300',
+};
+
+const VEST_BORDER: Record<Vest, string> = {
+  white: 'border-white_v/40',
+  black: 'border-slate-500/60',
+  green: 'border-green_v/60',
 };
 
 const TARGET_MS = 5 * 60 * 1000;
@@ -28,9 +41,11 @@ interface Toast {
   linkId: string;
   type: EventType;
   scorerTeamId: string;
-  scorerName: string;
+  scorerId: string;
   expiresAt: number;
 }
+
+type SessionTeam = { id: string; vest: Vest; player_ids: string[] };
 
 export function Match({ params }: { params: { id: string } }) {
   const matchId = params.id;
@@ -72,18 +87,22 @@ export function Match({ params }: { params: { id: string } }) {
     mutationFn: api.events.create,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['match', matchId] }),
   });
-  const submitSub = useMutation({
-    mutationFn: api.events.sub,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['match', matchId] }),
-  });
   const removeEvent = useMutation({
     mutationFn: ({ id, link }: { id: string; link: boolean }) => api.events.remove(id, link),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['match', matchId] }),
   });
+  const assignToTeam = useMutation({
+    mutationFn: ({ teamId, playerId }: { teamId: string; playerId: string }) =>
+      api.sessions.assignPlayerToTeam(matchQ.data!.match.session_id, teamId, playerId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['session', matchQ.data!.match.session_id] });
+      qc.invalidateQueries({ queryKey: ['match', matchId] });
+    },
+  });
 
   const [armedEvent, setArmedEvent] = useState<EventType | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
-  const [subSheet, setSubSheet] = useState<{ teamId: string } | null>(null);
+  const [benchOpen, setBenchOpen] = useState(false);
   const buzzedRef = useRef(false);
 
   const players: Player[] = playersQ.data ?? [];
@@ -91,7 +110,6 @@ export function Match({ params }: { params: { id: string } }) {
 
   const liveClock = useClock(matchQ.data?.match);
 
-  // Soft-buzz at 5:00
   useEffect(() => {
     if (!matchQ.data?.match) return;
     const m = matchQ.data.match;
@@ -119,7 +137,6 @@ export function Match({ params }: { params: { id: string } }) {
     }
   }, [liveClock, matchQ.data?.match?.status]);
 
-  // Auto-dismiss toast
   useEffect(() => {
     if (!toast) return;
     const remaining = toast.expiresAt - Date.now();
@@ -136,7 +153,6 @@ export function Match({ params }: { params: { id: string } }) {
   if (!data) return <div className="p-4">{t('common.notFound')}</div>;
 
   const m = data.match;
-  const lineup = data.lineup as Array<{ player_id: string; team_id: string }>;
   const events = data.events as Array<{
     id: string;
     type: EventType;
@@ -146,13 +162,10 @@ export function Match({ params }: { params: { id: string } }) {
     clock_ms: number;
   }>;
   const sessionData = sessionQ.data;
-  const teams = (sessionData?.teams ?? []) as Array<{ id: string; vest: Vest; player_ids: string[] }>;
+  const teams = (sessionData?.teams ?? []) as SessionTeam[];
   const teamA = teams.find((t) => t.id === m.team_a_id);
   const teamB = teams.find((t) => t.id === m.team_b_id);
   const benchTeam = teams.find((t) => t.id === m.bench_team_id);
-
-  // Who is currently on the pitch per team — start with match_players, apply sub events.
-  const onPitchByTeam = computeOnPitch(lineup, events);
 
   const goalsA = events.filter((e) => e.type === 'goal' && e.team_id === m.team_a_id).length;
   const goalsB = events.filter((e) => e.type === 'goal' && e.team_id === m.team_b_id).length;
@@ -184,7 +197,7 @@ export function Match({ params }: { params: { id: string } }) {
               linkId: linkId!,
               type,
               scorerTeamId: teamId,
-              scorerName: player?.name ?? '',
+              scorerId: playerId,
               expiresAt: Date.now() + 4500,
             });
           } else {
@@ -195,7 +208,7 @@ export function Match({ params }: { params: { id: string } }) {
               linkId: id,
               type,
               scorerTeamId: teamId,
-              scorerName: player?.name ?? '',
+              scorerId: playerId,
               expiresAt: Date.now() + 3000,
             });
           }
@@ -206,9 +219,7 @@ export function Match({ params }: { params: { id: string } }) {
   }
 
   function handlePlayerTap(playerId: string, teamId: string) {
-    // Goal-assist follow-up: if we just logged a goal for this team, tapping
-    // another player on the same team is interpreted as the assist.
-    if (toast?.type === 'goal' && toast.scorerTeamId === teamId) {
+    if (toast?.type === 'goal' && toast.scorerTeamId === teamId && toast.scorerId !== playerId) {
       logAssist(playerId);
       return;
     }
@@ -235,27 +246,27 @@ export function Match({ params }: { params: { id: string } }) {
     setToast(null);
   }
 
-  function nudgeClock(deltaMs: number) {
-    if (!toast) return;
-    // Resubmit by deleting + reinserting with offset would be heavier; simpler:
-    // hit the API to update clock_ms via a delete-then-insert. v1: just inform the
-    // user the offset would need DB tweak. Instead, we expose this in code path
-    // by recreating: delete original, log a fresh event with offset.
-    // (kept simple: not implemented in v1 UI to avoid edge cases.)
-    void deltaMs;
-  }
-
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="px-4 py-2 flex items-center justify-between border-b border-border bg-bg2 sticky top-0 z-10">
-        <button className="text-sm text-muted" onClick={() => setLocation(`/sessions/${m.session_id}`)}>
+      <header className="px-3 py-2 flex items-center justify-between gap-2 border-b border-border bg-bg2 sticky top-0 z-10">
+        <button className="text-sm text-muted shrink-0" onClick={() => setLocation(`/sessions/${m.session_id}`)}>
           {t('common.session')}
         </button>
         <div className="text-2xl font-mono tabular-nums">
           {formatClock(liveClock)}
           <span className="text-xs text-muted ml-1">/ {formatClock(TARGET_MS)}</span>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1 shrink-0">
+          {!isOver ? (
+            <button
+              className="btn px-3"
+              onClick={() => setBenchOpen(true)}
+              aria-label={t('sub.title')}
+              title={t('sub.title')}
+            >
+              🔄
+            </button>
+          ) : null}
           {isPending && (
             <button className="btn-primary" onClick={() => start.mutate()}>
               {t('match.start')}
@@ -279,33 +290,30 @@ export function Match({ params }: { params: { id: string } }) {
         </div>
       </header>
 
-      {/* Score */}
       <div className="grid grid-cols-2 px-2 py-2 border-b border-border bg-bg">
         <ScoreSide team={teamA} goals={goalsA} />
         <ScoreSide team={teamB} goals={goalsB} align="right" />
       </div>
 
-      {/* Players grid */}
       <div className="grid grid-cols-2 gap-2 px-2 py-2">
         {[teamA, teamB].map((team) =>
           team ? (
             <TeamPanel
               key={team.id}
               team={team}
-              onPitch={onPitchByTeam.get(team.id) ?? new Set()}
               players={players}
               armedEvent={armedEvent}
-              onPlayerTap={(pid) => handlePlayerTap(pid, team.id)}
-              onSubClick={() => setSubSheet({ teamId: team.id })}
-              isSubAssistTarget={
-                toast?.type === 'goal' && toast.scorerTeamId === team.id ? toast : null
+              assistPendingFor={
+                toast?.type === 'goal' && toast.scorerTeamId === team.id
+                  ? toast.scorerId
+                  : null
               }
+              onPlayerTap={(pid) => handlePlayerTap(pid, team.id)}
             />
           ) : null
         )}
       </div>
 
-      {/* Event log */}
       <EventLog
         events={events}
         players={players}
@@ -313,7 +321,6 @@ export function Match({ params }: { params: { id: string } }) {
         teamB={teamB}
       />
 
-      {/* Always-visible event bar */}
       {!isOver ? (
         <div className="border-t border-border bg-bg2 p-2 sticky bottom-0 z-10 safe-bottom">
           {armedEvent ? (
@@ -340,7 +347,6 @@ export function Match({ params }: { params: { id: string } }) {
         </div>
       ) : null}
 
-      {/* Toast */}
       {toast ? (
         <div className="fixed left-2 right-2 bottom-24 z-30 bg-bg3 border border-border rounded-xl p-3 flex items-center justify-between shadow-lg">
           <span className="text-sm">{toast.text}</span>
@@ -350,7 +356,6 @@ export function Match({ params }: { params: { id: string } }) {
         </div>
       ) : null}
 
-      {/* Match end actions */}
       {isOver ? (
         <PostMatchPanel
           matchId={matchId}
@@ -364,25 +369,17 @@ export function Match({ params }: { params: { id: string } }) {
         />
       ) : null}
 
-      {/* Sub sheet */}
-      {subSheet ? (
-        <SubSheet
-          team={teams.find((t) => t.id === subSheet.teamId)!}
-          benchTeam={benchTeam ?? null}
-          onPitchByTeam={onPitchByTeam}
+      {benchOpen && teamA && teamB && benchTeam ? (
+        <BenchSheet
+          teamA={teamA}
+          teamB={teamB}
+          benchTeam={benchTeam}
           players={players}
-          onClose={() => setSubSheet(null)}
-          onConfirm={(out_id, in_id) =>
-            submitSub.mutate(
-              {
-                match_id: matchId,
-                team_id: subSheet.teamId,
-                out_player_id: out_id ?? undefined,
-                in_player_id: in_id,
-              },
-              { onSuccess: () => setSubSheet(null) }
-            )
+          onClose={() => setBenchOpen(false)}
+          onMove={(playerId, targetTeamId) =>
+            assignToTeam.mutate({ teamId: targetTeamId, playerId })
           }
+          pending={assignToTeam.isPending}
         />
       ) : null}
     </div>
@@ -412,40 +409,35 @@ function ScoreSide({
 
 function TeamPanel({
   team,
-  onPitch,
   players,
   armedEvent,
   onPlayerTap,
-  onSubClick,
-  isSubAssistTarget,
+  assistPendingFor,
 }: {
-  team: { id: string; vest: Vest; player_ids: string[] };
-  onPitch: Set<string>;
+  team: SessionTeam;
   players: Player[];
   armedEvent: EventType | null;
   onPlayerTap: (id: string) => void;
-  onSubClick: () => void;
-  isSubAssistTarget: Toast | null;
+  assistPendingFor: string | null;
 }) {
   const t = useT();
+  const byId = new Map(players.map((p) => [p.id, p]));
   const onPitchPlayers = team.player_ids
-    .map((pid) => players.find((p) => p.id === pid))
+    .map((pid) => byId.get(pid))
     .filter(Boolean) as Player[];
-  const liveOnPitch = onPitchPlayers.filter((p) => onPitch.has(p.id));
   return (
-    <div className="space-y-1">
+    <div className={`space-y-1 p-2 rounded-xl border ${VEST_BORDER[team.vest]}`}>
       <div className={`text-xs px-2 py-1 rounded ${VEST_COLORS[team.vest]} inline-block`}>
         {t(`vest.${team.vest}`)}
       </div>
       <div className="flex flex-col gap-1">
-        {liveOnPitch.map((p) => {
-          const isAssistTarget =
-            isSubAssistTarget && p.id !== getNameFromId(isSubAssistTarget.scorerName, players);
-          const isArmedTarget = !!armedEvent && !isSubAssistTarget;
+        {onPitchPlayers.map((p) => {
+          const isAssistTarget = assistPendingFor && p.id !== assistPendingFor;
+          const isArmedTarget = !!armedEvent && !assistPendingFor;
           return (
             <button
               key={p.id}
-              className={`text-left px-3 py-2 rounded-lg border transition ${
+              className={`text-left px-2 py-2 rounded-lg border transition flex items-center gap-2 ${
                 isAssistTarget
                   ? 'border-amber-500 bg-amber-500/10'
                   : isArmedTarget
@@ -453,17 +445,20 @@ function TeamPanel({
                   : 'bg-bg2 border-border'
               }`}
               onClick={() => onPlayerTap(p.id)}
-              style={{ minHeight: 40 }}
+              style={{ minHeight: 44 }}
             >
-              <span className="font-medium">{p.name}</span>
-              {p.role === 'gk' ? <span className="ml-1 text-xs">🧤</span> : null}
+              <Avatar playerId={p.id} name={p.name} size={32} />
+              <span className={`font-medium truncate flex-1 ${VEST_TEXT[team.vest]}`}>
+                {p.name}
+                {p.role === 'gk' ? <span className="ml-1 text-xs">🧤</span> : null}
+              </span>
             </button>
           );
         })}
+        {onPitchPlayers.length === 0 ? (
+          <div className="text-xs text-muted px-2 py-2">{t('team.noneAvailable')}</div>
+        ) : null}
       </div>
-      <button className="btn w-full mt-1" onClick={onSubClick}>
-        {t('match.sub')}
-      </button>
     </div>
   );
 }
@@ -525,127 +520,161 @@ function EventLog({
   );
 }
 
-function getNameFromId(name: string, players: Player[]): string {
-  // helper: maps name back to player.id (since we passed scorerName around)
-  const found = players.find((p) => p.name === name);
-  return found?.id ?? '';
-}
-
-function SubSheet({
-  team,
+function BenchSheet({
+  teamA,
+  teamB,
   benchTeam,
-  onPitchByTeam,
   players,
   onClose,
-  onConfirm,
+  onMove,
+  pending,
 }: {
-  team: { id: string; vest: Vest; player_ids: string[] };
-  benchTeam: { id: string; vest: Vest; player_ids: string[] } | null;
-  onPitchByTeam: Map<string, Set<string>>;
+  teamA: SessionTeam;
+  teamB: SessionTeam;
+  benchTeam: SessionTeam;
   players: Player[];
   onClose: () => void;
-  onConfirm: (out_id: string | null, in_id: string) => void;
+  onMove: (playerId: string, targetTeamId: string) => void;
+  pending: boolean;
 }) {
   const t = useT();
-  const onPitchHere = onPitchByTeam.get(team.id) ?? new Set<string>();
-  // Anyone currently on pitch in any team is unavailable to sub in.
-  const allOnPitch = new Set<string>();
-  for (const set of onPitchByTeam.values()) for (const pid of set) allOnPitch.add(pid);
+  const byId = new Map(players.map((p) => [p.id, p]));
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const playerById = new Map(players.map((p) => [p.id, p]));
-  const ownTeamPlayers = team.player_ids
-    .map((pid) => playerById.get(pid))
-    .filter(Boolean) as Player[];
+  function teamOf(playerId: string): SessionTeam | null {
+    for (const team of [teamA, teamB, benchTeam]) {
+      if (team.player_ids.includes(playerId)) return team;
+    }
+    return null;
+  }
 
-  const onPitchList = ownTeamPlayers.filter((p) => onPitchHere.has(p.id));
-  const ownBench = ownTeamPlayers.filter((p) => !allOnPitch.has(p.id));
-  const fromBenchTeam = (benchTeam?.player_ids ?? [])
-    .map((pid) => playerById.get(pid))
-    .filter(Boolean)
-    .filter((p) => !allOnPitch.has((p as Player).id)) as Player[];
+  function listFor(team: SessionTeam): Player[] {
+    return team.player_ids.map((pid) => byId.get(pid)).filter(Boolean) as Player[];
+  }
 
-  const [outId, setOutId] = useState<string | null>(null);
-  const [inId, setInId] = useState<string | null>(null);
+  const sections: Array<{ team: SessionTeam; label: string }> = [
+    { team: teamA, label: t('sub.playingA', { vest: t(`vest.${teamA.vest}`) }) },
+    { team: teamB, label: t('sub.playingB', { vest: t(`vest.${teamB.vest}`) }) },
+    { team: benchTeam, label: t('sub.bench') },
+  ];
+
+  const selectedTeam = selectedId ? teamOf(selectedId) : null;
+  const selectedPlayer = selectedId ? byId.get(selectedId) ?? null : null;
+
+  function handleMove(targetId: string) {
+    if (!selectedId) return;
+    onMove(selectedId, targetId);
+    setSelectedId(null);
+  }
+
   return (
     <div className="fixed inset-0 bg-black/70 z-40 flex items-end">
-      <div className="bg-bg2 border-t border-border rounded-t-xl p-4 w-full max-h-[80vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-semibold">
-            {t('sub.title', { vest: t(`vest.${team.vest}`) })}
-          </h2>
-          <button className="text-muted" onClick={onClose}>×</button>
+      <div className="bg-bg2 border-t border-border rounded-t-xl p-4 w-full max-h-[90vh] overflow-y-auto pb-32">
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-lg font-semibold">{t('sub.title')}</h2>
+          <button className="text-muted text-xl leading-none px-2" onClick={onClose}>
+            ×
+          </button>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <div className="text-xs text-muted mb-1">
-              {t('sub.off')} <span className="opacity-60">({t('sub.optional')})</span>
-            </div>
-            <div className="flex flex-col gap-1">
-              {onPitchList.map((p) => (
-                <button
-                  key={p.id}
-                  className={`px-2 py-2 rounded-lg border text-sm ${
-                    outId === p.id ? 'bg-red-500/20 border-red-500' : 'bg-bg3 border-border'
-                  }`}
-                  onClick={() => setOutId((prev) => (prev === p.id ? null : p.id))}
-                >
-                  {p.name}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <div className="text-xs text-muted mb-1">{t('sub.on')}</div>
-            <div className="flex flex-col gap-2">
-              {ownBench.length > 0 ? (
-                <div className="flex flex-col gap-1">
-                  <div className="text-[10px] uppercase tracking-wide text-muted">
-                    {t('sub.ownBench', { vest: t(`vest.${team.vest}`) })}
-                  </div>
-                  {ownBench.map((p) => (
-                    <button
-                      key={p.id}
-                      className={`px-2 py-2 rounded-lg border text-sm ${
-                        inId === p.id ? 'bg-accent/20 border-accent' : 'bg-bg3 border-border'
-                      }`}
-                      onClick={() => setInId(p.id)}
-                    >
-                      {p.name}
-                    </button>
-                  ))}
+        <p className="text-xs text-muted mb-3">{t('sub.hint')}</p>
+
+        <div className="space-y-4">
+          {sections.map(({ team, label }) => {
+            const list = listFor(team);
+            return (
+              <div key={team.id}>
+                <div className="flex items-center gap-2 mb-1">
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded ${VEST_COLORS[team.vest]}`}
+                  >
+                    {t(`vest.${team.vest}`)}
+                  </span>
+                  <span className="text-xs text-muted">{label}</span>
+                  <span className="ml-auto text-xs text-muted">
+                    {t('team.playersCount', { n: list.length })}
+                  </span>
                 </div>
-              ) : null}
-              {benchTeam && fromBenchTeam.length > 0 ? (
-                <div className="flex flex-col gap-1">
-                  <div className="text-[10px] uppercase tracking-wide text-muted">
-                    {t('sub.benchTeam', { vest: t(`vest.${benchTeam.vest}`) })}
+                {list.length === 0 ? (
+                  <div className="text-xs text-muted px-1 py-1">
+                    {team === benchTeam ? t('sub.benchEmpty') : t('team.noneAvailable')}
                   </div>
-                  {fromBenchTeam.map((p) => (
-                    <button
-                      key={p.id}
-                      className={`px-2 py-2 rounded-lg border text-sm ${
-                        inId === p.id ? 'bg-accent/20 border-accent' : 'bg-bg3 border-border'
-                      }`}
-                      onClick={() => setInId(p.id)}
-                    >
-                      {p.name}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-              {ownBench.length === 0 && fromBenchTeam.length === 0 ? (
-                <div className="text-xs text-muted">{t('team.noneAvailable')}</div>
-              ) : null}
-            </div>
-          </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-1">
+                    {list.map((p) => {
+                      const isSelected = selectedId === p.id;
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() =>
+                            setSelectedId((prev) => (prev === p.id ? null : p.id))
+                          }
+                          className={`flex items-center gap-2 px-2 py-1 rounded-lg border text-left transition ${
+                            isSelected
+                              ? 'border-accent bg-accent/10 ring-2 ring-accent'
+                              : `bg-bg3 ${VEST_BORDER[team.vest]}`
+                          }`}
+                          style={{ minHeight: 44 }}
+                        >
+                          <Avatar playerId={p.id} name={p.name} size={28} />
+                          <span
+                            className={`text-sm truncate flex-1 ${VEST_TEXT[team.vest]}`}
+                          >
+                            {p.name}
+                            {p.role === 'gk' ? <span className="ml-1 text-xs">🧤</span> : null}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
-        <button
-          className="btn-primary w-full mt-3"
-          disabled={!inId}
-          onClick={() => onConfirm(outId, inId!)}
-        >
-          {outId ? t('sub.confirm') : t('sub.confirmAdd')}
-        </button>
+      </div>
+
+      <div className="fixed left-0 right-0 bottom-0 z-50 bg-bg2 border-t border-border p-3 safe-bottom">
+        {selectedPlayer ? (
+          <div className="flex items-center gap-2 mb-2">
+            <Avatar
+              playerId={selectedPlayer.id}
+              name={selectedPlayer.name}
+              size={32}
+            />
+            <span className="text-sm font-medium truncate flex-1">
+              {selectedPlayer.name}
+            </span>
+            {selectedTeam ? (
+              <span
+                className={`text-[10px] px-1.5 py-0.5 rounded ${VEST_COLORS[selectedTeam.vest]}`}
+              >
+                {t(`vest.${selectedTeam.vest}`)}
+              </span>
+            ) : null}
+          </div>
+        ) : (
+          <div className="text-xs text-muted mb-2">{t('sub.pickPlayer')}</div>
+        )}
+        <div className="grid grid-cols-3 gap-2">
+          {[teamA, teamB, benchTeam].map((team) => {
+            const isCurrent = selectedTeam?.id === team.id;
+            return (
+              <button
+                key={team.id}
+                type="button"
+                disabled={!selectedId || isCurrent || pending}
+                onClick={() => handleMove(team.id)}
+                className={`px-2 py-2 rounded-lg border text-sm font-semibold transition disabled:opacity-40 ${VEST_COLORS[team.vest]} ${
+                  selectedId && !isCurrent ? '' : ''
+                }`}
+                style={{ minHeight: 44 }}
+              >
+                → {t(`vest.${team.vest}`)}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -680,7 +709,7 @@ function PostMatchPanel({
   const [stayPicked, setStayPicked] = useState<'a' | 'b' | 'draw' | null>(
     currentResult !== 'pending' ? currentResult : null
   );
-  const [benchSwap, setBenchSwap] = useState<string | null>(null); // team id that drops out
+  const [benchSwap, setBenchSwap] = useState<string | null>(null);
 
   const winnerTeam = stayPicked === 'a' ? teamA : stayPicked === 'b' ? teamB : null;
   const loserTeam = stayPicked === 'a' ? teamB : stayPicked === 'b' ? teamA : null;
@@ -692,7 +721,6 @@ function PostMatchPanel({
 
   function next() {
     if (!winnerTeam) return;
-    // If draw → user picks who benches manually below
     const dropOut = stayPicked === 'draw' ? benchSwap : loserTeam?.id;
     if (!dropOut) return;
     const incoming = benchTeam.id;
@@ -771,29 +799,4 @@ function PostMatchPanel({
   );
 }
 
-// Walk the event log to derive who's on the pitch right now per team.
-// Starting lineup = match_players, then sub_in / sub_out swap who is on.
-function computeOnPitch(
-  lineup: Array<{ player_id: string; team_id: string }>,
-  events: Array<{ type: EventType; player_id: string; team_id: string; clock_ms: number }>
-): Map<string, Set<string>> {
-  const byTeam = new Map<string, Set<string>>();
-  for (const m of lineup) {
-    if (!byTeam.has(m.team_id)) byTeam.set(m.team_id, new Set());
-    byTeam.get(m.team_id)!.add(m.player_id);
-  }
-  // Apply subs in chronological order
-  const subs = events
-    .filter((e) => e.type === 'sub_in' || e.type === 'sub_out')
-    .sort((a, b) => a.clock_ms - b.clock_ms);
-  for (const e of subs) {
-    if (!byTeam.has(e.team_id)) byTeam.set(e.team_id, new Set());
-    const set = byTeam.get(e.team_id)!;
-    if (e.type === 'sub_out') set.delete(e.player_id);
-    else set.add(e.player_id);
-  }
-  return byTeam;
-}
-
-// Suppress unused import warning
 void computeClockMs;

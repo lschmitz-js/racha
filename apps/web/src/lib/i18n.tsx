@@ -39,6 +39,8 @@ const dict = {
 
     // home
     'home.title': 'Racha de Segunda',
+    'home.welcome': 'Welcome to Racha!',
+    'home.startRacha': 'Start Racha',
     'home.activeSession': 'Active session',
     'home.open': 'Open →',
     'home.lineup': "Tonight's lineup",
@@ -48,6 +50,13 @@ const dict = {
     'home.selectMore': 'Select {n} more',
     'home.startSession': 'Start session →',
     'home.pastSessions': 'Past sessions',
+
+    // who is here
+    'lineup.title': 'Who is here?',
+    'lineup.subtitle': 'Tap everyone who is playing tonight.',
+    'lineup.needMore': 'Need {n} more',
+    'lineup.start': 'Start session →',
+    'lineup.cancel': '← Cancel',
 
     // session
     'session.endSession': 'End session',
@@ -110,7 +119,14 @@ const dict = {
     'event.save': 'Save',
 
     // sub sheet
-    'sub.title': 'Substitution — {vest}',
+    'sub.title': 'Bench & subs',
+    'sub.hint': 'Tap a player, then tap a vest to move them.',
+    'sub.playingA': 'Playing — {vest}',
+    'sub.playingB': 'Playing — {vest}',
+    'sub.bench': 'Bench',
+    'sub.benchEmpty': 'Nobody on the bench.',
+    'sub.moveTo': 'Move to {vest}',
+    'sub.pickPlayer': 'Pick a player first',
     'sub.off': 'Off',
     'sub.on': 'On',
     'sub.ownBench': '{vest} bench',
@@ -212,6 +228,8 @@ const dict = {
 
     // home
     'home.title': 'Racha de Segunda',
+    'home.welcome': 'Bem-vindo ao Racha!',
+    'home.startRacha': 'Começar Racha',
     'home.activeSession': 'Sessão ativa',
     'home.open': 'Abrir →',
     'home.lineup': 'Lista de hoje',
@@ -221,6 +239,13 @@ const dict = {
     'home.selectMore': 'Selecione mais {n}',
     'home.startSession': 'Iniciar sessão →',
     'home.pastSessions': 'Sessões anteriores',
+
+    // who is here
+    'lineup.title': 'Quem veio?',
+    'lineup.subtitle': 'Toque em todos que vão jogar hoje.',
+    'lineup.needMore': 'Faltam {n}',
+    'lineup.start': 'Iniciar sessão →',
+    'lineup.cancel': '← Cancelar',
 
     // session
     'session.endSession': 'Encerrar sessão',
@@ -284,7 +309,14 @@ const dict = {
     'event.save': 'Defesa',
 
     // sub sheet
-    'sub.title': 'Substituição — {vest}',
+    'sub.title': 'Banco & subs',
+    'sub.hint': 'Toque num jogador e depois numa cor pra trocar de time.',
+    'sub.playingA': 'Em quadra — {vest}',
+    'sub.playingB': 'Em quadra — {vest}',
+    'sub.bench': 'Banco',
+    'sub.benchEmpty': 'Ninguém no banco.',
+    'sub.moveTo': 'Mover para {vest}',
+    'sub.pickPlayer': 'Escolha um jogador primeiro',
     'sub.off': 'Sai',
     'sub.on': 'Entra',
     'sub.ownBench': 'Banco do {vest}',

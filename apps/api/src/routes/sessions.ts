@@ -225,6 +225,26 @@ sessions.post('/:id/teams/:teamId/players', async (c) => {
     db.prepare(
       'INSERT OR IGNORE INTO session_team_players (session_team_id, player_id) VALUES (?, ?)'
     ).run(teamId, body.player_id);
+
+    // Keep match_players in sync for any in-progress match whose playing teams
+    // include the destination vest. New team_id wins so matches_played and
+    // the live roster reflect the move.
+    const liveMatches = db
+      .prepare(
+        `SELECT id, team_a_id, team_b_id FROM matches
+         WHERE session_id = ? AND status != 'done'`
+      )
+      .all(id) as Array<{ id: string; team_a_id: string; team_b_id: string }>;
+    const upsertMP = db.prepare(
+      `INSERT INTO match_players (match_id, player_id, team_id, starting)
+       VALUES (?, ?, ?, 0)
+       ON CONFLICT(match_id, player_id) DO UPDATE SET team_id = excluded.team_id`
+    );
+    for (const lm of liveMatches) {
+      if (lm.team_a_id === teamId || lm.team_b_id === teamId) {
+        upsertMP.run(lm.id, body.player_id, teamId);
+      }
+    }
   });
   tx();
 

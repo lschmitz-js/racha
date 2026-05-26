@@ -1,6 +1,7 @@
 import { Route, Switch, Link, useLocation } from 'wouter';
 import { useState } from 'react';
 import { Home } from './screens/Home.js';
+import { WhoIsHere } from './screens/WhoIsHere.js';
 import { PlayerDB } from './screens/PlayerDB.js';
 import { Session } from './screens/Session.js';
 import { Match } from './screens/Match.js';
@@ -38,6 +39,7 @@ function AppShell() {
       )}
       <Switch>
         <Route path="/" component={Home} />
+        <Route path="/start" component={WhoIsHere} />
         <Route path="/players" component={PlayerDB} />
         <Route path="/sessions/:id" component={Session} />
         <Route path="/matches/:id" component={Match} />
@@ -50,7 +52,10 @@ function AppShell() {
           {tabs.map(([path, label]) => {
             const active =
               path === '/'
-                ? location === '/' || location.startsWith('/sessions') || location.startsWith('/matches')
+                ? location === '/' ||
+                  location.startsWith('/start') ||
+                  location.startsWith('/sessions') ||
+                  location.startsWith('/matches')
                 : location === path;
             return (
               <Link

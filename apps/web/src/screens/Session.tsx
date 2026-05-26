@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { api } from '../lib/api.js';
 import { useT } from '../lib/i18n.js';
 import { useCanEdit } from '../lib/auth.js';
+import { Avatar } from '../lib/avatar.js';
 import { BestGrid } from '../components/Bests.js';
 import { Leaderboard } from '../components/Leaderboard.js';
 import { bestOfEachCategory, calcPoints, type StatRow } from '../lib/points.js';
@@ -13,6 +14,19 @@ const VEST_COLORS: Record<Vest, string> = {
   white: 'vest-white',
   black: 'vest-black',
   green: 'vest-green',
+};
+
+// Readable text colours on dark bg, themed by vest.
+const VEST_TEXT: Record<Vest, string> = {
+  white: 'text-white',
+  black: 'text-slate-300',
+  green: 'text-green-300',
+};
+
+const VEST_BORDER: Record<Vest, string> = {
+  white: 'border-white_v/40',
+  black: 'border-slate-500/60',
+  green: 'border-green_v/60',
 };
 
 export function Session({ params }: { params: { id: string } }) {
@@ -378,7 +392,7 @@ function ReadOnlyTeamCard({
   const totalScore = players.reduce((s, p) => s + calcScore(p.skills), 0);
   const avg = players.length ? Math.round((totalScore / players.length) * 10) / 10 : 0;
   return (
-    <div className="p-3 rounded-xl border border-border">
+    <div className={`p-3 rounded-xl border-2 ${VEST_BORDER[team.vest]}`}>
       <div className="flex items-center justify-between mb-2">
         <div className={`px-2 py-1 rounded-md inline-block ${VEST_COLORS[team.vest]}`}>
           {t(`vest.${team.vest}`)} ({avg})
@@ -387,15 +401,18 @@ function ReadOnlyTeamCard({
           {t('team.playersCount', { n: players.length })}
         </span>
       </div>
-      <div className="flex flex-wrap gap-1">
+      <div className="flex flex-col gap-1">
         {players.map((p) => (
-          <span
+          <div
             key={p.id}
-            className="text-xs px-2 py-0.5 rounded-full bg-bg3 border border-border"
+            className="flex items-center gap-2 px-2 py-1 rounded-lg bg-bg3 border border-border"
           >
-            {p.name}
-            {p.role === 'gk' ? ' 🧤' : ''}
-          </span>
+            <Avatar playerId={p.id} name={p.name} size={32} />
+            <span className={`text-sm font-medium truncate ${VEST_TEXT[team.vest]}`}>
+              {p.name}
+              {p.role === 'gk' ? <span className="ml-1 text-xs">🧤</span> : null}
+            </span>
+          </div>
         ))}
       </div>
     </div>
@@ -423,7 +440,9 @@ function TeamCard({
   return (
     <div
       className={`p-3 rounded-xl border-2 ${
-        selectedSide ? 'border-accent ring-2 ring-accent/30' : 'border-border'
+        selectedSide
+          ? 'border-accent ring-2 ring-accent/30'
+          : VEST_BORDER[team.vest]
       }`}
     >
       <div className="flex items-center justify-between mb-2">
@@ -432,28 +451,35 @@ function TeamCard({
         </div>
         <span className="text-xs text-muted">{t('team.playersCount', { n: players.length })}</span>
       </div>
-      <div className="flex flex-wrap gap-1">
+      <div className="flex flex-col gap-1">
         {players.map((p) => (
-          <span
+          <div
             key={p.id}
-            className="text-xs px-2 py-0.5 rounded-full bg-bg3 border border-border inline-flex items-center gap-1"
+            className="flex items-center gap-2 px-2 py-1 rounded-lg bg-bg3 border border-border"
           >
-            {p.name}
-            {p.role === 'gk' ? ' 🧤' : ''}
+            <Avatar playerId={p.id} name={p.name} size={32} />
+            <span
+              className={`flex-1 text-sm font-medium truncate ${VEST_TEXT[team.vest]}`}
+            >
+              {p.name}
+              {p.role === 'gk' ? <span className="ml-1 text-xs">🧤</span> : null}
+            </span>
             <button
               type="button"
-              className="text-muted hover:text-red-400"
+              className="text-muted hover:text-red-400 px-1 text-base leading-none"
               aria-label={t('team.removeAria', { name: p.name })}
               onClick={() => onRemovePlayer(p.id)}
+              style={{ minHeight: 'auto' }}
             >
               ×
             </button>
-          </span>
+          </div>
         ))}
         <button
           type="button"
-          className="text-xs px-2 py-0.5 rounded-full border border-dashed border-border text-muted hover:text-accent hover:border-accent"
+          className="text-xs px-2 py-1 rounded-lg border border-dashed border-border text-muted hover:text-accent hover:border-accent"
           onClick={onAddPlayer}
+          style={{ minHeight: 'auto' }}
         >
           {t('team.add')}
         </button>
@@ -514,13 +540,16 @@ function AddPlayerSheet({
               return (
                 <button
                   key={p.id}
-                  className="text-left px-3 py-2 rounded-lg border border-border bg-bg3 hover:border-accent flex items-center justify-between"
+                  className="text-left px-3 py-2 rounded-lg border border-border bg-bg3 hover:border-accent flex items-center gap-2"
                   onClick={() => {
                     onPick(p.id);
                     onClose();
                   }}
                 >
-                  <span>
+                  <Avatar playerId={p.id} name={p.name} size={32} />
+                  <span
+                    className={`flex-1 ${onOtherVest ? VEST_TEXT[onOtherVest] : ''}`}
+                  >
                     {p.name}
                     {p.role === 'gk' ? ' 🧤' : ''}
                   </span>
