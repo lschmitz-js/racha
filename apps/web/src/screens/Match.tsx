@@ -6,6 +6,12 @@ import { api } from '../lib/api.js';
 import { LanguageToggle, useT } from '../lib/i18n.js';
 import { Avatar } from '../lib/avatar.js';
 import { formatClock, useClock, computeClockMs } from '../lib/clock.js';
+import {
+  isSoundEnabled,
+  setSoundEnabled,
+  playBuzzer,
+  playEventSound,
+} from '../lib/sounds.js';
 
 const VEST_COLORS: Record<Vest, string> = {
   white: 'bg-gray-100 text-black',
@@ -111,6 +117,7 @@ export function Match({ params }: { params: { id: string } }) {
   const [armedEvent, setArmedEvent] = useState<EventType | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const [benchOpen, setBenchOpen] = useState(false);
+  const [soundOn, setSoundOn] = useState(isSoundEnabled);
   const buzzedRef = useRef(false);
 
   const players: Player[] = playersQ.data ?? [];
@@ -130,18 +137,7 @@ export function Match({ params }: { params: { id: string } }) {
       try {
         navigator.vibrate?.(200);
       } catch {}
-      try {
-        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.frequency.value = 660;
-        osc.connect(gain).connect(ctx.destination);
-        gain.gain.setValueAtTime(0.001, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.4, ctx.currentTime + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.6);
-      } catch {}
+      playBuzzer();
     }
   }, [liveClock, matchQ.data?.match?.status]);
 
@@ -186,6 +182,7 @@ export function Match({ params }: { params: { id: string } }) {
   function logEvent(type: EventType, playerId: string, teamId: string) {
     const id = uid();
     const linkId = type === 'goal' ? uid() : null;
+    playEventSound(type);
     submitEvent.mutate(
       {
         id,
@@ -237,6 +234,7 @@ export function Match({ params }: { params: { id: string } }) {
 
   function logAssist(playerId: string) {
     if (!toast || toast.type !== 'goal') return;
+    playEventSound('assist');
     submitEvent.mutate({
       id: uid(),
       match_id: matchId,
@@ -262,6 +260,20 @@ export function Match({ params }: { params: { id: string } }) {
             {t('common.session')}
           </button>
           <LanguageToggle />
+          <button
+            type="button"
+            className="text-lg leading-none px-2 py-1 rounded-md border border-border bg-bg3 hover:border-accent"
+            aria-label={soundOn ? t('match.muteSound') : t('match.unmuteSound')}
+            title={soundOn ? t('match.muteSound') : t('match.unmuteSound')}
+            onClick={() => {
+              const next = !soundOn;
+              setSoundEnabled(next);
+              setSoundOn(next);
+            }}
+            style={{ minHeight: 'auto' }}
+          >
+            {soundOn ? '🔊' : '🔇'}
+          </button>
         </div>
         <div className="text-2xl font-mono tabular-nums">
           {formatClock(liveClock)}
