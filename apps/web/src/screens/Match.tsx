@@ -621,10 +621,10 @@ function BenchSheet({
   return (
     <div className="fixed inset-0 bg-black/70 z-40 flex items-end">
       <div className="bg-bg2 border-t border-border rounded-t-xl p-4 w-full max-h-[90vh] overflow-y-auto pb-32">
-        <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center justify-between gap-2 mb-1">
           <h2 className="text-lg font-semibold">{t('sub.title')}</h2>
-          <button className="text-muted text-xl leading-none px-2" onClick={onClose}>
-            ×
+          <button className="btn-danger" onClick={onClose}>
+            {t('common.close')}
           </button>
         </div>
         <p className="text-xs text-muted mb-3">{t('sub.hint')}</p>
