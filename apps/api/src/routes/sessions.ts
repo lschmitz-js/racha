@@ -158,19 +158,37 @@ sessions.post('/:id/draw', async (c) => {
     return c.json({ error: err?.message ?? 'draw failed' }, 400);
   }
 
+  const existingTeams = db
+    .prepare('SELECT id, vest FROM session_teams WHERE session_id = ?')
+    .all(id) as { id: string; vest: Vest }[];
+
   const tx = db.transaction(() => {
-    // Replace any prior draw for this session
-    db.prepare('DELETE FROM session_teams WHERE session_id = ?').run(id);
-    const insTeam = db.prepare(
-      `INSERT INTO session_teams (id, session_id, vest) VALUES (?, ?, ?)`
-    );
     const insTP = db.prepare(
       `INSERT INTO session_team_players (session_team_id, player_id) VALUES (?, ?)`
     );
-    for (const t of balanced) {
-      const tid = uid();
-      insTeam.run(tid, id, t.vest);
-      for (const p of t.players) insTP.run(tid, p.id);
+    if (existingTeams.length === 3) {
+      // Redraw: matches/events may reference these team rows, so keep them
+      // (same ids, same vests) and only swap the rosters.
+      const teamIdByVest = new Map(existingTeams.map((t) => [t.vest, t.id]));
+      db.prepare(
+        `DELETE FROM session_team_players
+         WHERE session_team_id IN (SELECT id FROM session_teams WHERE session_id = ?)`
+      ).run(id);
+      for (const t of balanced) {
+        const tid = teamIdByVest.get(t.vest)!;
+        for (const p of t.players) insTP.run(tid, p.id);
+      }
+    } else {
+      // First draw (or partial leftovers from an older bug): rebuild teams.
+      db.prepare('DELETE FROM session_teams WHERE session_id = ?').run(id);
+      const insTeam = db.prepare(
+        `INSERT INTO session_teams (id, session_id, vest) VALUES (?, ?, ?)`
+      );
+      for (const t of balanced) {
+        const tid = uid();
+        insTeam.run(tid, id, t.vest);
+        for (const p of t.players) insTP.run(tid, p.id);
+      }
     }
   });
   tx();
