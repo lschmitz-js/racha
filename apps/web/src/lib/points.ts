@@ -52,43 +52,27 @@ type Category =
 
 export interface BestEntry {
   category: Category;
-  player: StatRow;
+  players: StatRow[]; // everyone tied at the top value
   value: number;
 }
 
 // Returns the top entry per category. mvp uses points; the rest use raw counts.
+// Ties are kept — all players sharing the top value are listed.
 // A category is omitted if no player has any value > 0 (or, for bad, > 0 howlers).
 export function bestOfEachCategory(rows: StatRow[]): BestEntry[] {
   if (rows.length === 0) return [];
   const out: BestEntry[] = [];
-  const pick = (
-    category: Category,
-    valueOf: (r: StatRow) => number,
-    tieBreak?: (r: StatRow) => number
-  ) => {
-    let best: StatRow | null = null;
-    let bestVal = -Infinity;
-    let bestTb = -Infinity;
-    for (const r of rows) {
-      const v = valueOf(r);
-      const tb = tieBreak ? tieBreak(r) : 0;
-      if (v > bestVal || (v === bestVal && tb > bestTb)) {
-        best = r;
-        bestVal = v;
-        bestTb = tb;
-      }
-    }
-    if (best && bestVal > 0) {
-      out.push({ category, player: best, value: bestVal });
-    }
+  const pick = (category: Category, valueOf: (r: StatRow) => number) => {
+    const bestVal = Math.max(...rows.map(valueOf));
+    if (bestVal <= 0) return;
+    const players = rows
+      .filter((r) => valueOf(r) === bestVal)
+      .sort((a, b) => a.name.localeCompare(b.name));
+    out.push({ category, players, value: bestVal });
   };
-  pick(
-    'mvp',
-    calcPoints,
-    (r) => r.goals * 100 + r.assists * 10 + r.saves
-  );
-  pick('goals', (r) => r.goals, (r) => r.assists);
-  pick('assists', (r) => r.assists, (r) => r.goals);
+  pick('mvp', calcPoints);
+  pick('goals', (r) => r.goals);
+  pick('assists', (r) => r.assists);
   pick('beautiful', (r) => r.beautiful);
   pick('bad', (r) => r.bad);
   pick('saves', (r) => r.saves);

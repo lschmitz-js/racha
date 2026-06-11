@@ -33,6 +33,15 @@ export function TopBoard({
 
   if (ranked.length === 0) return null;
 
+  // Competition ranking: equal stat → equal rank (and medal), next rank skips.
+  const rankOf = ranked.map((r, i) => {
+    if (i === 0) return 0;
+    return r[stat] === ranked[i - 1]![stat] ? -1 : i; // -1 → same as previous
+  });
+  for (let i = 1; i < rankOf.length; i++) {
+    if (rankOf[i] === -1) rankOf[i] = rankOf[i - 1]!;
+  }
+
   return (
     <div className={compact ? '' : 'card'}>
       <div className="text-[10px] uppercase tracking-wide text-muted mb-1">
@@ -47,7 +56,9 @@ export function TopBoard({
             }`}
           >
             <span className="w-6 text-center text-sm tabular-nums shrink-0">
-              {MEDALS[i] ?? <span className="text-xs text-muted">{i + 1}</span>}
+              {MEDALS[rankOf[i]!] ?? (
+                <span className="text-xs text-muted">{rankOf[i]! + 1}</span>
+              )}
             </span>
             <Avatar playerId={r.id} name={r.name} size={compact ? 20 : 24} />
             <span className={`font-medium truncate flex-1 ${compact ? 'text-xs' : 'text-sm'}`}>

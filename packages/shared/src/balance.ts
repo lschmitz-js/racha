@@ -90,9 +90,36 @@ export function balanceTeams(
     } else {
       sorted = [...scored].sort((a, b) => b.score - a.score);
     }
+
+    // Matches are 5v5, so with 10+ players white and black always get exactly
+    // 5 and green takes the remainder (the rotating bench squad). Below 10,
+    // fall back to an even split.
+    const n = scored.length;
+    let caps: number[];
+    if (n >= 10) {
+      caps = [5, 5, n - 10];
+    } else {
+      const base = Math.floor(n / 3);
+      const rem = n % 3;
+      caps = [base + (rem > 0 ? 1 : 0), base + (rem > 1 ? 1 : 0), base];
+    }
+
+    // Greedy toward each team's share of the total score (proportional to its
+    // size), so the small green squad still lands near the overall average
+    // instead of hoarding the strongest players.
+    const totalScore = scored.reduce((s, p) => s + p.score, 0);
+    const targets = caps.map((cap) => (totalScore * cap) / n);
     sorted.forEach((p) => {
-      const min = Math.min(...totals);
-      const mi = totals.indexOf(min);
+      let mi = -1;
+      let bestDeficit = -Infinity;
+      for (let i = 0; i < 3; i++) {
+        if (teams[i]!.length >= caps[i]!) continue;
+        const deficit = targets[i]! - totals[i]!;
+        if (deficit > bestDeficit) {
+          bestDeficit = deficit;
+          mi = i;
+        }
+      }
       teams[mi]!.push(p);
       totals[mi]! += p.score;
     });

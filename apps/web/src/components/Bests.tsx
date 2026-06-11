@@ -37,6 +37,11 @@ function BestCard({ entry, compact }: { entry: BestEntry; compact?: boolean }) {
   const t = useT();
   const value =
     entry.category === 'mvp' ? fmtPoints(entry.value) : entry.value.toString();
+  const players = entry.players;
+  const tied = players.length > 1;
+  const names = players
+    .map((p) => `${p.name}${p.role === 'gk' ? ' 🧤' : ''}`)
+    .join(', ');
   return (
     <div
       className={`rounded-lg border ${
@@ -50,19 +55,26 @@ function BestCard({ entry, compact }: { entry: BestEntry; compact?: boolean }) {
         <span>{t(`recap.cat.${entry.category}`)}</span>
       </div>
       <div className="flex items-center gap-2 mt-1">
-        <Avatar
-          playerId={entry.player.id}
-          name={entry.player.name}
-          size={compact ? 32 : 40}
-        />
+        <div className="flex -space-x-2 shrink-0">
+          {players.slice(0, 3).map((p) => (
+            <Avatar
+              key={p.id}
+              playerId={p.id}
+              name={p.name}
+              size={compact ? 28 : tied ? 32 : 40}
+            />
+          ))}
+        </div>
         <div className="min-w-0">
           <div
-            className={`font-semibold truncate ${compact ? 'text-sm' : 'text-base'}`}
+            className={`font-semibold ${
+              tied
+                ? 'text-xs leading-tight break-words'
+                : `truncate ${compact ? 'text-sm' : 'text-base'}`
+            }`}
+            title={names}
           >
-            {entry.player.name}
-            {entry.player.role === 'gk' ? (
-              <span className="ml-1 text-xs">🧤</span>
-            ) : null}
+            {names}
           </div>
           <div className="text-xs text-muted tabular-nums">{value}</div>
         </div>
