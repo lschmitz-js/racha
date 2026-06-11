@@ -58,6 +58,11 @@ if (TOKEN) {
   app.use('/api/sessions/:id/end', async (c, next) =>
     c.req.method === 'POST' ? requireAdmin(c, next) : next()
   );
+  // Editing past events is admin-only; live create/delete (recording + undo)
+  // stays open.
+  app.use('/api/events/:id', async (c, next) =>
+    c.req.method === 'PUT' ? requireAdmin(c, next) : next()
+  );
 }
 
 // Tells the client whether admin auth is configured, and (when called with the

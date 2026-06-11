@@ -199,6 +199,19 @@ const dict = {
     'skill.Defend': 'Defend',
     'skill.Dribble': 'Dribble',
 
+    // admin event editor
+    'admin.editEvents': 'Edit events',
+    'admin.matchEventsTitle': 'Events — match {n}',
+    'admin.addEvent': '+ Add event',
+    'admin.editEvent': 'Edit event',
+    'admin.newEvent': 'New event',
+    'admin.eventType': 'Event',
+    'admin.team': 'Team',
+    'admin.player': 'Player',
+    'admin.clock': 'Time (mm:ss)',
+    'admin.deleteEventConfirm': 'Delete this event?',
+    'admin.noEvents': 'No events in this match.',
+
     // auth
     'auth.signIn': 'Sign in',
     'auth.signOut': 'Sign out',
@@ -402,6 +415,19 @@ const dict = {
     'skill.Shooting': 'Chute',
     'skill.Defend': 'Defesa',
     'skill.Dribble': 'Drible',
+
+    // admin event editor
+    'admin.editEvents': 'Editar eventos',
+    'admin.matchEventsTitle': 'Eventos — jogo {n}',
+    'admin.addEvent': '+ Adicionar evento',
+    'admin.editEvent': 'Editar evento',
+    'admin.newEvent': 'Novo evento',
+    'admin.eventType': 'Evento',
+    'admin.team': 'Time',
+    'admin.player': 'Jogador',
+    'admin.clock': 'Tempo (mm:ss)',
+    'admin.deleteEventConfirm': 'Apagar este evento?',
+    'admin.noEvents': 'Nenhum evento neste jogo.',
 
     // auth
     'auth.signIn': 'Entrar',

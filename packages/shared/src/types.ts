@@ -124,5 +124,8 @@ export const NewEventInput = z.object({
   team_id: z.string(),
   link_id: z.string().nullable().optional(),
   clock_offset_ms: z.number().int().optional(),
+  // Explicit clock (admin editor adding events to past matches). When set,
+  // wins over the live-clock + offset computation.
+  clock_ms: z.number().int().nonnegative().optional(),
 });
 export type NewEventInput = z.infer<typeof NewEventInput>;

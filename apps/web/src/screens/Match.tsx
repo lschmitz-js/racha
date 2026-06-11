@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { calcScore, uid, type EventType, type Player, type Vest } from '@racha/shared';
 import { api } from '../lib/api.js';
 import { LanguageToggle, useT } from '../lib/i18n.js';
+import { useCanEdit } from '../lib/auth.js';
 import { Avatar } from '../lib/avatar.js';
 import { formatClock, useClock, computeClockMs } from '../lib/clock.js';
 import {
@@ -66,6 +67,7 @@ export function Match({ params }: { params: { id: string } }) {
   const [, setLocation] = useLocation();
   const qc = useQueryClient();
   const t = useT();
+  const canEdit = useCanEdit();
 
   const matchQ = useQuery({
     queryKey: ['match', matchId],
@@ -353,6 +355,7 @@ export function Match({ params }: { params: { id: string } }) {
         players={players}
         teamA={teamA}
         teamB={teamB}
+        onEdit={canEdit ? () => setLocation(`/matches/${matchId}/events`) : undefined}
       />
 
       {!isOver ? (
@@ -510,11 +513,13 @@ function EventLog({
   players,
   teamA,
   teamB,
+  onEdit,
 }: {
   events: Array<{ id: string; type: EventType; player_id: string; team_id: string; clock_ms: number }>;
   players: Player[];
   teamA?: { id: string; vest: Vest };
   teamB?: { id: string; vest: Vest };
+  onEdit?: () => void;
 }) {
   const t = useT();
   const visible = events.filter((e) => e.type !== 'sub_in' && e.type !== 'sub_out');
@@ -524,8 +529,22 @@ function EventLog({
   );
   return (
     <div className="px-3 py-2 max-h-[35vh] overflow-y-auto">
-      <div className="text-[10px] uppercase tracking-wide text-muted mb-1">
-        {t('match.events')}
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[10px] uppercase tracking-wide text-muted">
+          {t('match.events')}
+        </span>
+        {onEdit ? (
+          <button
+            type="button"
+            className="text-xs text-muted hover:text-accent px-1"
+            aria-label={t('admin.editEvents')}
+            title={t('admin.editEvents')}
+            onClick={onEdit}
+            style={{ minHeight: 'auto' }}
+          >
+            ✏️ {t('admin.editEvents')}
+          </button>
+        ) : null}
       </div>
       {visible.length === 0 ? (
         <div className="text-xs text-muted">{t('match.noEvents')}</div>

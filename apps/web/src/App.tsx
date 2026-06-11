@@ -5,6 +5,7 @@ import { WhoIsHere } from './screens/WhoIsHere.js';
 import { PlayerDB } from './screens/PlayerDB.js';
 import { Session } from './screens/Session.js';
 import { Match } from './screens/Match.js';
+import { MatchEvents } from './screens/MatchEvents.js';
 import { Recap } from './screens/Recap.js';
 import { I18nProvider, LanguageToggle, useT } from './lib/i18n.js';
 import { AuthProvider, useAuth } from './lib/auth.js';
@@ -42,6 +43,7 @@ function AppShell() {
         <Route path="/start" component={WhoIsHere} />
         <Route path="/players" component={PlayerDB} />
         <Route path="/sessions/:id" component={Session} />
+        <Route path="/matches/:id/events" component={MatchEvents} />
         <Route path="/matches/:id" component={Match} />
         <Route path="/recap" component={Recap} />
         <Route>{() => <div className="p-4">{t('common.notFound')}</div>}</Route>

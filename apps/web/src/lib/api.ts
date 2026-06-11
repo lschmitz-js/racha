@@ -130,8 +130,14 @@ export const api = {
       team_id: string;
       link_id?: string | null;
       clock_offset_ms?: number;
+      clock_ms?: number;
     }) =>
       request<any>(`/api/events`, { method: 'POST', body: JSON.stringify(input) }),
+    update: (
+      id: string,
+      input: { type?: string; player_id?: string; team_id?: string; clock_ms?: number }
+    ) =>
+      request<any>(`/api/events/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
     sub: (input: { match_id: string; team_id: string; out_player_id?: string; in_player_id: string }) =>
       request<{ link_id: string; clock_ms: number }>(`/api/events/sub`, {
         method: 'POST',

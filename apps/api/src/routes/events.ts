@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { NewEventInput, uid } from '@racha/shared';
+import { EventType, NewEventInput, uid } from '@racha/shared';
 import { getDb } from '../db/index.js';
 import { computeClockMs } from './matches.js';
 
@@ -28,7 +28,10 @@ events.post('/', async (c) => {
   if (existing) return c.json(existing, 200);
 
   const offset = body.clock_offset_ms ?? 0;
-  const clock = Math.max(0, computeClockMs(m as any) + offset);
+  const clock =
+    body.clock_ms != null
+      ? body.clock_ms
+      : Math.max(0, computeClockMs(m as any) + offset);
 
   db.prepare(
     `INSERT INTO match_events (id, match_id, clock_ms, type, player_id, team_id, link_id, created_at)
@@ -87,6 +90,36 @@ events.post('/sub', async (c) => {
   tx();
 
   return c.json({ link_id, clock_ms: clock }, 201);
+});
+
+// Admin editor: fix up a recorded event (wrong player, wrong type, wrong
+// team or wrong clock). Admin-gated in server.ts when RACHA_TOKEN is set.
+const UpdateEventInput = z.object({
+  type: EventType.optional(),
+  player_id: z.string().optional(),
+  team_id: z.string().optional(),
+  clock_ms: z.number().int().nonnegative().optional(),
+});
+
+events.put('/:id', async (c) => {
+  const id = c.req.param('id');
+  const body = UpdateEventInput.parse(await c.req.json());
+  const db = getDb();
+  const ev = db.prepare('SELECT * FROM match_events WHERE id = ?').get(id) as
+    | { type: string; player_id: string; team_id: string; clock_ms: number }
+    | undefined;
+  if (!ev) return c.json({ error: 'not found' }, 404);
+
+  db.prepare(
+    `UPDATE match_events SET type = ?, player_id = ?, team_id = ?, clock_ms = ? WHERE id = ?`
+  ).run(
+    body.type ?? ev.type,
+    body.player_id ?? ev.player_id,
+    body.team_id ?? ev.team_id,
+    body.clock_ms ?? ev.clock_ms,
+    id
+  );
+  return c.json(db.prepare('SELECT * FROM match_events WHERE id = ?').get(id));
 });
 
 // Soft-delete a single event or a whole link group (for goal+assist undo)
