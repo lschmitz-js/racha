@@ -199,6 +199,12 @@ const dict = {
     'skill.Defend': 'Defend',
     'skill.Dribble': 'Dribble',
 
+    // leaderboard legend
+    'legend.title': 'Legend',
+    'legend.matches': 'Matches played',
+    'legend.sessions': 'Nights played',
+    'legend.points': 'Points',
+
     // admin event editor
     'admin.editEvents': 'Edit events',
     'admin.matchEventsTitle': 'Events — match {n}',
@@ -415,6 +421,12 @@ const dict = {
     'skill.Shooting': 'Chute',
     'skill.Defend': 'Defesa',
     'skill.Dribble': 'Drible',
+
+    // leaderboard legend
+    'legend.title': 'Legenda',
+    'legend.matches': 'Jogos disputados',
+    'legend.sessions': 'Rachas jogados',
+    'legend.points': 'Pontos',
 
     // admin event editor
     'admin.editEvents': 'Editar eventos',

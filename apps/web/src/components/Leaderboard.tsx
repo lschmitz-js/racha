@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Avatar } from '../lib/avatar.js';
 import { useT } from '../lib/i18n.js';
-import { fmtPoints, type StatRow } from '../lib/points.js';
+import { fmtPoints, POINTS_WEIGHTS, type StatRow } from '../lib/points.js';
 
 export type SortKey =
   | 'name'
@@ -36,6 +36,7 @@ export function Leaderboard({
   const t = useT();
   const [sortKey, setSortKey] = useState<SortKey>(defaultSort);
   const [desc, setDesc] = useState(true);
+  const [showLegend, setShowLegend] = useState(false);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -63,23 +64,37 @@ export function Leaderboard({
     return desc ? -cmp : cmp;
   });
 
-  const cols: Array<{ key: SortKey; label: string; align?: 'left' | 'right' }> = [
+  const cols: Array<{ key: SortKey; label: string; tip?: string; align?: 'left' | 'right' }> = [
     { key: 'name', label: t('recap.player'), align: 'left' },
-    { key: 'goals', label: 'G' },
-    { key: 'assists', label: 'A' },
-    { key: 'beautiful', label: '✨' },
-    { key: 'bad', label: '💩' },
-    { key: 'saves', label: '🧤' },
-    { key: 'canetas', label: '🪡' },
-    { key: 'quasegols', label: '😱' },
+    { key: 'goals', label: 'G', tip: t('event.goal') },
+    { key: 'assists', label: 'A', tip: t('event.assist') },
+    { key: 'beautiful', label: '✨', tip: t('event.beautiful') },
+    { key: 'bad', label: '💩', tip: t('event.bad') },
+    { key: 'saves', label: '🧤', tip: t('event.save') },
+    { key: 'canetas', label: '🪡', tip: t('event.caneta') },
+    { key: 'quasegols', label: '😱', tip: t('event.quasegol') },
     ...(showMatches
-      ? [{ key: 'matches_played' as const, label: t('recap.matchesShort') }]
+      ? [{ key: 'matches_played' as const, label: t('recap.matchesShort'), tip: t('legend.matches') }]
       : []),
     ...(showSessions
-      ? [{ key: 'sessions_played' as const, label: t('recap.sessionsShort') }]
+      ? [{ key: 'sessions_played' as const, label: t('recap.sessionsShort'), tip: t('legend.sessions') }]
       : []),
-    { key: 'points', label: t('recap.pts') },
+    { key: 'points', label: t('recap.pts'), tip: t('legend.points') },
   ];
+
+  // Derive the formula from the real weights so the legend can't drift.
+  const formulaParts: Array<[number, string]> = [
+    [POINTS_WEIGHTS.goal, 'G'],
+    [POINTS_WEIGHTS.assist, 'A'],
+    [POINTS_WEIGHTS.save, '🧤'],
+    [POINTS_WEIGHTS.beautiful, '✨'],
+    [POINTS_WEIGHTS.caneta, '🪡'],
+    [POINTS_WEIGHTS.bad, '💩'],
+    [POINTS_WEIGHTS.quasegol, '😱'],
+  ];
+  const formula = formulaParts
+    .map(([w, sym], i) => `${w < 0 ? '− ' : i > 0 ? '+ ' : ''}${Math.abs(w)}×${sym}`)
+    .join(' ');
 
   return (
     <div className="card overflow-x-auto">
@@ -92,6 +107,7 @@ export function Leaderboard({
               return (
                 <th
                   key={c.key}
+                  title={c.tip}
                   className={`p-1 select-none cursor-pointer hover:text-accent ${
                     c.align === 'left' ? 'text-left' : 'text-right'
                   } ${active ? 'text-accent' : ''}`}
@@ -136,6 +152,33 @@ export function Leaderboard({
           ))}
         </tbody>
       </table>
+
+      <button
+        type="button"
+        className="text-xs text-muted hover:text-accent mt-2 px-1"
+        onClick={() => setShowLegend((s) => !s)}
+        style={{ minHeight: 'auto' }}
+      >
+        ⓘ {t('legend.title')}
+      </button>
+      {showLegend ? (
+        <div className="mt-1 pt-2 border-t border-border text-xs text-muted space-y-1">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+            {cols
+              .filter((c) => c.tip && c.key !== 'points')
+              .map((c) => (
+                <div key={c.key} className="flex gap-2">
+                  <span className="w-5 shrink-0 text-center">{c.label}</span>
+                  <span>{c.tip}</span>
+                </div>
+              ))}
+          </div>
+          <div className="pt-1">
+            <span className="font-semibold">{t('recap.pts')}</span> ({t('legend.points')}) ={' '}
+            <span className="tabular-nums">{formula}</span>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
