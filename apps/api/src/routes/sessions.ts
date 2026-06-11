@@ -56,10 +56,11 @@ function loadFullSession(id: string) {
   const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(id) as SessionRow | undefined;
   if (!session) return null;
 
-  const player_ids = db
-    .prepare('SELECT player_id FROM session_players WHERE session_id = ?')
-    .all(id)
-    .map((r: any) => r.player_id) as string[];
+  const spRows = db
+    .prepare('SELECT player_id, arrived FROM session_players WHERE session_id = ?')
+    .all(id) as { player_id: string; arrived: number }[];
+  const player_ids = spRows.map((r) => r.player_id);
+  const late_player_ids = spRows.filter((r) => !r.arrived).map((r) => r.player_id);
 
   const teams = db
     .prepare('SELECT id, vest FROM session_teams WHERE session_id = ?')
@@ -78,7 +79,7 @@ function loadFullSession(id: string) {
     .prepare('SELECT * FROM matches WHERE session_id = ? ORDER BY ordinal')
     .all(id);
 
-  return { session, player_ids, teams: fullTeams, matches };
+  return { session, player_ids, late_player_ids, teams: fullTeams, matches };
 }
 
 sessions.get('/:id', (c) => {
@@ -91,6 +92,9 @@ sessions.get('/:id', (c) => {
 const CreateSessionInput = z.object({
   date: z.string().optional(),
   player_ids: z.array(z.string()).min(6),
+  // Subset of player_ids who are expected tonight but haven't arrived yet.
+  // They join the session roster with arrived=0 and stay out of draws.
+  late_ids: z.array(z.string()).default([]),
 });
 
 sessions.post('/', async (c) => {
@@ -114,10 +118,11 @@ sessions.post('/', async (c) => {
     db.prepare(
       `INSERT INTO sessions (id, date, status, created_at) VALUES (?, ?, 'draft', ?)`
     ).run(id, date, Date.now());
+    const late = new Set(body.late_ids);
     const insSP = db.prepare(
-      `INSERT INTO session_players (session_id, player_id) VALUES (?, ?)`
+      `INSERT INTO session_players (session_id, player_id, arrived) VALUES (?, ?, ?)`
     );
-    for (const pid of body.player_ids) insSP.run(id, pid);
+    for (const pid of body.player_ids) insSP.run(id, pid, late.has(pid) ? 0 : 1);
   });
   tx();
   return c.json({ id }, 201);
@@ -135,16 +140,23 @@ sessions.post('/:id/draw', async (c) => {
   const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(id) as SessionRow | undefined;
   if (!session) return c.json({ error: 'not found' }, 404);
 
+  // Late players (arrived=0) stay out of the draw; they get assigned to a
+  // team by hand once they show up.
   const playerRows = db
     .prepare(
       `SELECT p.* FROM players p
        INNER JOIN session_players sp ON sp.player_id = p.id
-       WHERE sp.session_id = ?`
+       WHERE sp.session_id = ? AND sp.arrived = 1`
     )
     .all(id) as PlayerRow[];
   const players = playerRows.map(loadPlayer);
 
-  const balanced = balanceTeams(players, body.randomize, body.mode as BalanceMode);
+  let balanced;
+  try {
+    balanced = balanceTeams(players, body.randomize, body.mode as BalanceMode);
+  } catch (err: any) {
+    return c.json({ error: err?.message ?? 'draw failed' }, 400);
+  }
 
   const tx = db.transaction(() => {
     // Replace any prior draw for this session
@@ -195,6 +207,22 @@ sessions.delete('/:id', (c) => {
   return c.json({ ok: true });
 });
 
+// Flip the arrived flag for a session player (late arrivals checking in).
+const ArrivalInput = z.object({ arrived: z.boolean().default(true) });
+
+sessions.post('/:id/players/:playerId/arrival', async (c) => {
+  const id = c.req.param('id');
+  const playerId = c.req.param('playerId');
+  const body = ArrivalInput.parse(await c.req.json().catch(() => ({})));
+  const db = getDb();
+  const res = db
+    .prepare('UPDATE session_players SET arrived = ? WHERE session_id = ? AND player_id = ?')
+    .run(body.arrived ? 1 : 0, id, playerId);
+  if (res.changes === 0) return c.json({ error: 'not in session' }, 404);
+  const data = loadFullSession(id);
+  return c.json(data);
+});
+
 // Assign a player to a vest team within a session. Atomically ensures the
 // player is in session_players, removes them from any other team in the same
 // session, then adds them to this team. Acts as both add and move.
@@ -216,6 +244,9 @@ sessions.post('/:id/teams/:teamId/players', async (c) => {
 
   const tx = db.transaction(() => {
     db.prepare('INSERT OR IGNORE INTO session_players (session_id, player_id) VALUES (?, ?)')
+      .run(id, body.player_id);
+    // Being put on a team means the player is here.
+    db.prepare('UPDATE session_players SET arrived = 1 WHERE session_id = ? AND player_id = ?')
       .run(id, body.player_id);
     db.prepare(
       `DELETE FROM session_team_players

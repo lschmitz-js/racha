@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE TABLE IF NOT EXISTS session_players (
   session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   player_id  TEXT NOT NULL REFERENCES players(id),
+  arrived    INTEGER NOT NULL DEFAULT 1,
   PRIMARY KEY (session_id, player_id)
 );
 

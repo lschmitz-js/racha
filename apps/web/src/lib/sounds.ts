@@ -156,19 +156,31 @@ export function playEventSound(type: EventType) {
   }
 }
 
-// Match-clock buzzer at the 5-minute mark.
+// Match-clock buzzer at the 5-minute mark: three harsh full-volume blasts
+// (square + sawtooth an octave apart) so it cuts through pitchside noise.
 export function playBuzzer() {
   if (!isSoundEnabled()) return;
   const c = getCtx();
   if (!c) return;
   const t0 = c.currentTime;
-  const osc = c.createOscillator();
-  const gain = c.createGain();
-  osc.frequency.value = 660;
-  osc.connect(gain).connect(c.destination);
-  gain.gain.setValueAtTime(0.001, t0);
-  gain.gain.exponentialRampToValueAtTime(0.4, t0 + 0.02);
-  gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.6);
-  osc.start(t0);
-  osc.stop(t0 + 0.6);
+  const layers: Array<{ freq: number; type: OscillatorType; peak: number }> = [
+    { freq: 660, type: 'square', peak: 0.5 },
+    { freq: 330, type: 'sawtooth', peak: 0.45 },
+  ];
+  for (let blast = 0; blast < 3; blast++) {
+    const start = t0 + blast * 0.75;
+    for (const { freq, type, peak } of layers) {
+      const osc = c.createOscillator();
+      const gain = c.createGain();
+      osc.type = type;
+      osc.frequency.value = freq;
+      osc.connect(gain).connect(c.destination);
+      gain.gain.setValueAtTime(0.001, start);
+      gain.gain.exponentialRampToValueAtTime(peak, start + 0.02);
+      gain.gain.setValueAtTime(peak, start + 0.5);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.6);
+      osc.start(start);
+      osc.stop(start + 0.65);
+    }
+  }
 }

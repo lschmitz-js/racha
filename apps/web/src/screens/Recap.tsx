@@ -4,6 +4,7 @@ import { api } from '../lib/api.js';
 import { useT } from '../lib/i18n.js';
 import { BestGrid } from '../components/Bests.js';
 import { Leaderboard } from '../components/Leaderboard.js';
+import { TopBoard } from '../components/TopBoard.js';
 import { bestOfEachCategory, calcPoints, type StatRow } from '../lib/points.js';
 
 interface SeasonRow extends StatRow {
@@ -42,6 +43,11 @@ export function Recap() {
       <section>
         <h2 className="text-lg font-semibold mb-2">{t('recap.bestOfSeason')}</h2>
         <BestGrid bests={seasonBest} />
+      </section>
+
+      <section className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <TopBoard rows={rows} stat="goals" icon="⚽" title={t('recap.cat.goals')} />
+        <TopBoard rows={rows} stat="assists" icon="🅰" title={t('recap.cat.assists')} />
       </section>
 
       <section>
@@ -88,6 +94,24 @@ function WeekCard({ week }: { week: WeekRow }) {
             {t('recap.bestOfDay')}
           </div>
           <BestGrid bests={bests} compact />
+          <div className="grid grid-cols-2 gap-3 pt-1">
+            <TopBoard
+              rows={week.leaderboard}
+              stat="goals"
+              icon="⚽"
+              title={t('recap.cat.goals')}
+              limit={5}
+              compact
+            />
+            <TopBoard
+              rows={week.leaderboard}
+              stat="assists"
+              icon="🅰"
+              title={t('recap.cat.assists')}
+              limit={5}
+              compact
+            />
+          </div>
         </>
       ) : null}
     </div>

@@ -57,6 +57,12 @@ export function Session({ params }: { params: { id: string } }) {
     mutationFn: (mode: 'normal' | 'dropin-split') =>
       api.sessions.draw(sessionId, true, mode),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['session', sessionId] }),
+    onError: (err: Error) => alert(err.message),
+  });
+
+  const markArrived = useMutation({
+    mutationFn: (playerId: string) => api.sessions.setArrived(sessionId, playerId, true),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['session', sessionId] }),
   });
 
   const createMatch = useMutation({
@@ -106,6 +112,11 @@ export function Session({ params }: { params: { id: string } }) {
   if (!data) return <div className="p-4">{t('common.notFound')}</div>;
 
   const teams = (data.teams ?? []) as { id: string; vest: Vest; player_ids: string[] }[];
+  const latePlayerIds = (data.late_player_ids ?? []) as string[];
+  const latePlayers = latePlayerIds
+    .map((id) => playerById.get(id))
+    .filter(Boolean) as Player[];
+  const presentCount = data.player_ids.length - latePlayerIds.length;
   const matches = (data.matches ?? []) as any[];
   const lastMatch = matches[matches.length - 1];
   const liveMatch = lastMatch && lastMatch.status !== 'done' ? lastMatch : null;
@@ -128,10 +139,20 @@ export function Session({ params }: { params: { id: string } }) {
         </div>
       </header>
 
+      {data.session.status !== 'done' && latePlayers.length > 0 ? (
+        <LateSection
+          players={latePlayers}
+          teams={hasDraw ? teams : []}
+          onArrived={(pid) => markArrived.mutate(pid)}
+          onAssign={(pid, teamId) => assignToTeam.mutate({ teamId, playerId: pid })}
+          pending={markArrived.isPending || assignToTeam.isPending}
+        />
+      ) : null}
+
       {!hasDraw ? (
         <section className="card space-y-2">
           <p className="text-sm text-muted">
-            {t('session.drawPrompt', { n: data.player_ids.length })}
+            {t('session.drawPrompt', { n: presentCount })}
           </p>
           <div className="flex gap-2">
             <button className="btn-primary flex-1" onClick={() => draw.mutate('normal')}>
@@ -290,6 +311,72 @@ export function Session({ params }: { params: { id: string } }) {
   );
 }
 
+function LateSection({
+  players,
+  teams,
+  onArrived,
+  onAssign,
+  pending,
+}: {
+  players: Player[];
+  teams: { id: string; vest: Vest }[];
+  onArrived: (playerId: string) => void;
+  onAssign: (playerId: string, teamId: string) => void;
+  pending: boolean;
+}) {
+  const t = useT();
+  return (
+    <section className="card space-y-2 border-amber-500/40">
+      <div className="flex items-center gap-2">
+        <span className="text-base">⏰</span>
+        <h2 className="font-semibold">{t('session.lateSection')}</h2>
+        <span className="ml-auto text-xs text-muted">
+          {t('team.playersCount', { n: players.length })}
+        </span>
+      </div>
+      <p className="text-xs text-muted">{t('session.lateNote')}</p>
+      <div className="flex flex-col gap-1">
+        {players.map((p) => (
+          <div
+            key={p.id}
+            className="flex items-center gap-2 px-2 py-1 rounded-lg bg-bg3 border border-border"
+          >
+            <Avatar playerId={p.id} name={p.name} size={32} />
+            <span className="text-sm font-medium truncate flex-1">
+              {p.name}
+              {p.role === 'gk' ? <span className="ml-1 text-xs">🧤</span> : null}
+            </span>
+            {teams.length > 0 ? (
+              teams.map((tm) => (
+                <button
+                  key={tm.id}
+                  type="button"
+                  disabled={pending}
+                  className={`text-xs px-2 py-1 rounded-md ${VEST_COLORS[tm.vest]} disabled:opacity-40`}
+                  onClick={() => onAssign(p.id, tm.id)}
+                  style={{ minHeight: 36 }}
+                >
+                  → {t(`vest.${tm.vest}`)}
+                </button>
+              ))
+            ) : (
+              <button
+                type="button"
+                disabled={pending}
+                className="btn text-sm px-3 py-1"
+                onClick={() => onArrived(p.id)}
+                style={{ minHeight: 36 }}
+              >
+                ✅ {t('session.arrived')}
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function DoneSessionLayout({
   session,
   teams,
@@ -403,7 +490,7 @@ function ReadOnlyTeamCard({
     >
       <div className="flex items-center justify-between mb-2">
         <div className={`px-2 py-1 rounded-md inline-block ${VEST_COLORS[team.vest]}`}>
-          {t(`vest.${team.vest}`)} ({avg})
+          {t(`vest.${team.vest}`)} (⚡{totalScore} · {avg})
         </div>
         <span className="text-xs text-muted">
           {t('team.playersCount', { n: players.length })}
@@ -455,7 +542,7 @@ function TeamCard({
     >
       <div className="flex items-center justify-between mb-2">
         <div className={`px-2 py-1 rounded-md inline-block ${VEST_COLORS[team.vest]}`}>
-          {t(`vest.${team.vest}`)} ({avg})
+          {t(`vest.${team.vest}`)} (⚡{totalScore} · {avg})
         </div>
         <span className="text-xs text-muted">{t('team.playersCount', { n: players.length })}</span>
       </div>

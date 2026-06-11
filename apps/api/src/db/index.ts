@@ -35,6 +35,7 @@ export function getDb(): DB {
   if (!schema) throw new Error('schema.sql not found');
   db.exec(schema);
   migrateMatchEventsCheck(db);
+  migrateSessionPlayersArrived(db);
 
   process.on('SIGTERM', () => {
     db.close();
@@ -83,4 +84,11 @@ function migrateMatchEventsCheck(db: DB) {
     COMMIT;
     PRAGMA foreign_keys = ON;
   `);
+}
+
+// Pre-existing DBs lack the arrived flag used for late-arrival tracking.
+function migrateSessionPlayersArrived(db: DB) {
+  const cols = db.prepare('PRAGMA table_info(session_players)').all() as Array<{ name: string }>;
+  if (cols.some((c) => c.name === 'arrived')) return;
+  db.exec('ALTER TABLE session_players ADD COLUMN arrived INTEGER NOT NULL DEFAULT 1');
 }

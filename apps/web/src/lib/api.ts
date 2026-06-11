@@ -71,10 +71,15 @@ export const api = {
     list: () => request<any[]>(`/api/sessions`),
     active: () => request<any | null>(`/api/sessions/active`),
     get: (id: string) => request<any>(`/api/sessions/${id}`),
-    create: (player_ids: string[]) =>
+    create: (player_ids: string[], late_ids: string[] = []) =>
       request<{ id: string }>(`/api/sessions`, {
         method: 'POST',
-        body: JSON.stringify({ player_ids }),
+        body: JSON.stringify({ player_ids, late_ids }),
+      }),
+    setArrived: (sessionId: string, playerId: string, arrived = true) =>
+      request<any>(`/api/sessions/${sessionId}/players/${playerId}/arrival`, {
+        method: 'POST',
+        body: JSON.stringify({ arrived }),
       }),
     draw: (id: string, randomize: boolean, mode: 'normal' | 'dropin-split') =>
       request<any>(`/api/sessions/${id}/draw`, {

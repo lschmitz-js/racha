@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { uid, type EventType, type Player, type Vest } from '@racha/shared';
+import { calcScore, uid, type EventType, type Player, type Vest } from '@racha/shared';
 import { api } from '../lib/api.js';
 import { LanguageToggle, useT } from '../lib/i18n.js';
 import { Avatar } from '../lib/avatar.js';
@@ -135,7 +135,8 @@ export function Match({ params }: { params: { id: string } }) {
     if (!buzzedRef.current && liveClock >= TARGET_MS) {
       buzzedRef.current = true;
       try {
-        navigator.vibrate?.(200);
+        // Long triple pulse — a single 200ms buzz is easy to miss pitchside.
+        navigator.vibrate?.([500, 250, 500, 250, 900]);
       } catch {}
       playBuzzer();
     }
@@ -254,12 +255,19 @@ export function Match({ params }: { params: { id: string } }) {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="px-3 py-2 flex items-center justify-between gap-2 border-b border-border bg-bg2 sticky top-0 z-10">
-        <div className="flex items-center gap-2 shrink-0">
-          <button className="text-sm text-muted" onClick={() => setLocation(`/sessions/${m.session_id}`)}>
-            {t('common.session')}
+      <header className="px-2 py-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-border bg-bg2 sticky top-0 z-10">
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            className="text-lg text-muted px-2 leading-none"
+            aria-label={t('common.session')}
+            onClick={() => setLocation(`/sessions/${m.session_id}`)}
+            style={{ minHeight: 36 }}
+          >
+            ←
           </button>
-          <LanguageToggle />
+          <span className="hidden sm:block">
+            <LanguageToggle />
+          </span>
           <button
             type="button"
             className="text-lg leading-none px-2 py-1 rounded-md border border-border bg-bg3 hover:border-accent"
@@ -275,28 +283,30 @@ export function Match({ params }: { params: { id: string } }) {
             {soundOn ? '🔊' : '🔇'}
           </button>
         </div>
-        <div className="text-2xl font-mono tabular-nums">
+        <div className="text-xl sm:text-2xl font-mono tabular-nums">
           {formatClock(liveClock)}
-          <span className="text-xs text-muted ml-1">/ {formatClock(TARGET_MS)}</span>
+          <span className="hidden sm:inline text-xs text-muted ml-1">
+            / {formatClock(TARGET_MS)}
+          </span>
         </div>
         <div className="flex gap-1 shrink-0">
           {isPending && (
-            <button className="btn-primary" onClick={() => start.mutate()}>
+            <button className="btn-primary px-3" onClick={() => start.mutate()}>
               {t('match.start')}
             </button>
           )}
           {isRunning && (
-            <button className="btn" onClick={() => pause.mutate()}>
+            <button className="btn px-3" onClick={() => pause.mutate()}>
               {t('match.pause')}
             </button>
           )}
           {isPaused && (
-            <button className="btn-primary" onClick={() => resume.mutate()}>
+            <button className="btn-primary px-3" onClick={() => resume.mutate()}>
               {t('match.resume')}
             </button>
           )}
           {(isRunning || isPaused) && (
-            <button className="btn-danger" onClick={() => end.mutate(undefined)}>
+            <button className="btn-danger px-3" onClick={() => end.mutate(undefined)}>
               {t('match.end')}
             </button>
           )}
@@ -449,12 +459,18 @@ function TeamPanel({
   const onPitchPlayers = team.player_ids
     .map((pid) => byId.get(pid))
     .filter(Boolean) as Player[];
+  const power = onPitchPlayers.reduce((s, p) => s + calcScore(p.skills), 0);
   return (
     <div
       className={`space-y-1 p-2 rounded-xl border ${VEST_BORDER[team.vest]} ${VEST_PANEL_BG[team.vest]}`}
     >
-      <div className={`text-xs px-2 py-1 rounded ${VEST_COLORS[team.vest]} inline-block`}>
-        {t(`vest.${team.vest}`)}
+      <div className="flex items-center justify-between gap-1">
+        <div className={`text-xs px-2 py-1 rounded ${VEST_COLORS[team.vest]} inline-block`}>
+          {t(`vest.${team.vest}`)}
+        </div>
+        <span className={`text-xs font-semibold tabular-nums ${VEST_TEXT[team.vest]}`}>
+          ⚡{power}
+        </span>
       </div>
       <div className="flex flex-col gap-1">
         {onPitchPlayers.map((p) => {
@@ -610,15 +626,16 @@ function BenchSheet({
     );
   }
 
-  function renderHeader(team: SessionTeam, label: string, count: number) {
+  function renderHeader(team: SessionTeam, label: string, list: Player[]) {
+    const power = list.reduce((s, p) => s + calcScore(p.skills), 0);
     return (
       <div className="flex items-center gap-2 mb-1">
         <span className={`text-xs px-2 py-0.5 rounded ${VEST_COLORS[team.vest]}`}>
           {t(`vest.${team.vest}`)}
         </span>
         <span className="text-xs text-muted truncate">{label}</span>
-        <span className="ml-auto text-xs text-muted">
-          {t('team.playersCount', { n: count })}
+        <span className="ml-auto text-xs text-muted tabular-nums">
+          ⚡{power} · {t('team.playersCount', { n: list.length })}
         </span>
       </div>
     );
@@ -651,7 +668,7 @@ function BenchSheet({
                   key={team.id}
                   className={`rounded-xl border p-2 ${VEST_BORDER[team.vest]} ${VEST_PANEL_BG[team.vest]}`}
                 >
-                  {renderHeader(team, label, list.length)}
+                  {renderHeader(team, label, list)}
                   {list.length === 0 ? (
                     <div className="text-xs text-muted px-1 py-1">
                       {t('team.noneAvailable')}
@@ -670,7 +687,7 @@ function BenchSheet({
           <div
             className={`rounded-xl border p-2 ${VEST_BORDER[benchTeam.vest]} ${VEST_PANEL_BG[benchTeam.vest]}`}
           >
-            {renderHeader(benchTeam, t('sub.bench'), benchList.length)}
+            {renderHeader(benchTeam, t('sub.bench'), benchList)}
             {benchList.length === 0 ? (
               <div className="text-xs text-muted px-1 py-1">{t('sub.benchEmpty')}</div>
             ) : (

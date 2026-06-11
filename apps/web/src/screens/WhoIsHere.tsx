@@ -17,9 +17,11 @@ export function WhoIsHere() {
   const activeQ = useQuery({ queryKey: ['session', 'active'], queryFn: api.sessions.active });
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [late, setLate] = useState<Set<string>>(new Set());
 
   const create = useMutation({
-    mutationFn: (ids: string[]) => api.sessions.create(ids),
+    mutationFn: ({ ids, lateIds }: { ids: string[]; lateIds: string[] }) =>
+      api.sessions.create(ids, lateIds),
     onSuccess: ({ id }) => {
       qc.invalidateQueries({ queryKey: ['session', 'active'] });
       qc.invalidateQueries({ queryKey: ['sessions'] });
@@ -34,6 +36,22 @@ export function WhoIsHere() {
   function toggle(id: string) {
     setSelected((s) => {
       const next = new Set(s);
+      if (next.has(id)) {
+        next.delete(id);
+        setLate((l) => {
+          if (!l.has(id)) return l;
+          const ln = new Set(l);
+          ln.delete(id);
+          return ln;
+        });
+      } else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleLate(id: string) {
+    setLate((l) => {
+      const next = new Set(l);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
@@ -81,7 +99,7 @@ export function WhoIsHere() {
           <div className="text-xs uppercase tracking-wide text-muted mb-2">
             {t('home.seasonPlayers')}
           </div>
-          <PlayerGrid players={sessionPlayers} selected={selected} onToggle={toggle} />
+          <PlayerGrid players={sessionPlayers} selected={selected} late={late} onToggle={toggle} onToggleLate={toggleLate} />
         </section>
       ) : null}
 
@@ -90,7 +108,7 @@ export function WhoIsHere() {
           <div className="text-xs uppercase tracking-wide text-muted mb-2">
             {t('home.dropins')}
           </div>
-          <PlayerGrid players={dropinPlayers} selected={selected} onToggle={toggle} />
+          <PlayerGrid players={dropinPlayers} selected={selected} late={late} onToggle={toggle} onToggleLate={toggleLate} />
         </section>
       ) : null}
 
@@ -102,12 +120,17 @@ export function WhoIsHere() {
             className="btn-primary flex-1 text-base py-3"
             disabled={!canEdit || remaining > 0 || create.isPending}
             title={!canEdit ? t('auth.adminOnly') : undefined}
-            onClick={() => create.mutate(Array.from(selected))}
+            onClick={() =>
+              create.mutate({ ids: Array.from(selected), lateIds: Array.from(late) })
+            }
           >
             <span>
               {remaining > 0 ? t('lineup.needMore', { n: remaining }) : t('lineup.start')}
             </span>
-            <span className="ml-2 tabular-nums opacity-80">({selected.size})</span>
+            <span className="ml-2 tabular-nums opacity-80">
+              ({selected.size}
+              {late.size > 0 ? ` · ${late.size} ⏰` : ''})
+            </span>
           </button>
           {selected.size > 0 ? (
             <button className="btn" onClick={() => setSelected(new Set())}>
@@ -123,11 +146,15 @@ export function WhoIsHere() {
 function PlayerGrid({
   players,
   selected,
+  late,
   onToggle,
+  onToggleLate,
 }: {
   players: Player[];
   selected: Set<string>;
+  late: Set<string>;
   onToggle: (id: string) => void;
+  onToggleLate: (id: string) => void;
 }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -136,7 +163,9 @@ function PlayerGrid({
           key={p.id}
           player={p}
           selected={selected.has(p.id)}
+          late={late.has(p.id)}
           onClick={() => onToggle(p.id)}
+          onToggleLate={() => onToggleLate(p.id)}
         />
       ))}
     </div>
@@ -146,30 +175,64 @@ function PlayerGrid({
 function PlayerCard({
   player,
   selected,
+  late,
   onClick,
+  onToggleLate,
 }: {
   player: Player;
   selected: boolean;
+  late: boolean;
   onClick: () => void;
+  onToggleLate: () => void;
 }) {
+  const t = useT();
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`relative flex items-center gap-2 p-2 rounded-xl border transition text-left ${
-        selected ? 'border-accent bg-accent/10' : 'border-border bg-bg2'
+    <div
+      className={`relative flex items-center rounded-xl border transition ${
+        selected
+          ? late
+            ? 'border-amber-500 bg-amber-500/10'
+            : 'border-accent bg-accent/10'
+          : 'border-border bg-bg2'
       }`}
     >
-      <Avatar playerId={player.id} name={player.name} size={48} />
-      <div className="min-w-0 flex-1">
-        <div className="font-medium truncate text-sm">{player.name}</div>
-        <div className="text-[10px] text-muted truncate">
-          {player.role === 'gk' ? '🧤 GK' : ''}
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex items-center gap-2 p-2 flex-1 min-w-0 text-left"
+      >
+        <Avatar playerId={player.id} name={player.name} size={48} />
+        <div className="min-w-0 flex-1">
+          <div className="font-medium truncate text-sm">{player.name}</div>
+          <div className="text-[10px] text-muted truncate">
+            {player.role === 'gk' ? '🧤 GK ' : ''}
+            {selected && late ? (
+              <span className="text-amber-400">⏰ {t('lineup.lateBadge')}</span>
+            ) : null}
+          </div>
         </div>
-      </div>
+      </button>
       {selected ? (
-        <span className="absolute top-1 right-1 text-accent text-xs">✓</span>
+        <span className={`absolute top-1 right-1 text-xs ${late ? 'text-amber-400' : 'text-accent'}`}>
+          ✓
+        </span>
       ) : null}
-    </button>
+      {selected ? (
+        <button
+          type="button"
+          aria-label={t('lineup.lateToggle', { name: player.name })}
+          title={t('lineup.lateToggle', { name: player.name })}
+          onClick={onToggleLate}
+          className={`shrink-0 mr-1 px-2 py-1 rounded-lg border text-base leading-none ${
+            late
+              ? 'border-amber-500 bg-amber-500/20'
+              : 'border-border bg-bg3 opacity-60'
+          }`}
+          style={{ minHeight: 36 }}
+        >
+          ⏰
+        </button>
+      ) : null}
+    </div>
   );
 }

@@ -57,6 +57,9 @@ const dict = {
     'lineup.needMore': 'Need {n} more',
     'lineup.start': 'Start session →',
     'lineup.cancel': '← Cancel',
+    'lineup.lateToggle': 'Mark {name} as arriving late',
+    'lineup.lateBadge': 'late',
+    'lineup.lateCount': '{n} arriving late',
 
     // session
     'session.endSession': 'End session',
@@ -78,6 +81,9 @@ const dict = {
     'session.endedNotice': 'This session has ended. No more matches can be started.',
     'session.dangerZone': 'Danger zone',
     'session.confirmEnd': 'End this session? You will not be able to start more matches.',
+    'session.lateSection': 'Arriving late',
+    'session.lateNote': 'Late players stay out of the draw. When they arrive, mark it or drop them straight onto a team.',
+    'session.arrived': 'Arrived',
 
     // teamcard
     'team.playersCount': '{n} players',
@@ -252,6 +258,9 @@ const dict = {
     'lineup.needMore': 'Faltam {n}',
     'lineup.start': 'Iniciar sessão →',
     'lineup.cancel': '← Cancelar',
+    'lineup.lateToggle': 'Marcar {name} como atrasado',
+    'lineup.lateBadge': 'atrasado',
+    'lineup.lateCount': '{n} chegando depois',
 
     // session
     'session.endSession': 'Encerrar sessão',
@@ -274,6 +283,9 @@ const dict = {
     'session.endedNotice': 'Esta sessão foi encerrada. Não é possível iniciar mais jogos.',
     'session.dangerZone': 'Zona de perigo',
     'session.confirmEnd': 'Encerrar esta sessão? Não será possível iniciar mais jogos.',
+    'session.lateSection': 'Chegando depois',
+    'session.lateNote': 'Atrasados ficam fora do sorteio. Quando chegarem, marque ou já coloque direto num time.',
+    'session.arrived': 'Chegou',
 
     // teamcard
     'team.playersCount': '{n} jogadores',
