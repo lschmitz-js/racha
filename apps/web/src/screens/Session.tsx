@@ -122,13 +122,27 @@ export function Session({ params }: { params: { id: string } }) {
   const liveMatch = lastMatch && lastMatch.status !== 'done' ? lastMatch : null;
 
   const hasDraw = teams.length === 3;
+  // Where should an incoming player go? Smallest team first (keeps 5v5
+  // possible), lowest total power as tie-break.
+  const recommendedTeamId = hasDraw
+    ? [...teams]
+        .map((tm) => ({
+          id: tm.id,
+          size: tm.player_ids.length,
+          power: tm.player_ids.reduce((s, pid) => {
+            const p = playerById.get(pid);
+            return s + (p ? calcScore(p.skills) : 0);
+          }, 0),
+        }))
+        .sort((a, b) => a.size - b.size || a.power - b.power)[0]?.id ?? null
+    : null;
   const allOnPitch =
     pickedTeams.a && pickedTeams.b ? new Set([pickedTeams.a, pickedTeams.b]) : null;
   const benchTeam =
     allOnPitch && teams.find((t) => !allOnPitch.has(t.id));
 
   return (
-    <div className="p-4 pb-32 space-y-4">
+    <div className="p-4 pb-48 space-y-4">
       <header className="flex items-center justify-between">
         <div>
           <button className="text-sm text-muted" onClick={() => setLocation('/')}>
@@ -143,6 +157,7 @@ export function Session({ params }: { params: { id: string } }) {
         <LateSection
           players={latePlayers}
           teams={hasDraw ? teams : []}
+          recommendedTeamId={recommendedTeamId}
           onArrived={(pid) => markArrived.mutate(pid)}
           onAssign={(pid, teamId) => assignToTeam.mutate({ teamId, playerId: pid })}
           pending={markArrived.isPending || assignToTeam.isPending}
@@ -181,7 +196,8 @@ export function Session({ params }: { params: { id: string } }) {
         <>
           <section className="space-y-2">
             <h2 className="text-lg font-semibold">{t('session.teams')}</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <p className="text-xs text-muted">{t('session.tapToPick')}</p>
+            <div className="grid grid-cols-3 gap-2 items-start">
               {teams.map((t) => (
                 <TeamCard
                   key={t.id}
@@ -206,53 +222,6 @@ export function Session({ params }: { params: { id: string } }) {
                 />
               ))}
             </div>
-            <button
-              className="btn w-full"
-              onClick={() => draw.mutate('normal')}
-              disabled={draw.isPending}
-            >
-              {t('session.redraw')}
-            </button>
-          </section>
-
-          <section className="card space-y-2">
-            {liveMatch ? (
-              <>
-                <div className="text-sm text-muted">
-                  {t('session.liveMatchNotice', {
-                    n: liveMatch.ordinal,
-                    status: t(`status.${liveMatch.status as 'pending' | 'running' | 'paused'}`),
-                  })}
-                </div>
-                <button
-                  className="btn-primary w-full"
-                  onClick={() => setLocation(`/matches/${liveMatch.id}`)}
-                >
-                  {t('session.resumeMatch', { n: liveMatch.ordinal })}
-                </button>
-              </>
-            ) : (
-              <>
-                <div className="text-sm text-muted">{t('session.pickPrompt')}</div>
-                <button
-                  className="btn-primary w-full"
-                  disabled={!pickedTeams.a || !pickedTeams.b || createMatch.isPending}
-                  onClick={() => {
-                    if (!pickedTeams.a || !pickedTeams.b || !benchTeam) return;
-                    createMatch.mutate({
-                      session_id: sessionId,
-                      team_a_id: pickedTeams.a,
-                      team_b_id: pickedTeams.b,
-                      bench_team_id: benchTeam.id,
-                    });
-                  }}
-                >
-                  {pickedTeams.a && pickedTeams.b
-                    ? t('session.startMatch', { n: matches.length + 1 })
-                    : t('session.pickTwo')}
-                </button>
-              </>
-            )}
           </section>
 
           {matches.length > 0 ? (
@@ -293,6 +262,69 @@ export function Session({ params }: { params: { id: string } }) {
               <div className="text-xs text-muted">{t('auth.adminOnly')}</div>
             ) : null}
           </section>
+
+          {/* Single always-visible action bar: resume the live match, or pick
+              two teams above and start the next one. */}
+          <div className="fixed bottom-16 inset-x-0 px-4 safe-bottom pointer-events-none z-30">
+            <div className="pointer-events-auto bg-bg2/95 backdrop-blur border border-border rounded-xl p-3 shadow-lg space-y-2">
+              {liveMatch ? (
+                <>
+                  <div className="text-xs text-muted text-center">
+                    {t('session.liveMatchNotice', {
+                      n: liveMatch.ordinal,
+                      status: t(`status.${liveMatch.status as 'pending' | 'running' | 'paused'}`),
+                    })}
+                  </div>
+                  <button
+                    className="btn-primary w-full text-base"
+                    onClick={() => setLocation(`/matches/${liveMatch.id}`)}
+                  >
+                    ▶ {t('session.resumeMatch', { n: liveMatch.ordinal })}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="text-xs text-muted text-center">
+                    {pickedTeams.a && pickedTeams.b && benchTeam
+                      ? t('session.matchup', {
+                          a: t(`vest.${teams.find((tm) => tm.id === pickedTeams.a)!.vest}`),
+                          b: t(`vest.${teams.find((tm) => tm.id === pickedTeams.b)!.vest}`),
+                          c: t(`vest.${benchTeam.vest}`),
+                        })
+                      : t('session.pickTwo')}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      className="btn px-3"
+                      onClick={() => draw.mutate('normal')}
+                      disabled={draw.isPending}
+                      title={t('session.redraw')}
+                      aria-label={t('session.redraw')}
+                    >
+                      🎲
+                    </button>
+                    <button
+                      className="btn-primary flex-1 text-base"
+                      disabled={!pickedTeams.a || !pickedTeams.b || createMatch.isPending}
+                      onClick={() => {
+                        if (!pickedTeams.a || !pickedTeams.b || !benchTeam) return;
+                        createMatch.mutate({
+                          session_id: sessionId,
+                          team_a_id: pickedTeams.a,
+                          team_b_id: pickedTeams.b,
+                          bench_team_id: benchTeam.id,
+                        });
+                      }}
+                    >
+                      {pickedTeams.a && pickedTeams.b
+                        ? t('session.startMatch', { n: matches.length + 1 })
+                        : t('session.pickTwo')}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </>
       )}
 
@@ -314,17 +346,24 @@ export function Session({ params }: { params: { id: string } }) {
 function LateSection({
   players,
   teams,
+  recommendedTeamId,
   onArrived,
   onAssign,
   pending,
 }: {
   players: Player[];
   teams: { id: string; vest: Vest }[];
+  recommendedTeamId: string | null;
   onArrived: (playerId: string) => void;
   onAssign: (playerId: string, teamId: string) => void;
   pending: boolean;
 }) {
   const t = useT();
+  // Recommended vest first, so the obvious tap is the leftmost button.
+  const orderedTeams = [...teams].sort(
+    (a, b) =>
+      Number(b.id === recommendedTeamId) - Number(a.id === recommendedTeamId)
+  );
   return (
     <section className="card space-y-2 border-amber-500/40">
       <div className="flex items-center gap-2">
@@ -346,19 +385,25 @@ function LateSection({
               {p.name}
               {p.role === 'gk' ? <span className="ml-1 text-xs">🧤</span> : null}
             </span>
-            {teams.length > 0 ? (
-              teams.map((tm) => (
-                <button
-                  key={tm.id}
-                  type="button"
-                  disabled={pending}
-                  className={`text-xs px-2 py-1 rounded-md ${VEST_COLORS[tm.vest]} disabled:opacity-40`}
-                  onClick={() => onAssign(p.id, tm.id)}
-                  style={{ minHeight: 36 }}
-                >
-                  → {t(`vest.${tm.vest}`)}
-                </button>
-              ))
+            {orderedTeams.length > 0 ? (
+              orderedTeams.map((tm) => {
+                const recommended = tm.id === recommendedTeamId;
+                return (
+                  <button
+                    key={tm.id}
+                    type="button"
+                    disabled={pending}
+                    className={`text-xs px-2 py-1 rounded-md ${VEST_COLORS[tm.vest]} disabled:opacity-40 ${
+                      recommended ? 'ring-2 ring-accent' : 'opacity-60'
+                    }`}
+                    onClick={() => onAssign(p.id, tm.id)}
+                    style={{ minHeight: 36 }}
+                  >
+                    {recommended ? '⭐ ' : '→ '}
+                    {t(`vest.${tm.vest}`)}
+                  </button>
+                );
+              })
             ) : (
               <button
                 type="button"
@@ -534,36 +579,56 @@ function TeamCard({
   const avg = players.length ? Math.round((totalScore / players.length) * 10) / 10 : 0;
   return (
     <div
-      className={`p-3 rounded-xl border-2 ${VEST_PANEL_BG[team.vest]} ${
+      role="button"
+      tabIndex={0}
+      onClick={onPick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') onPick();
+      }}
+      className={`p-2 rounded-xl border-2 cursor-pointer select-none transition ${
+        VEST_PANEL_BG[team.vest]
+      } ${
         selectedSide
-          ? 'border-accent ring-2 ring-accent/30'
+          ? 'border-accent ring-2 ring-accent/40'
           : VEST_BORDER[team.vest]
       }`}
     >
-      <div className="flex items-center justify-between mb-2">
-        <div className={`px-2 py-1 rounded-md inline-block ${VEST_COLORS[team.vest]}`}>
-          {t(`vest.${team.vest}`)} (⚡{totalScore} · {avg})
-        </div>
-        <span className="text-xs text-muted">{t('team.playersCount', { n: players.length })}</span>
+      <div className="flex items-center justify-between gap-1 mb-1">
+        <span
+          className={`px-1.5 py-0.5 rounded text-xs font-semibold ${VEST_COLORS[team.vest]}`}
+        >
+          {t(`vest.${team.vest}`)}
+        </span>
+        {selectedSide ? (
+          <span className="px-1.5 py-0.5 rounded text-xs font-bold bg-accent text-black">
+            {selectedSide}
+          </span>
+        ) : null}
+      </div>
+      <div className={`text-[11px] tabular-nums mb-1 ${VEST_TEXT[team.vest]}`}>
+        ⚡{totalScore} · {avg} · {players.length}
       </div>
       <div className="flex flex-col gap-1">
         {players.map((p) => (
           <div
             key={p.id}
-            className="flex items-center gap-2 px-2 py-1 rounded-lg bg-bg3 border border-border"
+            className="flex items-center gap-1 px-1 py-0.5 rounded-md bg-bg3 border border-border min-w-0"
           >
-            <Avatar playerId={p.id} name={p.name} size={32} />
+            <Avatar playerId={p.id} name={p.name} size={20} />
             <span
-              className={`flex-1 text-sm font-medium truncate ${VEST_TEXT[team.vest]}`}
+              className={`flex-1 text-[11px] font-medium truncate ${VEST_TEXT[team.vest]}`}
             >
               {p.name}
-              {p.role === 'gk' ? <span className="ml-1 text-xs">🧤</span> : null}
+              {p.role === 'gk' ? <span className="text-[9px]">🧤</span> : null}
             </span>
             <button
               type="button"
-              className="text-muted hover:text-red-400 px-1 text-base leading-none"
+              className="text-muted hover:text-red-400 px-0.5 text-sm leading-none"
               aria-label={t('team.removeAria', { name: p.name })}
-              onClick={() => onRemovePlayer(p.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemovePlayer(p.id);
+              }}
               style={{ minHeight: 'auto' }}
             >
               ×
@@ -572,20 +637,16 @@ function TeamCard({
         ))}
         <button
           type="button"
-          className="text-xs px-2 py-1 rounded-lg border border-dashed border-border text-muted hover:text-accent hover:border-accent"
-          onClick={onAddPlayer}
+          className="text-[11px] px-1 py-1 rounded-md border border-dashed border-border text-muted hover:text-accent hover:border-accent"
+          onClick={(e) => {
+            e.stopPropagation();
+            onAddPlayer();
+          }}
           style={{ minHeight: 'auto' }}
         >
           {t('team.add')}
         </button>
       </div>
-      <button className="btn w-full mt-2" onClick={onPick}>
-        {selectedSide
-          ? selectedSide === 'A'
-            ? t('team.onPitchA')
-            : t('team.onPitchB')
-          : t('team.pickToPlay')}
-      </button>
     </div>
   );
 }

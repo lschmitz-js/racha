@@ -82,8 +82,10 @@ const dict = {
     'session.dangerZone': 'Danger zone',
     'session.confirmEnd': 'End this session? You will not be able to start more matches.',
     'session.lateSection': 'Arriving late',
-    'session.lateNote': 'Late players stay out of the draw. When they arrive, mark it or drop them straight onto a team.',
+    'session.lateNote': 'Late players stay out of the draw. When they arrive, drop them onto a team — ⭐ is the team that best balances power.',
     'session.arrived': 'Arrived',
+    'session.tapToPick': 'Tap two teams to put them on the pitch — the third waits.',
+    'session.matchup': '{a} vs {b} — {c} waits',
 
     // teamcard
     'team.playersCount': '{n} players',
@@ -284,8 +286,10 @@ const dict = {
     'session.dangerZone': 'Zona de perigo',
     'session.confirmEnd': 'Encerrar esta sessão? Não será possível iniciar mais jogos.',
     'session.lateSection': 'Chegando depois',
-    'session.lateNote': 'Atrasados ficam fora do sorteio. Quando chegarem, marque ou já coloque direto num time.',
+    'session.lateNote': 'Atrasados ficam fora do sorteio. Quando chegarem, coloque direto num time — ⭐ é o time que melhor equilibra.',
     'session.arrived': 'Chegou',
+    'session.tapToPick': 'Toque em dois times para mandar pra quadra — o terceiro espera.',
+    'session.matchup': '{a} x {b} — {c} espera',
 
     // teamcard
     'team.playersCount': '{n} jogadores',

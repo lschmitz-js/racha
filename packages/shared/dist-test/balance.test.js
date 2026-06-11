@@ -14,13 +14,34 @@ test('calcScore matches existing HTML rounding (nearest 0.5)', () => {
     assert.equal(calcScore([1, 1, 1, 1, 1, 1, 1, 1]), 1);
     assert.equal(calcScore([5, 5, 5, 5, 5, 5, 5, 5]), 5);
 });
-test('normal mode produces 3 teams with totals within 2 points', () => {
-    const players = fixture.db.slice(0, 18);
+test('normal mode fills white and black with 5 each, green takes the rest', () => {
+    for (const n of [10, 11, 13, 15, 18]) {
+        const players = fixture.db.slice(0, n);
+        const teams = balanceTeams(players, false, 'normal');
+        assert.equal(teams.length, 3);
+        assert.equal(teams[0].players.length, 5, `white with ${n} players`);
+        assert.equal(teams[1].players.length, 5, `black with ${n} players`);
+        assert.equal(teams[2].players.length, n - 10, `green with ${n} players`);
+    }
+});
+test('normal mode keeps the two playing teams within 2 points of each other', () => {
+    const players = fixture.db.slice(0, 13);
     const teams = balanceTeams(players, false, 'normal');
-    assert.equal(teams.length, 3);
-    const totals = teams.map((t) => t.total);
-    const diff = Math.max(...totals) - Math.min(...totals);
-    assert.ok(diff <= 2, `Expected diff <= 2, got ${diff}`);
+    const diff = Math.abs(teams[0].total - teams[1].total);
+    assert.ok(diff <= 2, `Expected white/black diff <= 2, got ${diff}`);
+});
+test('normal mode keeps green average near the overall average', () => {
+    const players = fixture.db.slice(0, 13);
+    const teams = balanceTeams(players, false, 'normal');
+    const overallAvg = teams.reduce((s, t) => s + t.total, 0) / players.length;
+    const greenAvg = teams[2].avg;
+    assert.ok(Math.abs(greenAvg - overallAvg) <= 0.75, `Expected green avg ${greenAvg} within 0.75 of overall ${overallAvg}`);
+});
+test('normal mode below 10 players splits evenly', () => {
+    const players = fixture.db.slice(0, 8);
+    const teams = balanceTeams(players, false, 'normal');
+    const sizes = teams.map((t) => t.players.length).sort();
+    assert.deepEqual(sizes, [2, 3, 3]);
 });
 test('dropin-split mode packs dropins into the green vest first', () => {
     const players = fixture.db;
