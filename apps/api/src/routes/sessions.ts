@@ -263,9 +263,20 @@ sessions.delete('/:id/teams/:teamId/players/:playerId', (c) => {
     .get(teamId, id);
   if (!team) return c.json({ error: 'team not found' }, 404);
 
-  db.prepare(
-    'DELETE FROM session_team_players WHERE session_team_id = ? AND player_id = ?'
-  ).run(teamId, playerId);
+  // Uninvite from the whole session — otherwise a redraw would pull the player
+  // back in from session_players. Also wipe from every team in this session in
+  // case they were somehow on more than one.
+  const tx = db.transaction(() => {
+    db.prepare(
+      `DELETE FROM session_team_players
+       WHERE player_id = ?
+         AND session_team_id IN (SELECT id FROM session_teams WHERE session_id = ?)`
+    ).run(playerId, id);
+    db.prepare(
+      'DELETE FROM session_players WHERE session_id = ? AND player_id = ?'
+    ).run(id, playerId);
+  });
+  tx();
 
   const data = loadFullSession(id);
   return c.json(data);
