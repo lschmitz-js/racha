@@ -7,6 +7,7 @@ import { Session } from './screens/Session.js';
 import { Match } from './screens/Match.js';
 import { MatchEvents } from './screens/MatchEvents.js';
 import { Recap } from './screens/Recap.js';
+import { Rules } from './screens/Rules.js';
 import { I18nProvider, LanguageToggle, useT } from './lib/i18n.js';
 import { AuthProvider, useAuth } from './lib/auth.js';
 
@@ -28,6 +29,7 @@ function AppShell() {
     ['/', t('nav.home')],
     ['/players', t('nav.players')],
     ['/recap', t('nav.recap')],
+    ['/rules', t('nav.rules')],
   ];
 
   return (
@@ -46,6 +48,7 @@ function AppShell() {
         <Route path="/matches/:id/events" component={MatchEvents} />
         <Route path="/matches/:id" component={Match} />
         <Route path="/recap" component={Recap} />
+        <Route path="/rules" component={Rules} />
         <Route>{() => <div className="p-4">{t('common.notFound')}</div>}</Route>
       </Switch>
 

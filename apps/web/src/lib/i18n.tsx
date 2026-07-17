@@ -28,6 +28,7 @@ const dict = {
     'nav.home': 'Home',
     'nav.players': 'Players',
     'nav.recap': 'Stats',
+    'nav.rules': 'Rules',
 
     // status
     'status.draft': 'draft',
@@ -205,6 +206,10 @@ const dict = {
     'legend.sessions': 'Nights played',
     'legend.points': 'Points',
 
+    // rules
+    'rules.title': 'Racha de Segunda',
+    'rules.subtitle': 'Official Guidelines & Rules',
+
     // admin event editor
     'admin.editEvents': 'Edit events',
     'admin.matchEventsTitle': 'Events — match {n}',
@@ -250,6 +255,7 @@ const dict = {
     'nav.home': 'Início',
     'nav.players': 'Jogadores',
     'nav.recap': 'Estatísticas',
+    'nav.rules': 'Regras',
 
     // status
     'status.draft': 'rascunho',
@@ -427,6 +433,10 @@ const dict = {
     'legend.matches': 'Jogos disputados',
     'legend.sessions': 'Rachas jogados',
     'legend.points': 'Pontos',
+
+    // rules
+    'rules.title': 'Racha de Segunda',
+    'rules.subtitle': 'Diretrizes & Regras Oficiais',
 
     // admin event editor
     'admin.editEvents': 'Editar eventos',
