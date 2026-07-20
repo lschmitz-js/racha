@@ -8,8 +8,7 @@ export type Block =
   | { t: 'callout'; tone: 'warn' | 'info'; text: string }
   | { t: 'kv'; rows: { k: string; v: string }[] }
   | { t: 'code'; text: string }
-  | { t: 'chips'; items: string[] }
-  | { t: 'formlink'; label: string };
+  | { t: 'chips'; items: string[] };
 
 export interface Section {
   icon: string;
@@ -95,7 +94,11 @@ const en: RulesDoc = [
         t: 'p',
         text: 'For safety reasons, all players (both Season and Drop-In) must fill out their emergency contact details.',
       },
-      { t: 'formlink', label: 'Fill out the Emergency Contact form' },
+      {
+        t: 'callout',
+        tone: 'info',
+        text: 'The organizer sends you a private link to fill in your details right here in the app — no more Google Sheets. Open it once and it stays saved for the season.',
+      },
       { t: 'callout', tone: 'warn', text: 'Please fill it out before your first game.' },
     ],
   },
@@ -433,7 +436,11 @@ const pt: RulesDoc = [
         t: 'p',
         text: 'Por segurança, todos os jogadores (fixos e avulsos) precisam preencher os dados de contato de emergência.',
       },
-      { t: 'formlink', label: 'Preencher o formulário de contato de emergência' },
+      {
+        t: 'callout',
+        tone: 'info',
+        text: 'O organizador te envia um link privado para preencher seus dados aqui no app — sem mais Google Sheets. Abra uma vez e fica salvo pela temporada.',
+      },
       { t: 'callout', tone: 'warn', text: 'Preencha antes do seu primeiro jogo.' },
     ],
   },

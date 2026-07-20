@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { SKILLS, type Player, ImportEnvelope } from '@racha/shared';
 import { useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../lib/api.js';
 import { useT } from '../lib/i18n.js';
 import { useCanEdit } from '../lib/auth.js';
@@ -29,8 +30,14 @@ export function PlayerDB() {
   const qc = useQueryClient();
   const playersQ = useQuery({ queryKey: ['players'], queryFn: api.players.list });
   const [editing, setEditing] = useState<Editing | null>(null);
+  const [emergencyFor, setEmergencyFor] = useState<Player | null>(null);
   const t = useT();
   const canEdit = useCanEdit();
+  const emergencyStatusQ = useQuery({
+    queryKey: ['emergency-status'],
+    queryFn: api.players.emergencyStatus,
+    enabled: canEdit,
+  });
 
   const save = useMutation({
     mutationFn: async (e: Editing) => {
@@ -71,6 +78,20 @@ export function PlayerDB() {
     a.click();
   }
 
+  async function handleExportEmergency() {
+    try {
+      const csv = await api.players.emergencyExportCsv();
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `emergency_contacts_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (err: any) {
+      alert(t('emergency.exportFailed', { msg: err?.message ?? '' }));
+    }
+  }
+
   if (playersQ.isLoading) return <div className="p-4 text-muted">{t('common.loading')}</div>;
   const players = (playersQ.data ?? []).filter((p) => p.active);
 
@@ -84,6 +105,9 @@ export function PlayerDB() {
           </button>
           {canEdit ? (
             <>
+              <button className="btn" onClick={handleExportEmergency}>
+                🚨 {t('emergency.exportCsv')}
+              </button>
               <label className="btn cursor-pointer">
                 {t('common.import')}
                 <input
@@ -120,10 +144,21 @@ export function PlayerDB() {
                   {p.role === 'gk' ? t('players.gk') : t('players.player')} ·{' '}
                   {t('players.avg', { n: avg(p.skills) })}
                 </div>
+                {canEdit && emergencyStatusQ.data && !emergencyStatusQ.data[p.id] ? (
+                  <div className="text-xs text-red-400 mt-0.5">{t('emergency.missingBadge')}</div>
+                ) : null}
               </div>
             </div>
             {canEdit ? (
               <div className="flex gap-2">
+                <button
+                  className="btn"
+                  title={t('players.emergency')}
+                  aria-label={t('players.emergency')}
+                  onClick={() => setEmergencyFor(p)}
+                >
+                  🚨
+                </button>
                 <button className="btn" onClick={() => setEditing(toEditing(p))}>
                   {t('common.edit')}
                 </button>
@@ -150,6 +185,113 @@ export function PlayerDB() {
           saving={save.isPending}
         />
       ) : null}
+
+      {emergencyFor ? (
+        <EmergencyPanel player={emergencyFor} onClose={() => setEmergencyFor(null)} />
+      ) : null}
+    </div>
+  );
+}
+
+function EmergencyPanel({ player, onClose }: { player: Player; onClose: () => void }) {
+  const t = useT();
+  const q = useQuery({
+    queryKey: ['emergency-admin', player.id],
+    queryFn: () => api.players.emergencyAdmin(player.id),
+  });
+  const [copied, setCopied] = useState(false);
+
+  const link = q.data
+    ? `${window.location.origin}/e/${q.data.token}`
+    : '';
+
+  async function copy() {
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard blocked (e.g. insecure context) — select-to-copy fallback.
+      window.prompt(t('emergency.copyLink'), link);
+    }
+  }
+
+  const c = q.data?.contact ?? null;
+  const rows: Array<[string, string | null | undefined]> = [
+    [t('emergency.playerPhone'), c?.player_phone],
+    [t('emergency.contactName'), c?.contact_name],
+    [t('emergency.contactPhone'), c?.contact_phone],
+    [t('emergency.relationship'), c?.relationship],
+    [t('emergency.medicalNotes'), c?.medical_notes],
+  ];
+  const hasDetails = rows.some(([, v]) => v && String(v).trim());
+
+  return (
+    <div className="fixed inset-0 bg-black/70 z-40 flex items-end sm:items-center justify-center">
+      <div className="bg-bg2 border border-border rounded-t-xl sm:rounded-xl p-4 w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
+        <h2 className="text-lg font-semibold mb-1">
+          🚨 {t('emergency.adminTitle', { name: player.name })}
+        </h2>
+
+        {q.isLoading ? (
+          <div className="text-muted text-sm py-4">{t('common.loading')}</div>
+        ) : (
+          <div className="space-y-4">
+            {link ? (
+              <div className="flex flex-col items-center gap-2">
+                <div className="rounded-xl bg-white p-3">
+                  <QRCodeSVG value={link} size={192} marginSize={0} level="M" />
+                </div>
+                <p className="text-xs text-muted">{t('emergency.scanHint')}</p>
+              </div>
+            ) : null}
+            <div className="space-y-2">
+              <p className="text-xs text-muted">{t('emergency.shareHint', { name: player.name })}</p>
+              <div className="flex gap-2">
+                <input className="input font-mono text-xs" readOnly value={link} onFocus={(e) => e.currentTarget.select()} />
+                <button className="btn shrink-0" onClick={copy}>
+                  {copied ? t('emergency.copied') : t('emergency.copyLink')}
+                </button>
+              </div>
+              <a
+                href={link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-accent no-underline"
+              >
+                {t('emergency.openForm')} ↗
+              </a>
+            </div>
+
+            <div className="border-t border-border pt-3">
+              <div className="text-sm font-medium mb-2">
+                {hasDetails ? `✅ ${t('emergency.submitted')}` : `⚠️ ${t('emergency.notSubmitted')}`}
+              </div>
+              {hasDetails ? (
+                <dl className="space-y-1.5">
+                  {rows.map(([k, v]) =>
+                    v && String(v).trim() ? (
+                      <div key={k} className="flex gap-3 text-sm">
+                        <dt className="w-28 shrink-0 text-muted">{k}</dt>
+                        <dd className="font-medium text-fg whitespace-pre-wrap">{v}</dd>
+                      </div>
+                    ) : null
+                  )}
+                </dl>
+              ) : (
+                <p className="text-sm text-muted">{t('emergency.noDetails')}</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-4">
+          <button className="btn w-full" onClick={onClose}>
+            {t('common.close')}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

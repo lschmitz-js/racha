@@ -48,6 +48,9 @@
   .card {
     @apply bg-bg2 border border-border rounded-xl p-3;
   }
+  .input {
+    @apply w-full bg-bg3 border border-border rounded-lg px-3 py-2 text-text focus:border-accent focus:outline-none;
+  }
   .safe-bottom {
     padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
   }

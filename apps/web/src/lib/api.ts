@@ -1,5 +1,13 @@
 import type { ImportEnvelope, Player } from '@racha/shared';
 
+export interface EmergencyContact {
+  player_phone: string | null;
+  contact_name: string | null;
+  contact_phone: string | null;
+  relationship: string | null;
+  medical_notes: string | null;
+}
+
 const ADMIN_TOKEN_KEY = 'racha.adminToken';
 
 export function getAdminToken(): string | null {
@@ -65,6 +73,35 @@ export const api = {
         body: JSON.stringify(env),
       }),
     export: () => request<ImportEnvelope>(`/api/players/export`),
+    // Admin: which players have submitted emergency contacts. { [id]: true }
+    emergencyStatus: () => request<Record<string, boolean>>(`/api/players/emergency-status`),
+    // Admin: download all emergency contacts as CSV text (token-gated).
+    emergencyExportCsv: async (): Promise<string> => {
+      const token = getAdminToken();
+      const res = await fetch(`/api/players/emergency-export`, {
+        headers: token ? { 'x-racha-token': token } : {},
+      });
+      if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+      return res.text();
+    },
+    // Admin: a player's private link token + submitted contact.
+    emergencyAdmin: (id: string) =>
+      request<{ token: string; contact: (EmergencyContact & { updated_at: number }) | null }>(
+        `/api/players/${id}/emergency`
+      ),
+  },
+
+  // Public self-service emergency-contact flow (secret token = authorization).
+  emergency: {
+    get: (token: string) =>
+      request<{ name: string; contact: EmergencyContact | null }>(
+        `/api/emergency/${encodeURIComponent(token)}`
+      ),
+    save: (token: string, data: EmergencyContact) =>
+      request<{ ok: true }>(`/api/emergency/${encodeURIComponent(token)}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
   },
 
   sessions: {

@@ -1,4 +1,5 @@
 import Database from 'better-sqlite3';
+import { randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -36,6 +37,7 @@ export function getDb(): DB {
   db.exec(schema);
   migrateMatchEventsCheck(db);
   migrateSessionPlayersArrived(db);
+  migratePlayerEmergency(db);
 
   process.on('SIGTERM', () => {
     db.close();
@@ -91,4 +93,28 @@ function migrateSessionPlayersArrived(db: DB) {
   const cols = db.prepare('PRAGMA table_info(session_players)').all() as Array<{ name: string }>;
   if (cols.some((c) => c.name === 'arrived')) return;
   db.exec('ALTER TABLE session_players ADD COLUMN arrived INTEGER NOT NULL DEFAULT 1');
+}
+
+// Emergency contacts feature: pre-existing DBs lack players.emergency_token.
+// Add the column (schema.sql only adds it to freshly created player tables),
+// backfill an unguessable token for every player so their personal self-service
+// link works, then enforce uniqueness. The partial index allows multiple NULLs.
+function migratePlayerEmergency(db: DB) {
+  const cols = db.prepare('PRAGMA table_info(players)').all() as Array<{ name: string }>;
+  if (!cols.some((c) => c.name === 'emergency_token')) {
+    db.exec('ALTER TABLE players ADD COLUMN emergency_token TEXT');
+  }
+  const missing = db
+    .prepare('SELECT id FROM players WHERE emergency_token IS NULL')
+    .all() as Array<{ id: string }>;
+  if (missing.length) {
+    const upd = db.prepare('UPDATE players SET emergency_token = ? WHERE id = ?');
+    const tx = db.transaction((rows: Array<{ id: string }>) => {
+      for (const r of rows) upd.run(randomBytes(18).toString('base64url'), r.id);
+    });
+    tx(missing);
+  }
+  db.exec(
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_players_emergency_token ON players(emergency_token) WHERE emergency_token IS NOT NULL'
+  );
 }

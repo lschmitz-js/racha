@@ -1,10 +1,6 @@
 import { useI18n, useT } from '../lib/i18n.js';
 import { rulesDoc, type Block } from './rules-content.js';
 
-// Emergency contact spreadsheet — paste the shared form/sheet URL here.
-const EMERGENCY_FORM_URL =
-  'https://docs.google.com/spreadsheets/d/1Hzg3_3iZTN-QGMbMO_xvV-NRfK5mm7zWuhGnOLAhYRI/edit?gid=0#gid=0';
-
 function BlockView({ block }: { block: Block }) {
   switch (block.t) {
     case 'p':
@@ -86,18 +82,6 @@ function BlockView({ block }: { block: Block }) {
         <pre className="whitespace-pre-wrap break-words rounded-lg border border-border bg-bg3 px-3 py-2 text-xs text-fg/90 font-mono leading-relaxed">
           {block.text}
         </pre>
-      );
-
-    case 'formlink':
-      return (
-        <a
-          href={EMERGENCY_FORM_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn-primary inline-flex items-center gap-2 no-underline"
-        >
-          📋 {block.label}
-        </a>
       );
 
     default:

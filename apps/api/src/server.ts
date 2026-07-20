@@ -11,6 +11,7 @@ import { sessions } from './routes/sessions.js';
 import { matches } from './routes/matches.js';
 import { events } from './routes/events.js';
 import { stats } from './routes/stats.js';
+import { emergency } from './routes/emergency.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -45,6 +46,14 @@ const gateWrites = async (c: any, next: any) => {
 };
 
 if (TOKEN) {
+  // Emergency contact reads expose sensitive PII + the private link token, so
+  // they are admin-only even though they are GETs. Registered before the
+  // generic player gate below so requireAdmin short-circuits first. (The public
+  // self-service flow lives under /api/emergency/:token and is intentionally
+  // NOT gated — the secret token is the authorization.)
+  app.use('/api/players/emergency-status', requireAdmin);
+  app.use('/api/players/emergency-export', requireAdmin);
+  app.use('/api/players/:id/emergency', requireAdmin);
   // All player writes (create, update, delete, import) are admin-only.
   app.use('/api/players', gateWrites);
   app.use('/api/players/*', gateWrites);
@@ -75,6 +84,7 @@ app.get('/api/auth/check', (c) => {
 
 app.get('/api/health', (c) => c.json({ ok: true }));
 app.route('/api/players', players);
+app.route('/api/emergency', emergency);
 app.route('/api/sessions', sessions);
 app.route('/api/matches', matches);
 app.route('/api/events', events);
