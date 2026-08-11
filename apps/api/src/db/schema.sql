@@ -1,11 +1,24 @@
 CREATE TABLE IF NOT EXISTS players (
-  id           TEXT PRIMARY KEY,
-  name         TEXT NOT NULL,
-  type         TEXT NOT NULL CHECK(type IN ('season','dropin')),
-  role         TEXT NOT NULL CHECK(role IN ('player','gk')),
-  skills_json  TEXT NOT NULL,
-  active       INTEGER NOT NULL DEFAULT 1,
-  created_at   INTEGER NOT NULL
+  id              TEXT PRIMARY KEY,
+  name            TEXT NOT NULL,
+  type            TEXT NOT NULL CHECK(type IN ('season','dropin')),
+  role            TEXT NOT NULL CHECK(role IN ('player','gk')),
+  skills_json     TEXT NOT NULL,
+  active          INTEGER NOT NULL DEFAULT 1,
+  emergency_token TEXT,
+  created_at      INTEGER NOT NULL
+);
+
+-- Sensitive emergency-contact data. Kept in a separate table so it is never
+-- selected into the public GET /api/players response by accident.
+CREATE TABLE IF NOT EXISTS player_emergency (
+  player_id     TEXT PRIMARY KEY REFERENCES players(id) ON DELETE CASCADE,
+  player_phone  TEXT,
+  contact_name  TEXT,
+  contact_phone TEXT,
+  relationship  TEXT,
+  medical_notes TEXT,
+  updated_at    INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS sessions (

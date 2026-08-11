@@ -8,6 +8,7 @@ import { Match } from './screens/Match.js';
 import { MatchEvents } from './screens/MatchEvents.js';
 import { Recap } from './screens/Recap.js';
 import { Rules } from './screens/Rules.js';
+import { EmergencyForm } from './screens/EmergencyForm.js';
 import { I18nProvider, LanguageToggle, useT } from './lib/i18n.js';
 import { AuthProvider, useAuth } from './lib/auth.js';
 
@@ -24,7 +25,7 @@ export function App() {
 function AppShell() {
   const [location] = useLocation();
   const t = useT();
-  const hideNav = location.startsWith('/matches/');
+  const hideNav = location.startsWith('/matches/') || location.startsWith('/e/');
   const tabs: Array<[string, string]> = [
     ['/', t('nav.home')],
     ['/players', t('nav.players')],
@@ -49,6 +50,7 @@ function AppShell() {
         <Route path="/matches/:id" component={Match} />
         <Route path="/recap" component={Recap} />
         <Route path="/rules" component={Rules} />
+        <Route path="/e/:token" component={EmergencyForm} />
         <Route>{() => <div className="p-4">{t('common.notFound')}</div>}</Route>
       </Switch>
 

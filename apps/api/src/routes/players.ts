@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { ImportEnvelope, Player, uid } from '@racha/shared';
 import { z } from 'zod';
+import { randomBytes } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
@@ -23,6 +24,16 @@ const MIME_TO_EXT: Record<string, string> = {
   'image/webp': 'webp',
 };
 const MAX_AVATAR_BYTES = 4 * 1024 * 1024;
+
+function newEmergencyToken(): string {
+  return randomBytes(18).toString('base64url');
+}
+
+// RFC-4180 CSV cell: quote when it contains a comma, quote, or newline.
+function csvCell(v: unknown): string {
+  const s = v == null ? '' : String(v);
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
 
 function findAvatarFile(playerId: string): { path: string; mime: string } | null {
   for (const [mime, ext] of Object.entries(MIME_TO_EXT)) {
@@ -61,6 +72,109 @@ players.get('/', (c) => {
   return c.json(rows.map(rowToPlayer));
 });
 
+// --- Emergency contacts (admin) --------------------------------------------
+// These routes expose sensitive PII and the private per-player token, so they
+// are admin-gated in server.ts (the generic /api/players/* gate lets GETs
+// through, so these paths get an explicit requireAdmin there).
+
+// Which players have already submitted their emergency contact. Drives the
+// "missing" badge admins use to chase people up. Returns { [playerId]: true }.
+players.get('/emergency-status', (c) => {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `SELECT player_id FROM player_emergency
+       WHERE contact_name IS NOT NULL AND TRIM(contact_name) <> ''`
+    )
+    .all() as Array<{ player_id: string }>;
+  const filled: Record<string, boolean> = {};
+  for (const r of rows) filled[r.player_id] = true;
+  return c.json(filled);
+});
+
+// CSV of every active player's emergency contact (admin), including players who
+// have not filled it in yet (blank row) so gaps are visible. UTF-8 BOM is
+// prepended so Excel opens accented names correctly.
+players.get('/emergency-export', (c) => {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `SELECT p.name, e.player_phone, e.contact_name, e.contact_phone,
+              e.relationship, e.medical_notes, e.updated_at
+       FROM players p
+       LEFT JOIN player_emergency e ON e.player_id = p.id
+       WHERE p.active = 1
+       ORDER BY p.name`
+    )
+    .all() as Array<{
+    name: string;
+    player_phone: string | null;
+    contact_name: string | null;
+    contact_phone: string | null;
+    relationship: string | null;
+    medical_notes: string | null;
+    updated_at: number | null;
+  }>;
+
+  const header = [
+    'Player',
+    'Player Phone',
+    'Contact Name',
+    'Contact Phone',
+    'Relationship',
+    'Medical Notes',
+    'Submitted',
+    'Last Updated',
+  ];
+  const lines = [header.map(csvCell).join(',')];
+  for (const r of rows) {
+    const submitted = !!(r.contact_name && r.contact_name.trim());
+    lines.push(
+      [
+        r.name,
+        r.player_phone,
+        r.contact_name,
+        r.contact_phone,
+        r.relationship,
+        r.medical_notes,
+        submitted ? 'yes' : 'no',
+        r.updated_at ? new Date(r.updated_at).toISOString() : '',
+      ]
+        .map(csvCell)
+        .join(',')
+    );
+  }
+  const csv = '﻿' + lines.join('\r\n') + '\r\n';
+  const date = new Date().toISOString().slice(0, 10);
+  c.header('content-type', 'text/csv; charset=utf-8');
+  c.header('content-disposition', `attachment; filename="emergency_contacts_${date}.csv"`);
+  return c.body(csv);
+});
+
+// One player's private link token + their submitted contact (for admin view).
+// Backfills a token if somehow missing so the link is always shareable.
+players.get('/:id/emergency', (c) => {
+  const id = c.req.param('id');
+  const db = getDb();
+  const p = db
+    .prepare('SELECT id, emergency_token FROM players WHERE id = ?')
+    .get(id) as { id: string; emergency_token: string | null } | undefined;
+  if (!p) return c.json({ error: 'not found' }, 404);
+  let token = p.emergency_token;
+  if (!token) {
+    token = newEmergencyToken();
+    db.prepare('UPDATE players SET emergency_token = ? WHERE id = ?').run(token, id);
+  }
+  const contact =
+    db
+      .prepare(
+        `SELECT player_phone, contact_name, contact_phone, relationship, medical_notes, updated_at
+         FROM player_emergency WHERE player_id = ?`
+      )
+      .get(id) ?? null;
+  return c.json({ token, contact });
+});
+
 const PlayerInput = z.object({
   name: z.string().min(1),
   type: z.enum(['season', 'dropin']),
@@ -74,9 +188,18 @@ players.post('/', async (c) => {
   const id = uid();
   const db = getDb();
   db.prepare(
-    `INSERT INTO players (id, name, type, role, skills_json, active, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, body.name, body.type, body.role, JSON.stringify(body.skills), body.active ? 1 : 0, Date.now());
+    `INSERT INTO players (id, name, type, role, skills_json, active, emergency_token, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    id,
+    body.name,
+    body.type,
+    body.role,
+    JSON.stringify(body.skills),
+    body.active ? 1 : 0,
+    newEmergencyToken(),
+    Date.now()
+  );
   const row = db.prepare('SELECT * FROM players WHERE id = ?').get(id) as PlayerRow;
   return c.json(rowToPlayer(row), 201);
 });
@@ -107,8 +230,8 @@ players.post('/import', async (c) => {
   const body = ImportEnvelope.parse(await c.req.json());
   const db = getDb();
   const upsert = db.prepare(
-    `INSERT INTO players (id, name, type, role, skills_json, active, created_at)
-     VALUES (@id, @name, @type, @role, @skills_json, 1, @created_at)
+    `INSERT INTO players (id, name, type, role, skills_json, active, emergency_token, created_at)
+     VALUES (@id, @name, @type, @role, @skills_json, 1, @emergency_token, @created_at)
      ON CONFLICT(id) DO UPDATE SET
        name = excluded.name,
        type = excluded.type,
@@ -124,6 +247,7 @@ players.post('/import', async (c) => {
         type: r.type,
         role: r.role,
         skills_json: JSON.stringify(r.skills),
+        emergency_token: newEmergencyToken(),
         created_at: Date.now(),
       });
     }

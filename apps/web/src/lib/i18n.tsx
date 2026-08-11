@@ -184,6 +184,39 @@ const dict = {
     'players.avg': 'avg {n}',
     'players.changePhoto': 'Change photo',
     'players.removePhoto': 'Remove photo',
+    'players.emergency': 'Emergency',
+
+    // emergency contacts
+    'emergency.formTitle': 'Emergency Contact',
+    'emergency.formSubtitle':
+      'Fill this in so we can reach someone if anything happens to you on the pitch.',
+    'emergency.forPlayer': 'For {name}',
+    'emergency.privacy': 'Only the organizers can see this. It is not shown to other players.',
+    'emergency.playerPhone': 'Your mobile phone',
+    'emergency.contactName': 'Emergency contact name',
+    'emergency.contactPhone': 'Emergency contact phone',
+    'emergency.relationship': 'Relationship (e.g. spouse, parent, friend)',
+    'emergency.medicalNotes': 'Allergies / medical notes / blood type (optional)',
+    'emergency.saveBtn': 'Save my info',
+    'emergency.saved': 'Saved — thank you! You can close this page.',
+    'emergency.saveFailed': 'Could not save: {msg}',
+    'emergency.invalidLink':
+      'This link is invalid or expired. Ask the organizer for your personal link.',
+    'emergency.required': 'Please add at least a contact name and phone.',
+    // admin panel
+    'emergency.adminTitle': 'Emergency — {name}',
+    'emergency.shareHint': 'Send this private link to {name} so they fill in their own details.',
+    'emergency.copyLink': 'Copy link',
+    'emergency.copied': 'Copied!',
+    'emergency.openForm': 'Open form',
+    'emergency.submitted': 'Submitted',
+    'emergency.notSubmitted': 'Not submitted yet',
+    'emergency.noDetails': 'No details submitted yet.',
+    'emergency.updatedAt': 'Updated {date}',
+    'emergency.missingBadge': '🚨 no info',
+    'emergency.exportCsv': 'Contacts CSV',
+    'emergency.exportFailed': 'Export failed: {msg}',
+    'emergency.scanHint': 'Scan to open the form',
 
     // vests
     'vest.white': 'White',
@@ -412,6 +445,41 @@ const dict = {
     'players.avg': 'média {n}',
     'players.changePhoto': 'Mudar foto',
     'players.removePhoto': 'Remover foto',
+    'players.emergency': 'Emergência',
+
+    // emergency contacts
+    'emergency.formTitle': 'Contato de Emergência',
+    'emergency.formSubtitle':
+      'Preencha para conseguirmos avisar alguém se acontecer algo com você em quadra.',
+    'emergency.forPlayer': 'De {name}',
+    'emergency.privacy':
+      'Só os organizadores veem isto. Não aparece para os outros jogadores.',
+    'emergency.playerPhone': 'Seu celular',
+    'emergency.contactName': 'Nome do contato de emergência',
+    'emergency.contactPhone': 'Telefone do contato de emergência',
+    'emergency.relationship': 'Parentesco (ex: cônjuge, pai/mãe, amigo)',
+    'emergency.medicalNotes': 'Alergias / observações médicas / tipo sanguíneo (opcional)',
+    'emergency.saveBtn': 'Salvar meus dados',
+    'emergency.saved': 'Salvo — obrigado! Pode fechar esta página.',
+    'emergency.saveFailed': 'Não foi possível salvar: {msg}',
+    'emergency.invalidLink':
+      'Este link é inválido ou expirou. Peça seu link pessoal ao organizador.',
+    'emergency.required': 'Informe ao menos um nome e telefone de contato.',
+    // admin panel
+    'emergency.adminTitle': 'Emergência — {name}',
+    'emergency.shareHint':
+      'Envie este link privado para {name} preencher os próprios dados.',
+    'emergency.copyLink': 'Copiar link',
+    'emergency.copied': 'Copiado!',
+    'emergency.openForm': 'Abrir formulário',
+    'emergency.submitted': 'Preenchido',
+    'emergency.notSubmitted': 'Ainda não preenchido',
+    'emergency.noDetails': 'Nenhum dado preenchido ainda.',
+    'emergency.updatedAt': 'Atualizado {date}',
+    'emergency.missingBadge': '🚨 sem dados',
+    'emergency.exportCsv': 'Contatos CSV',
+    'emergency.exportFailed': 'Falha ao exportar: {msg}',
+    'emergency.scanHint': 'Escaneie para abrir o formulário',
 
     // vests
     'vest.white': 'Branco',
