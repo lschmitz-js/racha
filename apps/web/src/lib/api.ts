@@ -8,6 +8,31 @@ export interface EmergencyContact {
   medical_notes: string | null;
 }
 
+export interface AuthUser {
+  id: string;
+  name: string;
+  master: boolean;
+}
+
+export interface AuditEntry {
+  id: string;
+  user_id: string;
+  user_name: string;
+  action: string;
+  path: string;
+  status: number;
+  detail: string | null;
+  created_at: number;
+}
+
+// Fields accepted when creating/updating a player. is_admin + password are
+// optional admin-management fields; password is write-only.
+type PlayerWrite = Omit<Player, 'id' | 'active' | 'is_admin'> & {
+  active?: boolean;
+  is_admin?: boolean;
+  password?: string;
+};
+
 const ADMIN_TOKEN_KEY = 'racha.adminToken';
 
 export function getAdminToken(): string | null {
@@ -41,7 +66,28 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 export const api = {
   health: () => request<{ ok: true }>(`/api/health`),
-  authCheck: () => request<{ required: boolean; ok: boolean }>(`/api/auth/check`),
+  authCheck: () =>
+    request<{ required: boolean; ok: boolean; user: AuthUser | null }>(`/api/auth/check`),
+
+  auth: {
+    login: (name: string, password: string) =>
+      request<{ token: string; user: AuthUser }>(`/api/auth/login`, {
+        method: 'POST',
+        body: JSON.stringify({ name, password }),
+      }),
+    logout: () => request<{ ok: true }>(`/api/auth/logout`, { method: 'POST' }),
+  },
+
+  audit: {
+    list: (userId?: string, limit = 200) => {
+      const q = new URLSearchParams();
+      if (userId) q.set('user', userId);
+      q.set('limit', String(limit));
+      return request<{ entries: AuditEntry[]; users: Array<{ user_id: string; user_name: string }> }>(
+        `/api/audit?${q.toString()}`
+      );
+    },
+  },
 
   players: {
     list: () => request<Player[]>(`/api/players`),
@@ -61,9 +107,9 @@ export const api = {
     },
     deleteAvatar: (id: string) =>
       request<{ ok: true }>(`/api/players/${id}/avatar`, { method: 'DELETE' }),
-    create: (input: Omit<Player, 'id' | 'active'> & { active?: boolean }) =>
+    create: (input: PlayerWrite) =>
       request<Player>(`/api/players`, { method: 'POST', body: JSON.stringify(input) }),
-    update: (id: string, input: Omit<Player, 'id' | 'active'> & { active?: boolean }) =>
+    update: (id: string, input: PlayerWrite) =>
       request<Player>(`/api/players/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
     remove: (id: string) =>
       request<{ ok: true }>(`/api/players/${id}`, { method: 'DELETE' }),
