@@ -184,6 +184,20 @@ players.get('/:id/emergency', (c) => {
   return c.json({ token, contact });
 });
 
+// Rotate a player's emergency link: issue a fresh token so any previously
+// shared /e/<token> link stops resolving. Admin-only (write gate). The
+// submitted contact data itself is kept.
+players.post('/:id/emergency/rotate', (c) => {
+  const id = c.req.param('id');
+  if (!SAFE_PLAYER_ID.test(id)) return c.json({ error: 'invalid id' }, 400);
+  const db = getDb();
+  const exists = db.prepare('SELECT 1 FROM players WHERE id = ?').get(id);
+  if (!exists) return c.json({ error: 'not found' }, 404);
+  const token = newEmergencyToken();
+  db.prepare('UPDATE players SET emergency_token = ? WHERE id = ?').run(token, id);
+  return c.json({ token });
+});
+
 const PlayerInput = z.object({
   name: z.string().min(1),
   type: z.enum(['season', 'dropin']),
@@ -229,9 +243,13 @@ players.put('/:id', async (c) => {
 players.delete('/:id', (c) => {
   const id = c.req.param('id');
   const db = getDb();
-  // soft delete to preserve historical event references
+  // Soft delete the player to preserve historical event references, but hard
+  // delete their emergency contact so sensitive health PII is not retained for
+  // someone who has left the group. The dead soft-deleted player also means
+  // their link no longer resolves (playerByToken requires active = 1).
   const res = db.prepare('UPDATE players SET active = 0 WHERE id = ?').run(id);
   if (res.changes === 0) return c.json({ error: 'not found' }, 404);
+  db.prepare('DELETE FROM player_emergency WHERE player_id = ?').run(id);
   return c.json({ ok: true });
 });
 

@@ -43,6 +43,44 @@ app.use('*', async (c, next) => {
   console.log(`${c.req.method} ${path} ${c.res.status} ${Date.now() - start}ms`);
 });
 
+// Per-IP fixed-window rate limit on the API to blunt abuse / DoS. Defaults are
+// generous because many players share one public IP on the gym Wi-Fi (NAT); if
+// legitimate bursts ever hit 429, raise RATE_LIMIT_MAX. Set RATE_LIMIT_MAX=0 to
+// disable. The client IP comes from X-Forwarded-For (Caddy sets it), falling
+// back to the socket address for direct connections.
+const RL_WINDOW_MS = Number(process.env.RATE_LIMIT_WINDOW_MS || 10_000);
+const RL_MAX = Number(process.env.RATE_LIMIT_MAX || 300);
+type Bucket = { count: number; resetAt: number };
+const rlBuckets = new Map<string, Bucket>();
+function clientKey(c: any): string {
+  const xff = c.req.header('x-forwarded-for');
+  if (xff) return xff.split(',')[0].trim();
+  return c.env?.incoming?.socket?.remoteAddress || 'unknown';
+}
+if (RL_MAX > 0) {
+  app.use('/api/*', async (c, next) => {
+    const key = clientKey(c);
+    const now = Date.now();
+    let b = rlBuckets.get(key);
+    if (!b || b.resetAt <= now) {
+      b = { count: 0, resetAt: now + RL_WINDOW_MS };
+      rlBuckets.set(key, b);
+    }
+    b.count++;
+    if (b.count > RL_MAX) {
+      c.header('Retry-After', String(Math.ceil((b.resetAt - now) / 1000)));
+      return c.json({ error: 'rate limited' }, 429);
+    }
+    return next();
+  });
+  // Drop expired buckets so the map can't grow unbounded. unref() keeps this
+  // timer from holding the process open on shutdown.
+  setInterval(() => {
+    const now = Date.now();
+    for (const [k, b] of rlBuckets) if (b.resetAt <= now) rlBuckets.delete(k);
+  }, 60_000).unref();
+}
+
 // Shared admin token. When RACHA_TOKEN is set, every state-changing request
 // requires the X-Racha-Token header (fail-closed: writes are denied by default,
 // so any new endpoint is protected automatically). Reads stay open, and the
