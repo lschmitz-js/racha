@@ -21,7 +21,7 @@ type Editing = {
 
 const EMPTY: Editing = {
   name: '',
-  type: 'season',
+  type: 'dropin',
   role: 'player',
   skills: [3, 3, 3, 3, 3, 3, 3, 3],
 };
@@ -97,9 +97,9 @@ export function PlayerDB() {
 
   return (
     <div className="p-4 pb-32 space-y-3">
-      <header className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">{t('players.title')}</h1>
-        <div className="flex gap-2">
+      <header className="space-y-3">
+        <h1 className="text-xl font-bold pr-24">{t('players.title')}</h1>
+        <div className="flex flex-wrap gap-2">
           <button className="btn" onClick={handleExport}>
             {t('common.export')}
           </button>
