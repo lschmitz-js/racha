@@ -217,6 +217,9 @@ const dict = {
     'emergency.exportCsv': 'Contacts CSV',
     'emergency.exportFailed': 'Export failed: {msg}',
     'emergency.scanHint': 'Scan to open the form',
+    'emergency.rotate': 'Rotate link',
+    'emergency.rotateConfirm': 'Generate a new link for {name}? The current link (and QR) will stop working.',
+    'emergency.rotateFailed': 'Could not rotate link: {msg}',
 
     // vests
     'vest.white': 'White',
@@ -266,6 +269,7 @@ const dict = {
     'auth.signedIn': 'Signed in',
     'auth.wrongPassword': 'Wrong password.',
     'auth.adminOnly': 'Admin only — sign in to enable.',
+    'auth.recordLocked': 'Sign in to record this match:',
   },
   pt: {
     // global
@@ -481,6 +485,9 @@ const dict = {
     'emergency.exportCsv': 'Contatos CSV',
     'emergency.exportFailed': 'Falha ao exportar: {msg}',
     'emergency.scanHint': 'Escaneie para abrir o formulário',
+    'emergency.rotate': 'Gerar novo link',
+    'emergency.rotateConfirm': 'Gerar um novo link para {name}? O link atual (e o QR) deixará de funcionar.',
+    'emergency.rotateFailed': 'Não foi possível gerar novo link: {msg}',
 
     // vests
     'vest.white': 'Branco',
@@ -530,6 +537,7 @@ const dict = {
     'auth.signedIn': 'Conectado',
     'auth.wrongPassword': 'Senha incorreta.',
     'auth.adminOnly': 'Apenas admin — entre para ativar.',
+    'auth.recordLocked': 'Entre para registrar este jogo:',
   },
 } as const;
 

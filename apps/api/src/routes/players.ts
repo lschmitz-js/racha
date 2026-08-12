@@ -29,13 +29,22 @@ function newEmergencyToken(): string {
   return randomBytes(18).toString('base64url');
 }
 
-// RFC-4180 CSV cell: quote when it contains a comma, quote, or newline.
+// RFC-4180 CSV cell. Also neutralizes spreadsheet formula injection: a value
+// starting with = + - @ (or a tab/CR) is prefixed with an apostrophe so Excel /
+// Sheets treat player-submitted text as data, never as an executable formula.
 function csvCell(v: unknown): string {
-  const s = v == null ? '' : String(v);
+  let s = v == null ? '' : String(v);
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+// Player ids are server-generated (uid) or come from an admin import; restrict
+// them to a safe charset before they ever touch a filesystem path, so a crafted
+// id like "../../secret" can't escape AVATAR_DIR (path traversal).
+const SAFE_PLAYER_ID = /^[A-Za-z0-9_-]+$/;
+
 function findAvatarFile(playerId: string): { path: string; mime: string } | null {
+  if (!SAFE_PLAYER_ID.test(playerId)) return null;
   for (const [mime, ext] of Object.entries(MIME_TO_EXT)) {
     const path = join(AVATAR_DIR, `${playerId}.${ext}`);
     if (existsSync(path)) return { path, mime };
@@ -175,6 +184,20 @@ players.get('/:id/emergency', (c) => {
   return c.json({ token, contact });
 });
 
+// Rotate a player's emergency link: issue a fresh token so any previously
+// shared /e/<token> link stops resolving. Admin-only (write gate). The
+// submitted contact data itself is kept.
+players.post('/:id/emergency/rotate', (c) => {
+  const id = c.req.param('id');
+  if (!SAFE_PLAYER_ID.test(id)) return c.json({ error: 'invalid id' }, 400);
+  const db = getDb();
+  const exists = db.prepare('SELECT 1 FROM players WHERE id = ?').get(id);
+  if (!exists) return c.json({ error: 'not found' }, 404);
+  const token = newEmergencyToken();
+  db.prepare('UPDATE players SET emergency_token = ? WHERE id = ?').run(token, id);
+  return c.json({ token });
+});
+
 const PlayerInput = z.object({
   name: z.string().min(1),
   type: z.enum(['season', 'dropin']),
@@ -220,9 +243,13 @@ players.put('/:id', async (c) => {
 players.delete('/:id', (c) => {
   const id = c.req.param('id');
   const db = getDb();
-  // soft delete to preserve historical event references
+  // Soft delete the player to preserve historical event references, but hard
+  // delete their emergency contact so sensitive health PII is not retained for
+  // someone who has left the group. The dead soft-deleted player also means
+  // their link no longer resolves (playerByToken requires active = 1).
   const res = db.prepare('UPDATE players SET active = 0 WHERE id = ?').run(id);
   if (res.changes === 0) return c.json({ error: 'not found' }, 404);
+  db.prepare('DELETE FROM player_emergency WHERE player_id = ?').run(id);
   return c.json({ ok: true });
 });
 
@@ -262,6 +289,7 @@ players.post('/import', async (c) => {
 
 players.post('/:id/avatar', async (c) => {
   const id = c.req.param('id');
+  if (!SAFE_PLAYER_ID.test(id)) return c.json({ error: 'invalid id' }, 400);
   const db = getDb();
   const exists = db.prepare('SELECT 1 FROM players WHERE id = ?').get(id);
   if (!exists) return c.json({ error: 'not found' }, 404);

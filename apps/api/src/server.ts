@@ -1,6 +1,6 @@
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
-import { logger } from 'hono/logger';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { mkdirSync, existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -23,62 +23,119 @@ mkdirSync(dirname(dbPath), { recursive: true });
 getDb();
 
 const app = new Hono();
-app.use(logger());
 
-// Optional shared admin token. If RACHA_TOKEN is set, the routes below require
-// the X-Racha-Token header: editing players (any write under /api/players)
-// and creating, deleting, or ending a session. Live match recording (events,
-// match clock, draws, team-roster edits, subs) stays open so games are not
-// interrupted by auth prompts.
+// Security response headers (defense-in-depth; Caddy also sets these at the edge
+// in production). `no-referrer` keeps the emergency link token out of the
+// Referer header when a player follows a link from their form.
+app.use('*', async (c, next) => {
+  c.header('X-Content-Type-Options', 'nosniff');
+  c.header('X-Frame-Options', 'DENY');
+  c.header('Referrer-Policy', 'no-referrer');
+  await next();
+});
+
+// Request logger that redacts the emergency link token from the path, so the
+// secret that guards a player's PII never lands in the logs.
+app.use('*', async (c, next) => {
+  const start = Date.now();
+  await next();
+  const path = c.req.path.replace(/(\/api\/emergency\/)[^/?]+/, '$1<token>');
+  console.log(`${c.req.method} ${path} ${c.res.status} ${Date.now() - start}ms`);
+});
+
+// Per-IP fixed-window rate limit on the API to blunt abuse / DoS. Defaults are
+// generous because many players share one public IP on the gym Wi-Fi (NAT); if
+// legitimate bursts ever hit 429, raise RATE_LIMIT_MAX. Set RATE_LIMIT_MAX=0 to
+// disable. The client IP comes from X-Forwarded-For (Caddy sets it), falling
+// back to the socket address for direct connections.
+const RL_WINDOW_MS = Number(process.env.RATE_LIMIT_WINDOW_MS || 10_000);
+const RL_MAX = Number(process.env.RATE_LIMIT_MAX || 300);
+type Bucket = { count: number; resetAt: number };
+const rlBuckets = new Map<string, Bucket>();
+function clientKey(c: any): string {
+  const xff = c.req.header('x-forwarded-for');
+  if (xff) return xff.split(',')[0].trim();
+  return c.env?.incoming?.socket?.remoteAddress || 'unknown';
+}
+if (RL_MAX > 0) {
+  app.use('/api/*', async (c, next) => {
+    const key = clientKey(c);
+    const now = Date.now();
+    let b = rlBuckets.get(key);
+    if (!b || b.resetAt <= now) {
+      b = { count: 0, resetAt: now + RL_WINDOW_MS };
+      rlBuckets.set(key, b);
+    }
+    b.count++;
+    if (b.count > RL_MAX) {
+      c.header('Retry-After', String(Math.ceil((b.resetAt - now) / 1000)));
+      return c.json({ error: 'rate limited' }, 429);
+    }
+    return next();
+  });
+  // Drop expired buckets so the map can't grow unbounded. unref() keeps this
+  // timer from holding the process open on shutdown.
+  setInterval(() => {
+    const now = Date.now();
+    for (const [k, b] of rlBuckets) if (b.resetAt <= now) rlBuckets.delete(k);
+  }, 60_000).unref();
+}
+
+// Shared admin token. When RACHA_TOKEN is set, every state-changing request
+// requires the X-Racha-Token header (fail-closed: writes are denied by default,
+// so any new endpoint is protected automatically). Reads stay open, and the
+// player-facing emergency self-service flow under /api/emergency/:token is
+// authorized by its own unguessable token rather than the admin one.
+//
+// If RACHA_TOKEN is NOT set the whole API is open — only acceptable for a
+// trusted local/network deployment, never for a public host.
 const TOKEN = process.env.RACHA_TOKEN;
+if (!TOKEN) {
+  console.warn(
+    '[racha] WARNING: RACHA_TOKEN is not set — all write endpoints are UNAUTHENTICATED. ' +
+      'Set RACHA_TOKEN to lock down a public deployment.'
+  );
+}
+// Constant-time admin-token check over fixed-length SHA-256 digests, so neither
+// the token value nor its length leaks through response timing.
+function tokenMatches(provided: string | undefined): boolean {
+  if (!TOKEN) return false;
+  const digest = (s: string) => createHash('sha256').update(s).digest();
+  return timingSafeEqual(digest(provided ?? ''), digest(TOKEN));
+}
 const requireAdmin = async (c: any, next: any) => {
   if (!TOKEN) return next();
-  if (c.req.header('x-racha-token') !== TOKEN) {
+  if (!tokenMatches(c.req.header('x-racha-token'))) {
     return c.json({ error: 'unauthorized' }, 401);
   }
   return next();
 };
-const gateWrites = async (c: any, next: any) => {
-  if (c.req.method === 'GET' || c.req.method === 'HEAD' || c.req.method === 'OPTIONS') {
-    return next();
-  }
-  return requireAdmin(c, next);
-};
+// A write is any non-safe method. The player self-service submit
+// (PUT /api/emergency/:token) is exempt — its path token is the authorization.
+const isPublicSelfService = (path: string) => path.startsWith('/api/emergency/');
+const isReadMethod = (m: string) => m === 'GET' || m === 'HEAD' || m === 'OPTIONS';
 
 if (TOKEN) {
-  // Emergency contact reads expose sensitive PII + the private link token, so
-  // they are admin-only even though they are GETs. Registered before the
-  // generic player gate below so requireAdmin short-circuits first. (The public
-  // self-service flow lives under /api/emergency/:token and is intentionally
-  // NOT gated — the secret token is the authorization.)
+  // Emergency-contact reads expose sensitive PII + the private link token, so
+  // they are admin-only even though they are GETs. Registered before the global
+  // gate so requireAdmin short-circuits first.
   app.use('/api/players/emergency-status', requireAdmin);
   app.use('/api/players/emergency-export', requireAdmin);
   app.use('/api/players/:id/emergency', requireAdmin);
-  // All player writes (create, update, delete, import) are admin-only.
-  app.use('/api/players', gateWrites);
-  app.use('/api/players/*', gateWrites);
-  // Specific session writes are admin-only; other session mutations stay open.
-  app.use('/api/sessions', async (c, next) =>
-    c.req.method === 'POST' ? requireAdmin(c, next) : next()
-  );
-  app.use('/api/sessions/:id', async (c, next) =>
-    c.req.method === 'DELETE' ? requireAdmin(c, next) : next()
-  );
-  app.use('/api/sessions/:id/end', async (c, next) =>
-    c.req.method === 'POST' ? requireAdmin(c, next) : next()
-  );
-  // Editing past events is admin-only; live create/delete (recording + undo)
-  // stays open.
-  app.use('/api/events/:id', async (c, next) =>
-    c.req.method === 'PUT' ? requireAdmin(c, next) : next()
-  );
+  // Fail-closed global write gate: everything that changes state requires the
+  // admin token, except the player self-service emergency submit. Reads pass.
+  app.use('/api/*', async (c, next) => {
+    if (isReadMethod(c.req.method)) return next();
+    if (isPublicSelfService(c.req.path)) return next();
+    return requireAdmin(c, next);
+  });
 }
 
 // Tells the client whether admin auth is configured, and (when called with the
 // header) whether the given token is valid. Used to drive UI gating.
 app.get('/api/auth/check', (c) => {
   if (!TOKEN) return c.json({ required: false, ok: true });
-  const ok = c.req.header('x-racha-token') === TOKEN;
+  const ok = tokenMatches(c.req.header('x-racha-token'));
   return c.json({ required: true, ok });
 });
 

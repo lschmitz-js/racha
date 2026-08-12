@@ -89,6 +89,9 @@ export const api = {
       request<{ token: string; contact: (EmergencyContact & { updated_at: number }) | null }>(
         `/api/players/${id}/emergency`
       ),
+    // Admin: issue a fresh emergency token, invalidating the old link.
+    emergencyRotate: (id: string) =>
+      request<{ token: string }>(`/api/players/${id}/emergency/rotate`, { method: 'POST' }),
   },
 
   // Public self-service emergency-contact flow (secret token = authorization).

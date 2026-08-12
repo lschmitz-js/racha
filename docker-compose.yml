@@ -12,8 +12,12 @@ services:
     volumes:
       - ./data:/data
     environment:
-      # Optional: set RACHA_TOKEN to require X-Racha-Token header on writes.
-      # RACHA_TOKEN: "change-me"
+      # Required for a public deployment: the shared admin token that gates every
+      # write endpoint. Set it in a local .env file (RACHA_TOKEN=<long-random>).
+      # `:?` makes `docker compose up` fail fast if it is unset, so the app can
+      # never launch wide-open by accident. Generate one with:
+      #   openssl rand -base64 24
+      RACHA_TOKEN: ${RACHA_TOKEN:?set a strong RACHA_TOKEN in .env for a public deploy}
       DB_PATH: /data/racha.db
 
   caddy:

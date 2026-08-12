@@ -195,9 +195,15 @@ export function PlayerDB() {
 
 function EmergencyPanel({ player, onClose }: { player: Player; onClose: () => void }) {
   const t = useT();
+  const qc = useQueryClient();
   const q = useQuery({
     queryKey: ['emergency-admin', player.id],
     queryFn: () => api.players.emergencyAdmin(player.id),
+  });
+  const rotate = useMutation({
+    mutationFn: () => api.players.emergencyRotate(player.id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['emergency-admin', player.id] }),
+    onError: (e: any) => alert(t('emergency.rotateFailed', { msg: e?.message ?? '' })),
   });
   const [copied, setCopied] = useState(false);
 
@@ -254,14 +260,25 @@ function EmergencyPanel({ player, onClose }: { player: Player; onClose: () => vo
                   {copied ? t('emergency.copied') : t('emergency.copyLink')}
                 </button>
               </div>
-              <a
-                href={link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-accent no-underline"
-              >
-                {t('emergency.openForm')} ↗
-              </a>
+              <div className="flex items-center justify-between gap-2">
+                <a
+                  href={link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-accent no-underline"
+                >
+                  {t('emergency.openForm')} ↗
+                </a>
+                <button
+                  className="btn-danger text-xs py-1"
+                  disabled={rotate.isPending}
+                  onClick={() => {
+                    if (confirm(t('emergency.rotateConfirm', { name: player.name }))) rotate.mutate();
+                  }}
+                >
+                  🔄 {t('emergency.rotate')}
+                </button>
+              </div>
             </div>
 
             <div className="border-t border-border pt-3">
