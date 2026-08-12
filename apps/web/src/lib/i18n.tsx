@@ -242,6 +242,7 @@ const dict = {
     // rules
     'rules.title': 'Racha de Segunda',
     'rules.subtitle': 'Official Guidelines & Rules',
+    'rules.rosterEmpty': 'No season players yet — add them in the Players tab.',
 
     // admin event editor
     'admin.editEvents': 'Edit events',
@@ -505,6 +506,7 @@ const dict = {
     // rules
     'rules.title': 'Racha de Segunda',
     'rules.subtitle': 'Diretrizes & Regras Oficiais',
+    'rules.rosterEmpty': 'Nenhum jogador fixo ainda — adicione na aba Jogadores.',
 
     // admin event editor
     'admin.editEvents': 'Editar eventos',
