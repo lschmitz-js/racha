@@ -1,7 +1,13 @@
+import { useQuery } from '@tanstack/react-query';
 import { useI18n, useT } from '../lib/i18n.js';
+import { api } from '../lib/api.js';
 import { rulesDoc, type Block } from './rules-content.js';
 
-function BlockView({ block }: { block: Block }) {
+// `roster` is the live season roster from the database; chips blocks render it
+// so the "Official Season Roster" stays in sync with the Players tab instead of
+// a hardcoded list. Falls back to the block's built-in items until data loads.
+function BlockView({ block, roster }: { block: Block; roster: string[] }) {
+  const rosterEmpty = useT()('rules.rosterEmpty');
   switch (block.t) {
     case 'p':
       return <p className="text-sm text-fg/90 leading-relaxed">{block.text}</p>;
@@ -29,7 +35,7 @@ function BlockView({ block }: { block: Block }) {
         <div className="space-y-2 border-l-2 border-border pl-3">
           <h4 className="text-sm font-semibold text-fg">{block.title}</h4>
           {block.blocks.map((b, i) => (
-            <BlockView key={i} block={b} />
+            <BlockView key={i} block={b} roster={roster} />
           ))}
         </div>
       );
@@ -62,10 +68,14 @@ function BlockView({ block }: { block: Block }) {
         </dl>
       );
 
-    case 'chips':
+    case 'chips': {
+      // Live season roster from the Players tab. No hardcoded fallback.
+      if (roster.length === 0) {
+        return <p className="text-sm text-muted italic">{rosterEmpty}</p>;
+      }
       return (
         <div className="flex flex-wrap gap-2">
-          {block.items.map((name, i) => (
+          {roster.map((name, i) => (
             <span
               key={i}
               className="rounded-full border border-border bg-bg3 px-3 py-1 text-sm text-fg"
@@ -76,6 +86,7 @@ function BlockView({ block }: { block: Block }) {
           ))}
         </div>
       );
+    }
 
     case 'code':
       return (
@@ -94,6 +105,12 @@ export function Rules() {
   const t = useT();
   const doc = rulesDoc[lang] ?? rulesDoc.en;
 
+  // Live "Official Season Roster" — season, active players from the Players tab.
+  const playersQ = useQuery({ queryKey: ['players'], queryFn: api.players.list });
+  const roster = (playersQ.data ?? [])
+    .filter((p) => p.type === 'season' && p.active)
+    .map((p) => p.name);
+
   return (
     <div className="p-4 pb-32 space-y-4 max-w-2xl mx-auto">
       <header className="pt-6 pb-1 text-center">
@@ -111,7 +128,7 @@ export function Rules() {
           </summary>
           <div className="mt-3 space-y-3">
             {section.blocks.map((b, j) => (
-              <BlockView key={j} block={b} />
+              <BlockView key={j} block={b} roster={roster} />
             ))}
           </div>
         </details>

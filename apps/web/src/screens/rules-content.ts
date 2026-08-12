@@ -8,7 +8,9 @@ export type Block =
   | { t: 'callout'; tone: 'warn' | 'info'; text: string }
   | { t: 'kv'; rows: { k: string; v: string }[] }
   | { t: 'code'; text: string }
-  | { t: 'chips'; items: string[] };
+  // Season roster chips. Names are injected live from the Players tab at render
+  // time (see Rules.tsx), so no list is stored here.
+  | { t: 'chips' };
 
 export interface Section {
   icon: string;
@@ -17,27 +19,6 @@ export interface Section {
 }
 
 export type RulesDoc = Section[];
-
-const ROSTER = [
-  'Vini',
-  'Jean',
-  'Cunha',
-  'Leo',
-  'Doriva',
-  'Felype',
-  'Alemao',
-  'Derek',
-  'Owen',
-  'Gui',
-  'Isaac',
-  'Kevin',
-  'Filipe',
-  'Giuliano',
-  'Isaac Gremista',
-  'Pedro',
-  'Rocky',
-  'Samuel',
-];
 
 const POLL_OPEN = `⚽ Racha de Segunda - Monday, [Insert Date], 6PM-8PM @ Elsie Roy (150 Drake St) - Please vote below 👇
 ⚠️ Drop-in spots filled by fastest vote order!
@@ -392,7 +373,7 @@ const en: RulesDoc = [
   {
     icon: '🧑‍🤝‍🧑',
     title: 'Official Season Roster',
-    blocks: [{ t: 'chips', items: ROSTER }],
+    blocks: [{ t: 'chips' }],
   },
   {
     icon: '📝',
@@ -734,7 +715,7 @@ const pt: RulesDoc = [
   {
     icon: '🧑‍🤝‍🧑',
     title: 'Elenco Oficial da Temporada',
-    blocks: [{ t: 'chips', items: ROSTER }],
+    blocks: [{ t: 'chips' }],
   },
   {
     icon: '📝',
