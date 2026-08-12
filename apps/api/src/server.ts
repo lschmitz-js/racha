@@ -1,6 +1,6 @@
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
-import { logger } from 'hono/logger';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { mkdirSync, existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -23,7 +23,25 @@ mkdirSync(dirname(dbPath), { recursive: true });
 getDb();
 
 const app = new Hono();
-app.use(logger());
+
+// Security response headers (defense-in-depth; Caddy also sets these at the edge
+// in production). `no-referrer` keeps the emergency link token out of the
+// Referer header when a player follows a link from their form.
+app.use('*', async (c, next) => {
+  c.header('X-Content-Type-Options', 'nosniff');
+  c.header('X-Frame-Options', 'DENY');
+  c.header('Referrer-Policy', 'no-referrer');
+  await next();
+});
+
+// Request logger that redacts the emergency link token from the path, so the
+// secret that guards a player's PII never lands in the logs.
+app.use('*', async (c, next) => {
+  const start = Date.now();
+  await next();
+  const path = c.req.path.replace(/(\/api\/emergency\/)[^/?]+/, '$1<token>');
+  console.log(`${c.req.method} ${path} ${c.res.status} ${Date.now() - start}ms`);
+});
 
 // Shared admin token. When RACHA_TOKEN is set, every state-changing request
 // requires the X-Racha-Token header (fail-closed: writes are denied by default,
@@ -40,9 +58,16 @@ if (!TOKEN) {
       'Set RACHA_TOKEN to lock down a public deployment.'
   );
 }
+// Constant-time admin-token check over fixed-length SHA-256 digests, so neither
+// the token value nor its length leaks through response timing.
+function tokenMatches(provided: string | undefined): boolean {
+  if (!TOKEN) return false;
+  const digest = (s: string) => createHash('sha256').update(s).digest();
+  return timingSafeEqual(digest(provided ?? ''), digest(TOKEN));
+}
 const requireAdmin = async (c: any, next: any) => {
   if (!TOKEN) return next();
-  if (c.req.header('x-racha-token') !== TOKEN) {
+  if (!tokenMatches(c.req.header('x-racha-token'))) {
     return c.json({ error: 'unauthorized' }, 401);
   }
   return next();
@@ -72,7 +97,7 @@ if (TOKEN) {
 // header) whether the given token is valid. Used to drive UI gating.
 app.get('/api/auth/check', (c) => {
   if (!TOKEN) return c.json({ required: false, ok: true });
-  const ok = c.req.header('x-racha-token') === TOKEN;
+  const ok = tokenMatches(c.req.header('x-racha-token'));
   return c.json({ required: true, ok });
 });
 

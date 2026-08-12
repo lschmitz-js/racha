@@ -29,13 +29,22 @@ function newEmergencyToken(): string {
   return randomBytes(18).toString('base64url');
 }
 
-// RFC-4180 CSV cell: quote when it contains a comma, quote, or newline.
+// RFC-4180 CSV cell. Also neutralizes spreadsheet formula injection: a value
+// starting with = + - @ (or a tab/CR) is prefixed with an apostrophe so Excel /
+// Sheets treat player-submitted text as data, never as an executable formula.
 function csvCell(v: unknown): string {
-  const s = v == null ? '' : String(v);
+  let s = v == null ? '' : String(v);
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+// Player ids are server-generated (uid) or come from an admin import; restrict
+// them to a safe charset before they ever touch a filesystem path, so a crafted
+// id like "../../secret" can't escape AVATAR_DIR (path traversal).
+const SAFE_PLAYER_ID = /^[A-Za-z0-9_-]+$/;
+
 function findAvatarFile(playerId: string): { path: string; mime: string } | null {
+  if (!SAFE_PLAYER_ID.test(playerId)) return null;
   for (const [mime, ext] of Object.entries(MIME_TO_EXT)) {
     const path = join(AVATAR_DIR, `${playerId}.${ext}`);
     if (existsSync(path)) return { path, mime };
@@ -262,6 +271,7 @@ players.post('/import', async (c) => {
 
 players.post('/:id/avatar', async (c) => {
   const id = c.req.param('id');
+  if (!SAFE_PLAYER_ID.test(id)) return c.json({ error: 'invalid id' }, 400);
   const db = getDb();
   const exists = db.prepare('SELECT 1 FROM players WHERE id = ?').get(id);
   if (!exists) return c.json({ error: 'not found' }, 404);
