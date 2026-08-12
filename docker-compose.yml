@@ -4,11 +4,12 @@ services:
     image: racha:latest
     container_name: racha
     restart: unless-stopped
-    # 8080 stays mapped publicly for IP-based testing.
-    # Once HTTPS at racha.lbschmitz.ca is verified, drop this to `expose: ["8080"]`
-    # so the only public surface is Caddy on 80/443.
-    ports:
-      - "8080:8080"
+    # The app is only reachable through Caddy/Cloudflare on 80/443 — the origin
+    # port is NOT published to the host, so nobody can bypass TLS + the edge by
+    # hitting http://<origin-ip>:8080 directly. Re-add a `ports:` mapping only
+    # for temporary local debugging, never on the public host.
+    expose:
+      - "8080"
     volumes:
       - ./data:/data
     environment:

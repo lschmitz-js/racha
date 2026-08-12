@@ -1,5 +1,6 @@
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
+import { ZodError } from 'zod';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { mkdirSync, existsSync, readFileSync } from 'node:fs';
@@ -24,6 +25,17 @@ getDb();
 
 const app = new Hono();
 
+// Central error handler: bad request bodies (Zod validation) become 400s with
+// the validation issues; anything else is logged server-side and returned as a
+// generic 500 so internal details never leak to clients.
+app.onError((err, c) => {
+  if (err instanceof ZodError) {
+    return c.json({ error: 'invalid input', issues: err.issues }, 400);
+  }
+  console.error('[racha] unhandled error:', err);
+  return c.json({ error: 'internal error' }, 500);
+});
+
 // Security response headers (defense-in-depth; Caddy also sets these at the edge
 // in production). `no-referrer` keeps the emergency link token out of the
 // Referer header when a player follows a link from their form.
@@ -46,16 +58,22 @@ app.use('*', async (c, next) => {
 // Per-IP fixed-window rate limit on the API to blunt abuse / DoS. Defaults are
 // generous because many players share one public IP on the gym Wi-Fi (NAT); if
 // legitimate bursts ever hit 429, raise RATE_LIMIT_MAX. Set RATE_LIMIT_MAX=0 to
-// disable. The client IP comes from X-Forwarded-For (Caddy sets it), falling
-// back to the socket address for direct connections.
+// disable.
+//
+// The client IP is taken from `CF-Connecting-IP`, which Cloudflare sets to the
+// real client and a client cannot forge (the origin only accepts Cloudflare
+// traffic — the host does not publish port 8080). We deliberately do NOT trust
+// `X-Forwarded-For`, which a direct caller could spoof to dodge the limit.
 const RL_WINDOW_MS = Number(process.env.RATE_LIMIT_WINDOW_MS || 10_000);
 const RL_MAX = Number(process.env.RATE_LIMIT_MAX || 300);
 type Bucket = { count: number; resetAt: number };
 const rlBuckets = new Map<string, Bucket>();
 function clientKey(c: any): string {
-  const xff = c.req.header('x-forwarded-for');
-  if (xff) return xff.split(',')[0].trim();
-  return c.env?.incoming?.socket?.remoteAddress || 'unknown';
+  return (
+    c.req.header('cf-connecting-ip') ||
+    c.env?.incoming?.socket?.remoteAddress ||
+    'unknown'
+  );
 }
 if (RL_MAX > 0) {
   app.use('/api/*', async (c, next) => {
