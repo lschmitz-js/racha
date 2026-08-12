@@ -25,12 +25,21 @@ getDb();
 const app = new Hono();
 app.use(logger());
 
-// Optional shared admin token. If RACHA_TOKEN is set, the routes below require
-// the X-Racha-Token header: editing players (any write under /api/players)
-// and creating, deleting, or ending a session. Live match recording (events,
-// match clock, draws, team-roster edits, subs) stays open so games are not
-// interrupted by auth prompts.
+// Shared admin token. When RACHA_TOKEN is set, every state-changing request
+// requires the X-Racha-Token header (fail-closed: writes are denied by default,
+// so any new endpoint is protected automatically). Reads stay open, and the
+// player-facing emergency self-service flow under /api/emergency/:token is
+// authorized by its own unguessable token rather than the admin one.
+//
+// If RACHA_TOKEN is NOT set the whole API is open — only acceptable for a
+// trusted local/network deployment, never for a public host.
 const TOKEN = process.env.RACHA_TOKEN;
+if (!TOKEN) {
+  console.warn(
+    '[racha] WARNING: RACHA_TOKEN is not set — all write endpoints are UNAUTHENTICATED. ' +
+      'Set RACHA_TOKEN to lock down a public deployment.'
+  );
+}
 const requireAdmin = async (c: any, next: any) => {
   if (!TOKEN) return next();
   if (c.req.header('x-racha-token') !== TOKEN) {
@@ -38,40 +47,25 @@ const requireAdmin = async (c: any, next: any) => {
   }
   return next();
 };
-const gateWrites = async (c: any, next: any) => {
-  if (c.req.method === 'GET' || c.req.method === 'HEAD' || c.req.method === 'OPTIONS') {
-    return next();
-  }
-  return requireAdmin(c, next);
-};
+// A write is any non-safe method. The player self-service submit
+// (PUT /api/emergency/:token) is exempt — its path token is the authorization.
+const isPublicSelfService = (path: string) => path.startsWith('/api/emergency/');
+const isReadMethod = (m: string) => m === 'GET' || m === 'HEAD' || m === 'OPTIONS';
 
 if (TOKEN) {
-  // Emergency contact reads expose sensitive PII + the private link token, so
-  // they are admin-only even though they are GETs. Registered before the
-  // generic player gate below so requireAdmin short-circuits first. (The public
-  // self-service flow lives under /api/emergency/:token and is intentionally
-  // NOT gated — the secret token is the authorization.)
+  // Emergency-contact reads expose sensitive PII + the private link token, so
+  // they are admin-only even though they are GETs. Registered before the global
+  // gate so requireAdmin short-circuits first.
   app.use('/api/players/emergency-status', requireAdmin);
   app.use('/api/players/emergency-export', requireAdmin);
   app.use('/api/players/:id/emergency', requireAdmin);
-  // All player writes (create, update, delete, import) are admin-only.
-  app.use('/api/players', gateWrites);
-  app.use('/api/players/*', gateWrites);
-  // Specific session writes are admin-only; other session mutations stay open.
-  app.use('/api/sessions', async (c, next) =>
-    c.req.method === 'POST' ? requireAdmin(c, next) : next()
-  );
-  app.use('/api/sessions/:id', async (c, next) =>
-    c.req.method === 'DELETE' ? requireAdmin(c, next) : next()
-  );
-  app.use('/api/sessions/:id/end', async (c, next) =>
-    c.req.method === 'POST' ? requireAdmin(c, next) : next()
-  );
-  // Editing past events is admin-only; live create/delete (recording + undo)
-  // stays open.
-  app.use('/api/events/:id', async (c, next) =>
-    c.req.method === 'PUT' ? requireAdmin(c, next) : next()
-  );
+  // Fail-closed global write gate: everything that changes state requires the
+  // admin token, except the player self-service emergency submit. Reads pass.
+  app.use('/api/*', async (c, next) => {
+    if (isReadMethod(c.req.method)) return next();
+    if (isPublicSelfService(c.req.path)) return next();
+    return requireAdmin(c, next);
+  });
 }
 
 // Tells the client whether admin auth is configured, and (when called with the

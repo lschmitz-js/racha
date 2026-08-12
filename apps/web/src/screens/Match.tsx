@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { calcScore, uid, type EventType, type Player, type Vest } from '@racha/shared';
 import { api } from '../lib/api.js';
 import { LanguageToggle, useT } from '../lib/i18n.js';
-import { useCanEdit } from '../lib/auth.js';
+import { useCanEdit, useAuth } from '../lib/auth.js';
 import { Avatar } from '../lib/avatar.js';
 import { formatClock, useClock, computeClockMs } from '../lib/clock.js';
 import {
@@ -257,6 +257,7 @@ export function Match({ params }: { params: { id: string } }) {
 
   return (
     <div className="min-h-screen flex flex-col">
+      {!canEdit ? <RecordSignInBanner /> : null}
       <header className="px-2 py-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-border bg-bg2 sticky top-0 z-10">
         <div className="flex items-center gap-1 shrink-0">
           <button
@@ -884,3 +885,49 @@ function PostMatchPanel({
 }
 
 void computeClockMs;
+
+// Shown on the match screen when admin auth is required but the user is not
+// signed in. Recording writes are gated server-side, so without this the
+// organizer would hit 401s; the top-bar sign-in is hidden on match screens, so
+// we offer a compact inline sign-in right here.
+function RecordSignInBanner() {
+  const t = useT();
+  const { signIn } = useAuth();
+  const [pwd, setPwd] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(false);
+
+  async function submit() {
+    if (!pwd || busy) return;
+    setBusy(true);
+    const ok = await signIn(pwd);
+    setBusy(false);
+    if (!ok) setErr(true);
+  }
+
+  return (
+    <div className="px-3 py-2 bg-amber-500/10 border-b border-amber-500/40 flex flex-wrap items-center gap-2 text-sm">
+      <span className="text-amber-200">🔒 {t('auth.recordLocked')}</span>
+      <input
+        type="password"
+        value={pwd}
+        onChange={(e) => {
+          setPwd(e.target.value);
+          setErr(false);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            void submit();
+          }
+        }}
+        placeholder={t('auth.passwordPlaceholder')}
+        className="flex-1 min-w-[8rem] bg-bg3 border border-border rounded-lg px-3 py-1.5"
+      />
+      <button className="btn-primary py-1.5" disabled={busy || !pwd} onClick={submit}>
+        {busy ? t('common.saving') : t('auth.signIn')}
+      </button>
+      {err ? <span className="text-red-400 w-full">{t('auth.wrongPassword')}</span> : null}
+    </div>
+  );
+}

@@ -265,6 +265,7 @@ const dict = {
     'auth.signedIn': 'Signed in',
     'auth.wrongPassword': 'Wrong password.',
     'auth.adminOnly': 'Admin only — sign in to enable.',
+    'auth.recordLocked': 'Sign in to record this match:',
   },
   pt: {
     // global
@@ -528,6 +529,7 @@ const dict = {
     'auth.signedIn': 'Conectado',
     'auth.wrongPassword': 'Senha incorreta.',
     'auth.adminOnly': 'Apenas admin — entre para ativar.',
+    'auth.recordLocked': 'Entre para registrar este jogo:',
   },
 } as const;
 
