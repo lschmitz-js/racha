@@ -6,8 +6,37 @@ CREATE TABLE IF NOT EXISTS players (
   skills_json     TEXT NOT NULL,
   active          INTEGER NOT NULL DEFAULT 1,
   emergency_token TEXT,
+  is_admin        INTEGER NOT NULL DEFAULT 0,
+  password_hash   TEXT,
   created_at      INTEGER NOT NULL
 );
+
+-- Server-side login sessions. Only the SHA-256 of the bearer token is stored so
+-- a DB leak can't be replayed. user_id is a player id, or 'master' for the
+-- RACHA_TOKEN break-glass identity.
+CREATE TABLE IF NOT EXISTS auth_sessions (
+  token_hash TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL,
+  user_name  TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_expiry ON auth_sessions(expires_at);
+
+-- Append-only audit trail of admin actions (who / what / when), for the History
+-- screen. Written by a single middleware after each state-changing request.
+CREATE TABLE IF NOT EXISTS audit_log (
+  id         TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL,
+  user_name  TEXT NOT NULL,
+  action     TEXT NOT NULL,
+  path       TEXT NOT NULL,
+  status     INTEGER NOT NULL,
+  detail     TEXT,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_time ON audit_log(created_at);
 
 -- Sensitive emergency-contact data. Kept in a separate table so it is never
 -- selected into the public GET /api/players response by accident.

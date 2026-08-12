@@ -28,6 +28,7 @@ function loadPlayer(row: PlayerRow): Player {
     role: row.role,
     skills: JSON.parse(row.skills_json),
     active: true,
+    is_admin: false,
   };
 }
 

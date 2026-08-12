@@ -28,6 +28,9 @@ export const Player = z.object({
   role: PlayerRole,
   skills: Skills,
   active: z.boolean().default(true),
+  // Whether this player can log in to the admin UI. Credentials themselves
+  // (password hash) are never exposed on the Player shape.
+  is_admin: z.boolean().default(false),
 });
 export type Player = z.infer<typeof Player>;
 

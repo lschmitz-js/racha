@@ -12,6 +12,7 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { getDb } from '../db/index.js';
+import { hashPassword, destroyUserSessions } from '../auth.js';
 
 const AVATAR_DIR =
   process.env.AVATAR_DIR ||
@@ -59,6 +60,7 @@ type PlayerRow = {
   role: 'player' | 'gk';
   skills_json: string;
   active: number;
+  is_admin: number;
   created_at: number;
 };
 
@@ -70,6 +72,7 @@ function rowToPlayer(r: PlayerRow): Player {
     role: r.role,
     skills: JSON.parse(r.skills_json),
     active: !!r.active,
+    is_admin: !!r.is_admin,
   };
 }
 
@@ -204,15 +207,21 @@ const PlayerInput = z.object({
   role: z.enum(['player', 'gk']),
   skills: z.array(z.number().int().min(1).max(5)).length(8),
   active: z.boolean().optional().default(true),
+  // Admin management (optional). `password` is write-only and, when present,
+  // is hashed with scrypt; it is never read back.
+  is_admin: z.boolean().optional(),
+  password: z.string().min(6).optional(),
 });
 
 players.post('/', async (c) => {
   const body = PlayerInput.parse(await c.req.json());
   const id = uid();
   const db = getDb();
+  const isAdmin = body.is_admin ? 1 : 0;
+  const passwordHash = body.password ? await hashPassword(body.password) : null;
   db.prepare(
-    `INSERT INTO players (id, name, type, role, skills_json, active, emergency_token, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO players (id, name, type, role, skills_json, active, emergency_token, is_admin, password_hash, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     body.name,
@@ -221,6 +230,8 @@ players.post('/', async (c) => {
     JSON.stringify(body.skills),
     body.active ? 1 : 0,
     newEmergencyToken(),
+    isAdmin,
+    passwordHash,
     Date.now()
   );
   const row = db.prepare('SELECT * FROM players WHERE id = ?').get(id) as PlayerRow;
@@ -233,9 +244,26 @@ players.put('/:id', async (c) => {
   const db = getDb();
   const existing = db.prepare('SELECT id FROM players WHERE id = ?').get(id);
   if (!existing) return c.json({ error: 'not found' }, 404);
+
   db.prepare(
     `UPDATE players SET name=?, type=?, role=?, skills_json=?, active=? WHERE id=?`
   ).run(body.name, body.type, body.role, JSON.stringify(body.skills), body.active ? 1 : 0, id);
+
+  // Admin flag / password are only touched when explicitly provided. Turning a
+  // player into a non-admin clears their password and revokes live sessions;
+  // setting a new password also revokes existing sessions.
+  if (body.is_admin === false) {
+    db.prepare('UPDATE players SET is_admin = 0, password_hash = NULL WHERE id = ?').run(id);
+    destroyUserSessions(id);
+  } else if (body.is_admin === true) {
+    db.prepare('UPDATE players SET is_admin = 1 WHERE id = ?').run(id);
+  }
+  if (body.password) {
+    const hash = await hashPassword(body.password);
+    db.prepare('UPDATE players SET password_hash = ? WHERE id = ?').run(hash, id);
+    destroyUserSessions(id);
+  }
+
   const row = db.prepare('SELECT * FROM players WHERE id = ?').get(id) as PlayerRow;
   return c.json(rowToPlayer(row));
 });
@@ -250,6 +278,9 @@ players.delete('/:id', (c) => {
   const res = db.prepare('UPDATE players SET active = 0 WHERE id = ?').run(id);
   if (res.changes === 0) return c.json({ error: 'not found' }, 404);
   db.prepare('DELETE FROM player_emergency WHERE player_id = ?').run(id);
+  // A removed player can no longer log in: clear admin rights and any sessions.
+  db.prepare('UPDATE players SET is_admin = 0, password_hash = NULL WHERE id = ?').run(id);
+  destroyUserSessions(id);
   return c.json({ ok: true });
 });
 
