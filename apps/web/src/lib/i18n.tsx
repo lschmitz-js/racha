@@ -156,6 +156,15 @@ const dict = {
 
     // recap (now: stats)
     'recap.title': 'Stats',
+    'recap.subtitle': 'This season',
+    'recap.mvpSeason': 'MVP of the season',
+    'recap.unit.goals': 'goals',
+    'recap.unit.assists': 'assists',
+    'recap.unit.saves': 'saves',
+    'recap.unit.beautiful': 'beauties',
+    'recap.unit.canetas': 'nutmegs',
+    'recap.unit.bad': 'howlers',
+    'recap.unit.quasegols': 'misses',
     'recap.leaderboard': 'Leaderboard',
     'recap.player': 'Player',
     'recap.pts': 'Pts',
@@ -469,6 +478,15 @@ const dict = {
 
     // recap (now: stats)
     'recap.title': 'Estatísticas',
+    'recap.subtitle': 'Nesta temporada',
+    'recap.mvpSeason': 'Craque da temporada',
+    'recap.unit.goals': 'gols',
+    'recap.unit.assists': 'assistências',
+    'recap.unit.saves': 'defesas',
+    'recap.unit.beautiful': 'jogadas',
+    'recap.unit.canetas': 'canetas',
+    'recap.unit.bad': 'cagadas',
+    'recap.unit.quasegols': 'perdidas',
     'recap.leaderboard': 'Ranking',
     'recap.player': 'Jogador',
     'recap.pts': 'Pts',
