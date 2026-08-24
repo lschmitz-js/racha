@@ -9,6 +9,7 @@ export default {
         bg3: '#1f1f1f',
         border: '#2a2a2a',
         text: '#e7e7e7',
+        fg: '#e7e7e7',
         muted: '#9a9a9a',
         accent: '#22c55e',
         white_v: '#f3f4f6',

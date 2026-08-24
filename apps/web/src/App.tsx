@@ -24,19 +24,64 @@ export function App() {
   );
 }
 
+type TabKey = 'home' | 'players' | 'stats' | 'rules';
+
+function TabIcon({ name }: { name: TabKey }) {
+  const common = {
+    width: 22,
+    height: 22,
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.8,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+  };
+  switch (name) {
+    case 'home':
+      return (
+        <svg {...common}>
+          <path d="M3 10.5 12 3l9 7.5" />
+          <path d="M5 9.5V21h14V9.5" />
+        </svg>
+      );
+    case 'players':
+      return (
+        <svg {...common}>
+          <circle cx="9" cy="8" r="3" />
+          <path d="M3.5 20a5.5 5.5 0 0 1 11 0" />
+          <path d="M16 5.5a3 3 0 0 1 0 5.8M21 20a5.3 5.3 0 0 0-4-5" />
+        </svg>
+      );
+    case 'stats':
+      return (
+        <svg {...common}>
+          <path d="M5 21V10M12 21V4M19 21v-7" />
+        </svg>
+      );
+    case 'rules':
+      return (
+        <svg {...common}>
+          <rect x="4" y="4" width="16" height="16" rx="2" />
+          <path d="M8 9h8M8 13h8M8 17h5" />
+        </svg>
+      );
+  }
+}
+
 function AppShell() {
   const [location] = useLocation();
   const t = useT();
   const hideNav = location.startsWith('/matches/') || location.startsWith('/e/');
-  const tabs: Array<[string, string]> = [
-    ['/', t('nav.home')],
-    ['/players', t('nav.players')],
-    ['/recap', t('nav.recap')],
-    ['/rules', t('nav.rules')],
+  const tabs: Array<{ path: string; label: string; icon: TabKey }> = [
+    { path: '/', label: t('nav.home'), icon: 'home' },
+    { path: '/players', label: t('nav.players'), icon: 'players' },
+    { path: '/recap', label: t('nav.recap'), icon: 'stats' },
+    { path: '/rules', label: t('nav.rules'), icon: 'rules' },
   ];
 
   return (
-    <div className={`min-h-full ${hideNav ? '' : 'pb-20'}`}>
+    <div className={`min-h-full ${hideNav ? '' : 'pb-24'}`}>
       {hideNav ? null : (
         <div className="fixed top-2 right-2 z-40 flex items-center gap-2">
           <SignInButton />
@@ -58,27 +103,30 @@ function AppShell() {
       </Switch>
 
       {hideNav ? null : (
-        <nav className="fixed bottom-0 inset-x-0 bg-bg2 border-t border-border flex items-stretch z-30 safe-bottom">
-          {tabs.map(([path, label]) => {
-            const active =
-              path === '/'
-                ? location === '/' ||
-                  location.startsWith('/start') ||
-                  location.startsWith('/sessions') ||
-                  location.startsWith('/matches')
-                : location === path;
-            return (
-              <Link
-                key={path}
-                href={path}
-                className={`flex-1 text-center py-3 text-sm ${
-                  active ? 'text-accent font-semibold' : 'text-muted'
-                }`}
-              >
-                {label}
-              </Link>
-            );
-          })}
+        <nav className="fixed inset-x-0 bottom-0 z-30 px-3 pt-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pointer-events-none">
+          <div className="pointer-events-auto mx-auto max-w-md flex items-stretch justify-around rounded-2xl border border-border bg-bg2/95 backdrop-blur px-1.5 py-1.5 shadow-lg shadow-black/30">
+            {tabs.map(({ path, label, icon }) => {
+              const active =
+                path === '/'
+                  ? location === '/' ||
+                    location.startsWith('/start') ||
+                    location.startsWith('/sessions') ||
+                    location.startsWith('/matches')
+                  : location === path;
+              return (
+                <Link
+                  key={path}
+                  href={path}
+                  className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-xl text-[11px] transition ${
+                    active ? 'text-accent' : 'text-muted hover:text-fg'
+                  }`}
+                >
+                  <TabIcon name={icon} />
+                  <span>{label}</span>
+                </Link>
+              );
+            })}
+          </div>
         </nav>
       )}
     </div>

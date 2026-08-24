@@ -17,6 +17,7 @@ const dict = {
     'common.delete': 'Delete',
     'common.close': 'Close',
     'common.export': 'Export',
+    'common.more': 'More',
     'common.import': 'Import',
     'common.new': '+ New',
     'common.clear': 'Clear',
@@ -185,6 +186,13 @@ const dict = {
     'players.changePhoto': 'Change photo',
     'players.removePhoto': 'Remove photo',
     'players.emergency': 'Emergency',
+    'players.subtitle': 'Season roster',
+    'players.filterAll': 'All',
+    'players.goalkeepers': 'Goalkeepers',
+    'players.search': 'Search players',
+    'players.noContact': 'No contact info',
+    'players.none': 'No players found.',
+    'players.remove': 'Remove player',
 
     // emergency contacts
     'emergency.formTitle': 'Emergency Contact',
@@ -316,6 +324,7 @@ const dict = {
     'common.delete': 'Apagar',
     'common.close': 'Fechar',
     'common.export': 'Exportar',
+    'common.more': 'Mais',
     'common.import': 'Importar',
     'common.new': '+ Novo',
     'common.clear': 'Limpar',
@@ -485,6 +494,13 @@ const dict = {
     'players.changePhoto': 'Mudar foto',
     'players.removePhoto': 'Remover foto',
     'players.emergency': 'Emergência',
+    'players.subtitle': 'Elenco da temporada',
+    'players.filterAll': 'Todos',
+    'players.goalkeepers': 'Goleiros',
+    'players.search': 'Buscar jogadores',
+    'players.noContact': 'Sem contato',
+    'players.none': 'Nenhum jogador encontrado.',
+    'players.remove': 'Remover jogador',
 
     // emergency contacts
     'emergency.formTitle': 'Contato de Emergência',
