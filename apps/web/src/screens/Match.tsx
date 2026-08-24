@@ -824,27 +824,32 @@ function PostMatchPanel({
   return (
     <div className="border-t border-border bg-bg2 p-4 space-y-3">
       <h3 className="font-semibold">{t('match.over', { a: goalsA, b: goalsB })}</h3>
+      <div className="text-sm text-muted -mt-1">{t('match.whoStays')}</div>
       <div className="grid grid-cols-3 gap-2">
-        <button
-          className={`btn ${stayPicked === 'a' ? 'btn-primary' : ''}`}
+        <VestBox
+          vest={teamA.vest}
+          label={t('match.stays')}
+          selected={stayPicked === 'a'}
           onClick={() => {
             setStayPicked('a');
             setResult.mutate('a');
           }}
-        >
-          {t('match.vestStays', { vest: t(`vest.${teamA.vest}`) })}
-        </button>
-        <button
-          className={`btn ${stayPicked === 'b' ? 'btn-primary' : ''}`}
+        />
+        <VestBox
+          vest={teamB.vest}
+          label={t('match.stays')}
+          selected={stayPicked === 'b'}
           onClick={() => {
             setStayPicked('b');
             setResult.mutate('b');
           }}
-        >
-          {t('match.vestStays', { vest: t(`vest.${teamB.vest}`) })}
-        </button>
+        />
         <button
-          className={`btn ${stayPicked === 'draw' ? 'btn-primary' : ''}`}
+          className={`rounded-xl py-4 font-semibold border-2 ${
+            stayPicked === 'draw'
+              ? 'bg-accent text-black border-accent'
+              : 'bg-bg3 border-border text-fg'
+          }`}
           onClick={() => {
             setStayPicked('draw');
             setResult.mutate('draw');
@@ -857,26 +862,27 @@ function PostMatchPanel({
       {stayPicked === 'draw' ? (
         <div>
           <div className="text-sm text-muted mb-1">{t('match.pickBench')}</div>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {[teamA, teamB].map((tm) => (
-              <button
+              <VestBox
                 key={tm.id}
-                className={`btn flex-1 ${benchSwap === tm.id ? 'btn-primary' : ''}`}
+                vest={tm.vest}
+                label={t('match.sits')}
+                selected={benchSwap === tm.id}
                 onClick={() => setBenchSwap(tm.id)}
-              >
-                {t('match.vestSits', { vest: t(`vest.${tm.vest}`) })}
-              </button>
+              />
             ))}
           </div>
         </div>
       ) : null}
 
       <button
-        className="btn-primary w-full"
+        className="btn-primary w-full gap-2"
         disabled={!stayPicked || (stayPicked === 'draw' && !benchSwap) || createMatch.isPending}
         onClick={next}
       >
-        {t('match.startNext', { vest: t(`vest.${benchTeam.vest}`) })}
+        <VestDot vest={benchTeam.vest} />
+        {t('match.startNextComesOn')}
       </button>
       <button className="btn w-full" onClick={() => setLocation(`/sessions/${sessionId}`)}>
         {t('match.backToSession')}
@@ -886,6 +892,52 @@ function PostMatchPanel({
 }
 
 void computeClockMs;
+
+// Vest colours as fillable boxes/dots so teams are picked by colour, not by
+// reading the colour's name. Literal class map keeps Tailwind from purging them.
+const VEST_CLASS: Record<string, string> = {
+  white: 'vest-white',
+  black: 'vest-black',
+  green: 'vest-green',
+};
+const VEST_HEX: Record<string, string> = {
+  white: '#f3f4f6',
+  black: '#111827',
+  green: '#16a34a',
+};
+
+function VestBox({
+  vest,
+  label,
+  selected,
+  onClick,
+}: {
+  vest: string;
+  label: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`rounded-xl py-4 px-2 font-semibold ring-1 ring-white/20 border-2 flex items-center justify-center gap-1 ${
+        VEST_CLASS[vest] ?? 'bg-bg3'
+      } ${selected ? 'border-accent' : 'border-transparent'}`}
+    >
+      {selected ? '✓ ' : ''}
+      {label}
+    </button>
+  );
+}
+
+function VestDot({ vest }: { vest: string }) {
+  return (
+    <span
+      className="inline-block w-3.5 h-3.5 rounded-full ring-1 ring-white/30 shrink-0"
+      style={{ backgroundColor: VEST_HEX[vest] ?? '#888' }}
+    />
+  );
+}
 
 // Shown on the match screen when admin auth is required but the user is not
 // signed in. Recording writes are gated server-side, so without this the

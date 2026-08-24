@@ -126,6 +126,10 @@ const dict = {
     'match.vestStays': '{vest} stays',
     'match.vestSits': '{vest} sits',
     'match.pickBench': 'Pick who benches next.',
+    'match.whoStays': 'Who stays on?',
+    'match.stays': 'Stays',
+    'match.sits': 'Sits',
+    'match.startNextComesOn': 'Start next match',
     'match.startNext': 'Start next match ({vest} comes on)',
 
     // events
@@ -448,6 +452,10 @@ const dict = {
     'match.vestStays': '{vest} fica',
     'match.vestSits': '{vest} sai',
     'match.pickBench': 'Escolha quem fica de fora.',
+    'match.whoStays': 'Quem fica?',
+    'match.stays': 'Fica',
+    'match.sits': 'Sai',
+    'match.startNextComesOn': 'Começar próximo jogo',
     'match.startNext': 'Começar próximo ({vest} entra)',
 
     // events
