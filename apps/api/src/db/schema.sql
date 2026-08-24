@@ -11,6 +11,13 @@ CREATE TABLE IF NOT EXISTS players (
   created_at      INTEGER NOT NULL
 );
 
+-- Key/value app settings (e.g. vest colours). Small, admin-editable config.
+CREATE TABLE IF NOT EXISTS settings (
+  key        TEXT PRIMARY KEY,
+  value      TEXT NOT NULL,
+  updated_at INTEGER
+);
+
 -- Server-side login sessions. Only the SHA-256 of the bearer token is stored so
 -- a DB leak can't be replayed. user_id is a player id, or 'master' for the
 -- RACHA_TOKEN break-glass identity.

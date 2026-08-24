@@ -211,6 +211,10 @@ const dict = {
     'players.noContact': 'No contact info',
     'players.none': 'No players found.',
     'players.remove': 'Remove player',
+    'players.vestColours': 'Vest colours',
+    'settings.vestsTitle': 'Vest colours',
+    'settings.vestsHint': 'Pick a colour for each of the three teams.',
+    'settings.vestSlot': 'Team {n}',
 
     // emergency contacts
     'emergency.formTitle': 'Emergency Contact',
@@ -537,6 +541,10 @@ const dict = {
     'players.noContact': 'Sem contato',
     'players.none': 'Nenhum jogador encontrado.',
     'players.remove': 'Remover jogador',
+    'players.vestColours': 'Cores dos coletes',
+    'settings.vestsTitle': 'Cores dos coletes',
+    'settings.vestsHint': 'Escolha uma cor para cada um dos três times.',
+    'settings.vestSlot': 'Time {n}',
 
     // emergency contacts
     'emergency.formTitle': 'Contato de Emergência',

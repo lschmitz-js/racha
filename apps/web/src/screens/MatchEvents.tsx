@@ -7,6 +7,7 @@ import { useT } from '../lib/i18n.js';
 import { useCanEdit } from '../lib/auth.js';
 import { Avatar } from '../lib/avatar.js';
 import { formatClock } from '../lib/clock.js';
+import { useVests, pillStyle } from '../lib/vests.js';
 
 const EVENT_TYPES: Array<{ type: EventType; icon: string }> = [
   { type: 'goal', icon: '⚽' },
@@ -17,12 +18,6 @@ const EVENT_TYPES: Array<{ type: EventType; icon: string }> = [
   { type: 'bad', icon: '💩' },
   { type: 'quasegol', icon: '😱' },
 ];
-
-const VEST_COLORS: Record<Vest, string> = {
-  white: 'vest-white',
-  black: 'vest-black',
-  green: 'vest-green',
-};
 
 type Ev = {
   id: string;
@@ -53,6 +48,7 @@ export function MatchEvents({ params }: { params: { id: string } }) {
   const qc = useQueryClient();
   const t = useT();
   const canEdit = useCanEdit();
+  const vests = useVests();
 
   const matchQ = useQuery({
     queryKey: ['match', matchId],
@@ -185,8 +181,8 @@ export function MatchEvents({ params }: { params: { id: string } }) {
                     {player?.name ?? '?'}
                   </span>
                   {team ? (
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${VEST_COLORS[team.vest]}`}>
-                      {t(`vest.${team.vest}`)}
+                    <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold" style={pillStyle(vests[team.vest].color)}>
+                      {vests[team.vest].label}
                     </span>
                   ) : null}
                   <button
@@ -282,12 +278,13 @@ export function MatchEvents({ params }: { params: { id: string } }) {
                   <button
                     key={tm.id}
                     type="button"
-                    className={`flex-1 px-2 py-2 rounded-lg text-sm font-semibold ${VEST_COLORS[tm.vest]} ${
+                    className={`flex-1 px-2 py-2 rounded-lg text-sm font-semibold ${
                       draft.team_id === tm.id ? 'ring-2 ring-accent' : 'opacity-60'
                     }`}
+                    style={pillStyle(vests[tm.vest].color)}
                     onClick={() => setDraft({ ...draft, team_id: tm.id })}
                   >
-                    {t(`vest.${tm.vest}`)}
+                    {vests[tm.vest].label}
                   </button>
                 ))}
               </div>

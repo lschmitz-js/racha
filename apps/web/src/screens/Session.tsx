@@ -9,37 +9,14 @@ import { BestGrid } from '../components/Bests.js';
 import { Leaderboard } from '../components/Leaderboard.js';
 import { bestOfEachCategory, calcPoints, type StatRow } from '../lib/points.js';
 import { calcScore, type Player, type Vest } from '@racha/shared';
-
-const VEST_COLORS: Record<Vest, string> = {
-  white: 'vest-white',
-  black: 'vest-black',
-  green: 'vest-green',
-};
-
-// Readable text colours on dark bg, themed by vest.
-const VEST_TEXT: Record<Vest, string> = {
-  white: 'text-white',
-  black: 'text-slate-300',
-  green: 'text-green-300',
-};
-
-const VEST_BORDER: Record<Vest, string> = {
-  white: 'border-white_v/40',
-  black: 'border-slate-500/60',
-  green: 'border-green_v/60',
-};
-
-const VEST_PANEL_BG: Record<Vest, string> = {
-  white: 'bg-slate-200/10',
-  black: 'bg-black/60',
-  green: 'bg-green-900/30',
-};
+import { useVests, pillStyle, panelStyle, VestDot } from '../lib/vests.js';
 
 export function Session({ params }: { params: { id: string } }) {
   const sessionId = params.id;
   const [, setLocation] = useLocation();
   const qc = useQueryClient();
   const t = useT();
+  const vests = useVests();
   const canEdit = useCanEdit();
 
   const playersQ = useQuery({ queryKey: ['players'], queryFn: api.players.list });
@@ -287,9 +264,9 @@ export function Session({ params }: { params: { id: string } }) {
                   <div className="text-xs text-muted text-center">
                     {pickedTeams.a && pickedTeams.b && benchTeam
                       ? t('session.matchup', {
-                          a: t(`vest.${teams.find((tm) => tm.id === pickedTeams.a)!.vest}`),
-                          b: t(`vest.${teams.find((tm) => tm.id === pickedTeams.b)!.vest}`),
-                          c: t(`vest.${benchTeam.vest}`),
+                          a: vests[teams.find((tm) => tm.id === pickedTeams.a)!.vest].label,
+                          b: vests[teams.find((tm) => tm.id === pickedTeams.b)!.vest].label,
+                          c: vests[benchTeam.vest].label,
                         })
                       : t('session.pickTwo')}
                   </div>
@@ -359,6 +336,7 @@ function LateSection({
   pending: boolean;
 }) {
   const t = useT();
+  const vests = useVests();
   // Recommended vest first, so the obvious tap is the leftmost button.
   const orderedTeams = [...teams].sort(
     (a, b) =>
@@ -393,14 +371,14 @@ function LateSection({
                     key={tm.id}
                     type="button"
                     disabled={pending}
-                    className={`text-xs px-2 py-1 rounded-md ${VEST_COLORS[tm.vest]} disabled:opacity-40 ${
+                    className={`text-xs px-2 py-1 rounded-md font-semibold disabled:opacity-40 ${
                       recommended ? 'ring-2 ring-accent' : 'opacity-60'
                     }`}
                     onClick={() => onAssign(p.id, tm.id)}
-                    style={{ minHeight: 36 }}
+                    style={{ minHeight: 36, ...pillStyle(vests[tm.vest].color) }}
                   >
                     {recommended ? '⭐ ' : '→ '}
-                    {t(`vest.${tm.vest}`)}
+                    {vests[tm.vest].label}
                   </button>
                 );
               })
@@ -527,15 +505,14 @@ function ReadOnlyTeamCard({
   players: Player[];
 }) {
   const t = useT();
+  const vests = useVests();
   const totalScore = players.reduce((s, p) => s + calcScore(p.skills), 0);
   const avg = players.length ? Math.round((totalScore / players.length) * 10) / 10 : 0;
   return (
-    <div
-      className={`p-3 rounded-xl border-2 ${VEST_BORDER[team.vest]} ${VEST_PANEL_BG[team.vest]}`}
-    >
+    <div className="p-3 rounded-xl border-2" style={panelStyle(vests[team.vest].color)}>
       <div className="flex items-center justify-between mb-2">
-        <div className={`px-2 py-1 rounded-md inline-block ${VEST_COLORS[team.vest]}`}>
-          {t(`vest.${team.vest}`)} (⚡{totalScore} · {avg})
+        <div className="px-2 py-1 rounded-md inline-block font-semibold" style={pillStyle(vests[team.vest].color)}>
+          {vests[team.vest].label} (⚡{totalScore} · {avg})
         </div>
         <span className="text-xs text-muted">
           {t('team.playersCount', { n: players.length })}
@@ -548,7 +525,7 @@ function ReadOnlyTeamCard({
             className="flex items-center gap-2 px-2 py-1 rounded-lg bg-bg3 border border-border"
           >
             <Avatar playerId={p.id} name={p.name} size={32} />
-            <span className={`text-sm font-medium truncate ${VEST_TEXT[team.vest]}`}>
+            <span className="text-sm font-medium truncate text-fg">
               {p.name}
               {p.role === 'gk' ? <span className="ml-1 text-xs">🧤</span> : null}
             </span>
@@ -575,6 +552,7 @@ function TeamCard({
   onAddPlayer: () => void;
 }) {
   const t = useT();
+  const vests = useVests();
   const totalScore = players.reduce((s, p) => s + calcScore(p.skills), 0);
   const avg = players.length ? Math.round((totalScore / players.length) * 10) / 10 : 0;
   return (
@@ -586,18 +564,13 @@ function TeamCard({
         if (e.key === 'Enter' || e.key === ' ') onPick();
       }}
       className={`p-2 rounded-xl border-2 cursor-pointer select-none transition ${
-        VEST_PANEL_BG[team.vest]
-      } ${
-        selectedSide
-          ? 'border-accent ring-2 ring-accent/40'
-          : VEST_BORDER[team.vest]
+        selectedSide ? 'border-accent ring-2 ring-accent/40' : ''
       }`}
+      style={panelStyle(vests[team.vest].color)}
     >
       <div className="flex items-center justify-between gap-1 mb-1">
-        <span
-          className={`px-1.5 py-0.5 rounded text-xs font-semibold ${VEST_COLORS[team.vest]}`}
-        >
-          {t(`vest.${team.vest}`)}
+        <span className="px-1.5 py-0.5 rounded text-xs font-semibold" style={pillStyle(vests[team.vest].color)}>
+          {vests[team.vest].label}
         </span>
         {selectedSide ? (
           <span className="px-1.5 py-0.5 rounded text-xs font-bold bg-accent text-black">
@@ -605,7 +578,7 @@ function TeamCard({
           </span>
         ) : null}
       </div>
-      <div className={`text-[11px] tabular-nums mb-1 ${VEST_TEXT[team.vest]}`}>
+      <div className="text-[11px] tabular-nums mb-1 text-muted">
         ⚡{totalScore} · {avg} · {players.length}
       </div>
       <div className="flex flex-col gap-1">
@@ -615,9 +588,7 @@ function TeamCard({
             className="flex items-center gap-1 px-1 py-0.5 rounded-md bg-bg3 border border-border min-w-0"
           >
             <Avatar playerId={p.id} name={p.name} size={20} />
-            <span
-              className={`flex-1 text-[11px] font-medium truncate ${VEST_TEXT[team.vest]}`}
-            >
+            <span className="flex-1 text-[11px] font-medium truncate text-fg">
               {p.name}
               {p.role === 'gk' ? <span className="text-[9px]">🧤</span> : null}
             </span>
@@ -665,6 +636,7 @@ function AddPlayerSheet({
   onPick: (playerId: string) => void;
 }) {
   const t = useT();
+  const vests = useVests();
   // Players currently on this team (excluded), and tag others by source.
   const onThisTeam = new Set(teams.find((tt) => tt.id === team.id)?.player_ids ?? []);
   const teamByPlayer = new Map<string, Vest>();
@@ -681,7 +653,7 @@ function AddPlayerSheet({
       <div className="bg-bg2 border-t border-border rounded-t-xl p-4 w-full max-h-[80vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-lg font-semibold">
-            {t('team.addTitle', { vest: t(`vest.${team.vest}`) })}
+            {t('team.addTitle', { vest: vests[team.vest].label })}
           </h2>
           <button className="text-muted" onClick={onClose}>
             ×
@@ -703,15 +675,14 @@ function AddPlayerSheet({
                   }}
                 >
                   <Avatar playerId={p.id} name={p.name} size={32} />
-                  <span
-                    className={`flex-1 ${onOtherVest ? VEST_TEXT[onOtherVest] : ''}`}
-                  >
+                  {onOtherVest ? <VestDot color={vests[onOtherVest].color} size={10} /> : null}
+                  <span className="flex-1 text-fg">
                     {p.name}
                     {p.role === 'gk' ? ' 🧤' : ''}
                   </span>
                   <span className="text-xs text-muted">
                     {onOtherVest
-                      ? t('team.moveFrom', { vest: t(`vest.${onOtherVest}`) })
+                      ? t('team.moveFrom', { vest: vests[onOtherVest].label })
                       : t('team.notInSession')}
                   </span>
                 </button>

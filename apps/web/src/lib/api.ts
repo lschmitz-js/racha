@@ -78,6 +78,16 @@ export const api = {
     logout: () => request<{ ok: true }>(`/api/auth/logout`, { method: 'POST' }),
   },
 
+  settings: {
+    get: () =>
+      request<{ vests: Record<string, { color: string; label: string }> }>(`/api/settings`),
+    updateVests: (vests: Record<string, { color: string; label: string }>) =>
+      request<{ vests: Record<string, { color: string; label: string }> }>(`/api/settings`, {
+        method: 'PUT',
+        body: JSON.stringify({ vests }),
+      }),
+  },
+
   audit: {
     list: (userId?: string, limit = 200) => {
       const q = new URLSearchParams();

@@ -6,6 +6,7 @@ import { api } from '../lib/api.js';
 import { LanguageToggle, useT } from '../lib/i18n.js';
 import { useCanEdit } from '../lib/auth.js';
 import { SignInModal } from '../components/SignInModal.js';
+import { useVests, contrastText, VestDot, pillStyle, panelStyle } from '../lib/vests.js';
 import { Avatar } from '../lib/avatar.js';
 import { formatClock, useClock, computeClockMs } from '../lib/clock.js';
 import {
@@ -15,29 +16,6 @@ import {
   playEventSound,
 } from '../lib/sounds.js';
 
-const VEST_COLORS: Record<Vest, string> = {
-  white: 'bg-gray-100 text-black',
-  black: 'bg-gray-900 text-white',
-  green: 'bg-green-700 text-white',
-};
-
-const VEST_TEXT: Record<Vest, string> = {
-  white: 'text-white',
-  black: 'text-slate-300',
-  green: 'text-green-300',
-};
-
-const VEST_BORDER: Record<Vest, string> = {
-  white: 'border-white_v/40',
-  black: 'border-slate-500/60',
-  green: 'border-green_v/60',
-};
-
-const VEST_PANEL_BG: Record<Vest, string> = {
-  white: 'bg-slate-200/10',
-  black: 'bg-black/60',
-  green: 'bg-green-900/30',
-};
 
 const TARGET_MS = 5 * 60 * 1000;
 
@@ -434,12 +412,13 @@ function ScoreSide({
   goals: number;
   align?: 'right';
 }) {
-  const t = useT();
+  const vests = useVests();
   if (!team) return <div />;
+  const v = vests[team.vest];
   return (
     <div className={`flex items-center gap-2 ${align === 'right' ? 'justify-end' : ''}`}>
-      <span className={`px-2 py-1 rounded-md text-sm ${VEST_COLORS[team.vest]}`}>
-        {t(`vest.${team.vest}`)}
+      <span className="px-2 py-1 rounded-md text-sm font-semibold" style={pillStyle(v.color)}>
+        {v.label}
       </span>
       <span className="text-3xl font-mono tabular-nums font-bold">{goals}</span>
     </div>
@@ -460,22 +439,20 @@ function TeamPanel({
   assistPendingFor: string | null;
 }) {
   const t = useT();
+  const vests = useVests();
+  const v = vests[team.vest];
   const byId = new Map(players.map((p) => [p.id, p]));
   const onPitchPlayers = team.player_ids
     .map((pid) => byId.get(pid))
     .filter(Boolean) as Player[];
   const power = onPitchPlayers.reduce((s, p) => s + calcScore(p.skills), 0);
   return (
-    <div
-      className={`space-y-1 p-2 rounded-xl border ${VEST_BORDER[team.vest]} ${VEST_PANEL_BG[team.vest]}`}
-    >
+    <div className="space-y-1 p-2 rounded-xl border" style={panelStyle(v.color)}>
       <div className="flex items-center justify-between gap-1">
-        <div className={`text-xs px-2 py-1 rounded ${VEST_COLORS[team.vest]} inline-block`}>
-          {t(`vest.${team.vest}`)}
-        </div>
-        <span className={`text-xs font-semibold tabular-nums ${VEST_TEXT[team.vest]}`}>
-          ⚡{power}
+        <span className="text-xs px-2 py-1 rounded font-semibold inline-block" style={pillStyle(v.color)}>
+          {v.label}
         </span>
+        <span className="text-xs font-semibold tabular-nums text-muted">⚡{power}</span>
       </div>
       <div className="flex flex-col gap-1">
         {onPitchPlayers.map((p) => {
@@ -495,7 +472,7 @@ function TeamPanel({
               style={{ minHeight: 44 }}
             >
               <Avatar playerId={p.id} name={p.name} size={32} />
-              <span className={`font-medium truncate flex-1 ${VEST_TEXT[team.vest]}`}>
+              <span className="font-medium truncate flex-1 text-fg">
                 {p.name}
                 {p.role === 'gk' ? <span className="ml-1 text-xs">🧤</span> : null}
               </span>
@@ -524,6 +501,7 @@ function EventLog({
   onEdit?: () => void;
 }) {
   const t = useT();
+  const vests = useVests();
   const visible = events.filter((e) => e.type !== 'sub_in' && e.type !== 'sub_out');
   const byPlayer = new Map(players.map((p) => [p.id, p]));
   const teamById = new Map(
@@ -569,9 +547,10 @@ function EventLog({
                   </span>
                   {team ? (
                     <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded ${VEST_COLORS[team.vest]}`}
+                      className="text-[10px] px-1.5 py-0.5 rounded font-semibold"
+                      style={pillStyle(vests[team.vest].color)}
                     >
-                      {t(`vest.${team.vest}`)}
+                      {vests[team.vest].label}
                     </span>
                   ) : null}
                 </div>
@@ -601,6 +580,7 @@ function BenchSheet({
   pending: boolean;
 }) {
   const t = useT();
+  const vests = useVests();
   const byId = new Map(players.map((p) => [p.id, p]));
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -632,14 +612,13 @@ function BenchSheet({
         type="button"
         onClick={() => setSelectedId((prev) => (prev === p.id ? null : p.id))}
         className={`flex items-center gap-2 px-2 py-1 rounded-lg border text-left transition ${
-          isSelected
-            ? 'border-accent bg-accent/10 ring-2 ring-accent'
-            : `bg-bg3 ${VEST_BORDER[team.vest]}`
+          isSelected ? 'border-accent bg-accent/10 ring-2 ring-accent' : 'bg-bg3 border-border'
         }`}
         style={{ minHeight: 44 }}
       >
+        <VestDot color={vests[team.vest].color} size={10} />
         <Avatar playerId={p.id} name={p.name} size={28} />
-        <span className={`text-sm truncate flex-1 ${VEST_TEXT[team.vest]}`}>
+        <span className="text-sm truncate flex-1 text-fg">
           {p.name}
           {p.role === 'gk' ? <span className="ml-1 text-xs">🧤</span> : null}
         </span>
@@ -651,8 +630,8 @@ function BenchSheet({
     const power = list.reduce((s, p) => s + calcScore(p.skills), 0);
     return (
       <div className="flex items-center gap-2 mb-1">
-        <span className={`text-xs px-2 py-0.5 rounded ${VEST_COLORS[team.vest]}`}>
-          {t(`vest.${team.vest}`)}
+        <span className="text-xs px-2 py-0.5 rounded font-semibold" style={pillStyle(vests[team.vest].color)}>
+          {vests[team.vest].label}
         </span>
         <span className="text-xs text-muted truncate">{label}</span>
         <span className="ml-auto text-xs text-muted tabular-nums">
@@ -663,8 +642,8 @@ function BenchSheet({
   }
 
   const playingTeams: Array<{ team: SessionTeam; label: string }> = [
-    { team: teamA, label: t('sub.playingA', { vest: t(`vest.${teamA.vest}`) }) },
-    { team: teamB, label: t('sub.playingB', { vest: t(`vest.${teamB.vest}`) }) },
+    { team: teamA, label: t('sub.playingA', { vest: vests[teamA.vest].label }) },
+    { team: teamB, label: t('sub.playingB', { vest: vests[teamB.vest].label }) },
   ];
   const benchList = listFor(benchTeam);
 
@@ -685,10 +664,7 @@ function BenchSheet({
             {playingTeams.map(({ team, label }) => {
               const list = listFor(team);
               return (
-                <div
-                  key={team.id}
-                  className={`rounded-xl border p-2 ${VEST_BORDER[team.vest]} ${VEST_PANEL_BG[team.vest]}`}
-                >
+                <div key={team.id} className="rounded-xl border p-2" style={panelStyle(vests[team.vest].color)}>
                   {renderHeader(team, label, list)}
                   {list.length === 0 ? (
                     <div className="text-xs text-muted px-1 py-1">
@@ -705,9 +681,7 @@ function BenchSheet({
           </div>
 
           {/* Bench team full-width, players in a horizontal grid */}
-          <div
-            className={`rounded-xl border p-2 ${VEST_BORDER[benchTeam.vest]} ${VEST_PANEL_BG[benchTeam.vest]}`}
-          >
+          <div className="rounded-xl border p-2" style={panelStyle(vests[benchTeam.vest].color)}>
             {renderHeader(benchTeam, t('sub.bench'), benchList)}
             {benchList.length === 0 ? (
               <div className="text-xs text-muted px-1 py-1">{t('sub.benchEmpty')}</div>
@@ -733,9 +707,10 @@ function BenchSheet({
             </span>
             {selectedTeam ? (
               <span
-                className={`text-[10px] px-1.5 py-0.5 rounded ${VEST_COLORS[selectedTeam.vest]}`}
+                className="text-[10px] px-1.5 py-0.5 rounded font-semibold"
+                style={pillStyle(vests[selectedTeam.vest].color)}
               >
-                {t(`vest.${selectedTeam.vest}`)}
+                {vests[selectedTeam.vest].label}
               </span>
             ) : null}
           </div>
@@ -751,12 +726,10 @@ function BenchSheet({
                 type="button"
                 disabled={!selectedId || isCurrent || pending}
                 onClick={() => handleMove(team.id)}
-                className={`px-2 py-2 rounded-lg border text-sm font-semibold transition disabled:opacity-40 ${VEST_COLORS[team.vest]} ${
-                  selectedId && !isCurrent ? '' : ''
-                }`}
-                style={{ minHeight: 44 }}
+                className="px-2 py-2 rounded-lg border border-transparent text-sm font-semibold transition disabled:opacity-40 flex items-center justify-center gap-1"
+                style={{ minHeight: 44, ...pillStyle(vests[team.vest].color) }}
               >
-                → {t(`vest.${team.vest}`)}
+                → {vests[team.vest].label}
               </button>
             );
           })}
@@ -788,6 +761,7 @@ function PostMatchPanel({
   const qc = useQueryClient();
   const [, setLocation] = useLocation();
   const t = useT();
+  const vests = useVests();
   const setResult = useMutation({
     mutationFn: (r: 'a' | 'b' | 'draw') => api.matches.setResult(matchId, { result: r }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['match', matchId] }),
@@ -827,7 +801,7 @@ function PostMatchPanel({
       <div className="text-sm text-muted -mt-1">{t('match.whoStays')}</div>
       <div className="grid grid-cols-3 gap-2">
         <VestBox
-          vest={teamA.vest}
+          color={vests[teamA.vest].color}
           label={t('match.stays')}
           selected={stayPicked === 'a'}
           onClick={() => {
@@ -836,7 +810,7 @@ function PostMatchPanel({
           }}
         />
         <VestBox
-          vest={teamB.vest}
+          color={vests[teamB.vest].color}
           label={t('match.stays')}
           selected={stayPicked === 'b'}
           onClick={() => {
@@ -845,16 +819,15 @@ function PostMatchPanel({
           }}
         />
         <button
-          className={`rounded-xl py-4 font-semibold border-2 ${
-            stayPicked === 'draw'
-              ? 'bg-accent text-black border-accent'
-              : 'bg-bg3 border-border text-fg'
+          className={`rounded-xl py-4 font-semibold border-2 bg-bg3 text-fg transition ${
+            stayPicked === 'draw' ? 'border-accent ring-2 ring-accent' : 'border-border'
           }`}
           onClick={() => {
             setStayPicked('draw');
             setResult.mutate('draw');
           }}
         >
+          {stayPicked === 'draw' ? '✓ ' : ''}
           {t('match.draw')}
         </button>
       </div>
@@ -866,7 +839,7 @@ function PostMatchPanel({
             {[teamA, teamB].map((tm) => (
               <VestBox
                 key={tm.id}
-                vest={tm.vest}
+                color={vests[tm.vest].color}
                 label={t('match.sits')}
                 selected={benchSwap === tm.id}
                 onClick={() => setBenchSwap(tm.id)}
@@ -881,7 +854,7 @@ function PostMatchPanel({
         disabled={!stayPicked || (stayPicked === 'draw' && !benchSwap) || createMatch.isPending}
         onClick={next}
       >
-        <VestDot vest={benchTeam.vest} />
+        <VestDot color={vests[benchTeam.vest].color} />
         {t('match.startNextComesOn')}
       </button>
       <button className="btn w-full" onClick={() => setLocation(`/sessions/${sessionId}`)}>
@@ -893,26 +866,15 @@ function PostMatchPanel({
 
 void computeClockMs;
 
-// Vest colours as fillable boxes/dots so teams are picked by colour, not by
-// reading the colour's name. Literal class map keeps Tailwind from purging them.
-const VEST_CLASS: Record<string, string> = {
-  white: 'vest-white',
-  black: 'vest-black',
-  green: 'vest-green',
-};
-const VEST_HEX: Record<string, string> = {
-  white: '#f3f4f6',
-  black: '#111827',
-  green: '#16a34a',
-};
-
+// A big fillable colour box for picking a team by its (configurable) vest
+// colour rather than reading the colour's name.
 function VestBox({
-  vest,
+  color,
   label,
   selected,
   onClick,
 }: {
-  vest: string;
+  color: string;
   label: string;
   selected: boolean;
   onClick: () => void;
@@ -921,21 +883,13 @@ function VestBox({
     <button
       onClick={onClick}
       className={`rounded-xl py-4 px-2 font-semibold ring-1 ring-white/20 border-2 flex items-center justify-center gap-1 ${
-        VEST_CLASS[vest] ?? 'bg-bg3'
-      } ${selected ? 'border-accent' : 'border-transparent'}`}
+        selected ? 'border-accent' : 'border-transparent'
+      }`}
+      style={{ backgroundColor: color, color: contrastText(color) }}
     >
       {selected ? '✓ ' : ''}
       {label}
     </button>
-  );
-}
-
-function VestDot({ vest }: { vest: string }) {
-  return (
-    <span
-      className="inline-block w-3.5 h-3.5 rounded-full ring-1 ring-white/30 shrink-0"
-      style={{ backgroundColor: VEST_HEX[vest] ?? '#888' }}
-    />
   );
 }
 
