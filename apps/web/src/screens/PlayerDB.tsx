@@ -127,15 +127,25 @@ export function PlayerDB() {
 
   return (
     <div className="p-4 pb-28 space-y-4">
-      <header className="flex items-start justify-between gap-2 pr-20">
-        <div>
-          <h1 className="title-lg">{t('players.title')}</h1>
-          <p className="text-sm text-muted">{t('players.subtitle')}</p>
-        </div>
+      <header className="pr-24">
+        <h1 className="title-lg">{t('players.title')}</h1>
+        <p className="text-sm text-muted">{t('players.subtitle')}</p>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <label className="flex-1 flex items-center gap-2 bg-bg2 border border-border rounded-xl px-3 py-2.5">
+          <SearchIcon />
+          <input
+            className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted"
+            placeholder={t('players.search')}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </label>
         {canEdit ? (
-          <div className="relative">
+          <div className="relative shrink-0">
             <button
-              className="w-10 h-10 rounded-lg border border-border bg-bg2 flex items-center justify-center text-lg"
+              className="w-11 h-11 rounded-xl border border-border bg-bg2 flex items-center justify-center text-lg"
               aria-label={t('common.more')}
               onClick={() => setMenuOpen((o) => !o)}
             >
@@ -173,17 +183,7 @@ export function PlayerDB() {
             ) : null}
           </div>
         ) : null}
-      </header>
-
-      <label className="flex items-center gap-2 bg-bg2 border border-border rounded-xl px-3 py-2.5">
-        <SearchIcon />
-        <input
-          className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted"
-          placeholder={t('players.search')}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </label>
+      </div>
 
       <div className="flex gap-2 overflow-x-auto -mx-1 px-1 pb-1">
         {FILTERS.map(([key, label]) => (
