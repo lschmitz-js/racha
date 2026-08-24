@@ -802,7 +802,8 @@ function PostMatchPanel({
       <div className="grid grid-cols-3 gap-2">
         <VestBox
           color={vests[teamA.vest].color}
-          label={t('match.stays')}
+          name={vests[teamA.vest].label}
+          action={t('match.stays')}
           selected={stayPicked === 'a'}
           onClick={() => {
             setStayPicked('a');
@@ -811,7 +812,8 @@ function PostMatchPanel({
         />
         <VestBox
           color={vests[teamB.vest].color}
-          label={t('match.stays')}
+          name={vests[teamB.vest].label}
+          action={t('match.stays')}
           selected={stayPicked === 'b'}
           onClick={() => {
             setStayPicked('b');
@@ -840,7 +842,8 @@ function PostMatchPanel({
               <VestBox
                 key={tm.id}
                 color={vests[tm.vest].color}
-                label={t('match.sits')}
+                name={vests[tm.vest].label}
+                action={t('match.sits')}
                 selected={benchSwap === tm.id}
                 onClick={() => setBenchSwap(tm.id)}
               />
@@ -850,12 +853,12 @@ function PostMatchPanel({
       ) : null}
 
       <button
-        className="btn-primary w-full gap-2"
+        className="w-full rounded-xl py-3 font-semibold bg-bg3 border-2 border-border text-fg flex items-center justify-center gap-2 transition enabled:hover:border-accent active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
         disabled={!stayPicked || (stayPicked === 'draw' && !benchSwap) || createMatch.isPending}
         onClick={next}
       >
         <VestDot color={vests[benchTeam.vest].color} />
-        {t('match.startNextComesOn')}
+        {t('match.startNextComesOn', { vest: vests[benchTeam.vest].label })}
       </button>
       <button className="btn w-full" onClick={() => setLocation(`/sessions/${sessionId}`)}>
         {t('match.backToSession')}
@@ -867,28 +870,33 @@ function PostMatchPanel({
 void computeClockMs;
 
 // A big fillable colour box for picking a team by its (configurable) vest
-// colour rather than reading the colour's name.
+// colour. Shows the colour name and the action (Stays / Sits) together.
 function VestBox({
   color,
-  label,
+  name,
+  action,
   selected,
   onClick,
 }: {
   color: string;
-  label: string;
+  name: string;
+  action: string;
   selected: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       onClick={onClick}
-      className={`rounded-xl py-4 px-2 font-semibold ring-1 ring-white/20 border-2 flex items-center justify-center gap-1 ${
+      className={`rounded-xl py-3 px-2 ring-1 ring-white/20 border-2 flex flex-col items-center justify-center gap-0.5 leading-tight ${
         selected ? 'border-accent' : 'border-transparent'
       }`}
       style={{ backgroundColor: color, color: contrastText(color) }}
     >
-      {selected ? '✓ ' : ''}
-      {label}
+      <span className="font-bold">
+        {selected ? '✓ ' : ''}
+        {name}
+      </span>
+      <span className="text-xs opacity-80">{action}</span>
     </button>
   );
 }

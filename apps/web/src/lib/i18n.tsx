@@ -129,7 +129,7 @@ const dict = {
     'match.whoStays': 'Who stays on?',
     'match.stays': 'Stays',
     'match.sits': 'Sits',
-    'match.startNextComesOn': 'Start next match',
+    'match.startNextComesOn': 'Start next — {vest} comes on',
     'match.startNext': 'Start next match ({vest} comes on)',
 
     // events
@@ -459,7 +459,7 @@ const dict = {
     'match.whoStays': 'Quem fica?',
     'match.stays': 'Fica',
     'match.sits': 'Sai',
-    'match.startNextComesOn': 'Começar próximo jogo',
+    'match.startNextComesOn': 'Próximo — entra {vest}',
     'match.startNext': 'Começar próximo ({vest} entra)',
 
     // events
