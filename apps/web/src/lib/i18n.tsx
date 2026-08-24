@@ -41,6 +41,11 @@ const dict = {
 
     // home
     'home.title': 'Racha de Segunda',
+    'home.subtitle': 'Monday pickup soccer',
+    'home.nextRacha': 'Next racha',
+    'home.time': '6:00 – 8:00 PM',
+    'home.location': 'Elsie Roy Elementary (Gym)',
+    'home.openSession': 'Open session',
     'home.welcome': 'Welcome to Racha!',
     'home.startRacha': 'Start Racha',
     'home.activeSession': 'Active session',
@@ -348,6 +353,11 @@ const dict = {
 
     // home
     'home.title': 'Racha de Segunda',
+    'home.subtitle': 'Futebol de segunda-feira',
+    'home.nextRacha': 'Próximo racha',
+    'home.time': '18:00 – 20:00',
+    'home.location': 'Elsie Roy Elementary (Ginásio)',
+    'home.openSession': 'Abrir sessão',
     'home.welcome': 'Bem-vindo ao Racha!',
     'home.startRacha': 'Começar Racha',
     'home.activeSession': 'Sessão ativa',
