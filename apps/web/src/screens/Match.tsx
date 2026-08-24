@@ -780,18 +780,26 @@ function PostMatchPanel({
   });
 
   function next() {
-    if (!winnerTeam) return;
-    const dropOut = stayPicked === 'draw' ? benchSwap : loserTeam?.id;
-    if (!dropOut) return;
-    const incoming = benchTeam.id;
-    const a = winnerTeam.id;
-    const b = incoming;
-    const newBench = dropOut;
+    // On a draw there is no winner: the team you pick benches (benchSwap), the
+    // other one stays, and the current bench team comes on. On a decisive result
+    // the winner stays and the loser sits.
+    let stayId: string | undefined;
+    let dropOut: string | undefined;
+    if (stayPicked === 'draw') {
+      if (!benchSwap) return;
+      dropOut = benchSwap;
+      stayId = benchSwap === teamA.id ? teamB.id : teamA.id;
+    } else {
+      if (!winnerTeam) return;
+      stayId = winnerTeam.id;
+      dropOut = loserTeam?.id;
+    }
+    if (!stayId || !dropOut) return;
     createMatch.mutate({
       session_id: sessionId,
-      team_a_id: a,
-      team_b_id: b,
-      bench_team_id: newBench,
+      team_a_id: stayId,
+      team_b_id: benchTeam.id,
+      bench_team_id: dropOut,
     });
   }
 
