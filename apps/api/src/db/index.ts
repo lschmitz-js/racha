@@ -130,4 +130,6 @@ function migrateAuth(db: DB) {
   if (!cols.some((c) => c.name === 'password_hash')) {
     db.exec('ALTER TABLE players ADD COLUMN password_hash TEXT');
   }
+  // The goalkeeper role was removed; normalize any existing 'gk' to 'player'.
+  db.exec("UPDATE players SET role = 'player' WHERE role = 'gk'");
 }

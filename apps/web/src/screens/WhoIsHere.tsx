@@ -205,7 +205,6 @@ function PlayerCard({
         <div className="min-w-0 flex-1">
           <div className="font-medium truncate text-sm">{player.name}</div>
           <div className="text-[10px] text-muted truncate">
-            {player.role === 'gk' ? '🧤 GK ' : ''}
             {selected && late ? (
               <span className="text-amber-400">⏰ {t('lineup.lateBadge')}</span>
             ) : null}

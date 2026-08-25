@@ -24,7 +24,6 @@ const EVENT_BUTTONS: Array<{ type: EventType; icon: string }> = [
   { type: 'assist', icon: '🅰' },
   { type: 'beautiful', icon: '✨' },
   { type: 'caneta', icon: '🪡' },
-  { type: 'save', icon: '🧤' },
   { type: 'bad', icon: '💩' },
   { type: 'quasegol', icon: '😱' },
 ];
@@ -473,9 +472,7 @@ function TeamPanel({
             >
               <Avatar playerId={p.id} name={p.name} size={32} />
               <span className="font-medium truncate flex-1 text-fg">
-                {p.name}
-                {p.role === 'gk' ? <span className="ml-1 text-xs">🧤</span> : null}
-              </span>
+                {p.name}              </span>
             </button>
           );
         })}
@@ -620,7 +617,6 @@ function BenchSheet({
         <Avatar playerId={p.id} name={p.name} size={28} />
         <span className="text-sm truncate flex-1 text-fg">
           {p.name}
-          {p.role === 'gk' ? <span className="ml-1 text-xs">🧤</span> : null}
         </span>
       </button>
     );

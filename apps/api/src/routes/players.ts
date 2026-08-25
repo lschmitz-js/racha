@@ -69,7 +69,6 @@ function rowToPlayer(r: PlayerRow): Player {
     id: r.id,
     name: r.name,
     type: r.type,
-    role: r.role,
     skills: JSON.parse(r.skills_json),
     active: !!r.active,
     is_admin: !!r.is_admin,
@@ -204,7 +203,6 @@ players.post('/:id/emergency/rotate', (c) => {
 const PlayerInput = z.object({
   name: z.string().min(1),
   type: z.enum(['season', 'dropin']),
-  role: z.enum(['player', 'gk']),
   skills: z.array(z.number().int().min(1).max(5)).length(8),
   active: z.boolean().optional().default(true),
   // Admin management (optional). `password` is write-only and, when present,
@@ -221,12 +219,11 @@ players.post('/', async (c) => {
   const passwordHash = body.password ? await hashPassword(body.password) : null;
   db.prepare(
     `INSERT INTO players (id, name, type, role, skills_json, active, emergency_token, is_admin, password_hash, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, 'player', ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     body.name,
     body.type,
-    body.role,
     JSON.stringify(body.skills),
     body.active ? 1 : 0,
     newEmergencyToken(),
@@ -246,8 +243,8 @@ players.put('/:id', async (c) => {
   if (!existing) return c.json({ error: 'not found' }, 404);
 
   db.prepare(
-    `UPDATE players SET name=?, type=?, role=?, skills_json=?, active=? WHERE id=?`
-  ).run(body.name, body.type, body.role, JSON.stringify(body.skills), body.active ? 1 : 0, id);
+    `UPDATE players SET name=?, type=?, skills_json=?, active=? WHERE id=?`
+  ).run(body.name, body.type, JSON.stringify(body.skills), body.active ? 1 : 0, id);
 
   // Admin flag / password are only touched when explicitly provided. Turning a
   // player into a non-admin clears their password and revokes live sessions;
@@ -289,11 +286,10 @@ players.post('/import', async (c) => {
   const db = getDb();
   const upsert = db.prepare(
     `INSERT INTO players (id, name, type, role, skills_json, active, emergency_token, created_at)
-     VALUES (@id, @name, @type, @role, @skills_json, 1, @emergency_token, @created_at)
+     VALUES (@id, @name, @type, 'player', @skills_json, 1, @emergency_token, @created_at)
      ON CONFLICT(id) DO UPDATE SET
        name = excluded.name,
        type = excluded.type,
-       role = excluded.role,
        skills_json = excluded.skills_json,
        active = 1`
   );
@@ -303,7 +299,6 @@ players.post('/import', async (c) => {
         id: r.id,
         name: r.name,
         type: r.type,
-        role: r.role,
         skills_json: JSON.stringify(r.skills),
         emergency_token: newEmergencyToken(),
         created_at: Date.now(),
@@ -371,7 +366,6 @@ players.get('/export', (c) => {
       id: r.id,
       name: r.name,
       type: r.type,
-      role: r.role,
       skills: JSON.parse(r.skills_json),
     })),
     weekIds: [] as string[],

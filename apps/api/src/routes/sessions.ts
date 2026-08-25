@@ -25,7 +25,6 @@ function loadPlayer(row: PlayerRow): Player {
     id: row.id,
     name: row.name,
     type: row.type,
-    role: row.role,
     skills: JSON.parse(row.skills_json),
     active: true,
     is_admin: false,

@@ -14,7 +14,6 @@ const EVENT_TYPES: Array<{ type: EventType; icon: string }> = [
   { type: 'assist', icon: '🅰' },
   { type: 'beautiful', icon: '✨' },
   { type: 'caneta', icon: '🪡' },
-  { type: 'save', icon: '🧤' },
   { type: 'bad', icon: '💩' },
   { type: 'quasegol', icon: '😱' },
 ];
@@ -309,9 +308,7 @@ export function MatchEvents({ params }: { params: { id: string } }) {
                   >
                     <Avatar playerId={p.id} name={p.name} size={24} />
                     <span className="text-sm truncate flex-1">
-                      {p.name}
-                      {p.role === 'gk' ? <span className="ml-1 text-xs">🧤</span> : null}
-                    </span>
+                      {p.name}                    </span>
                   </button>
                 ))}
               </div>

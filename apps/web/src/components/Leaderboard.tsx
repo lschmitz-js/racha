@@ -9,7 +9,6 @@ export type SortKey =
   | 'assists'
   | 'beautiful'
   | 'bad'
-  | 'saves'
   | 'canetas'
   | 'quasegols'
   | 'matches_played'
@@ -70,7 +69,6 @@ export function Leaderboard({
     { key: 'assists', label: 'A', tip: t('event.assist') },
     { key: 'beautiful', label: '✨', tip: t('event.beautiful') },
     { key: 'bad', label: '💩', tip: t('event.bad') },
-    { key: 'saves', label: '🧤', tip: t('event.save') },
     { key: 'canetas', label: '🪡', tip: t('event.caneta') },
     { key: 'quasegols', label: '😱', tip: t('event.quasegol') },
     ...(showMatches
@@ -126,17 +124,13 @@ export function Leaderboard({
               <td className="p-1 font-medium">
                 <span className="inline-flex items-center gap-2">
                   <Avatar playerId={r.id} name={r.name} size={24} />
-                  <span>
-                    {r.name}
-                    {r.role === 'gk' ? <span className="ml-1 text-xs">🧤</span> : null}
-                  </span>
+                  <span>{r.name}</span>
                 </span>
               </td>
               <td className="p-1 text-right tabular-nums">{r.goals}</td>
               <td className="p-1 text-right tabular-nums">{r.assists}</td>
               <td className="p-1 text-right tabular-nums">{r.beautiful}</td>
               <td className="p-1 text-right tabular-nums">{r.bad}</td>
-              <td className="p-1 text-right tabular-nums">{r.saves}</td>
               <td className="p-1 text-right tabular-nums">{r.canetas ?? 0}</td>
               <td className="p-1 text-right tabular-nums">{r.quasegols ?? 0}</td>
               {showMatches ? (

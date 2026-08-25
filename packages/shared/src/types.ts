@@ -15,7 +15,6 @@ export const VESTS = ['white', 'black', 'green'] as const;
 export type Vest = (typeof VESTS)[number];
 
 export const PlayerType = z.enum(['season', 'dropin']);
-export const PlayerRole = z.enum(['player', 'gk']);
 
 export const Skills = z
   .array(z.number().int().min(1).max(5))
@@ -25,7 +24,6 @@ export const Player = z.object({
   id: z.string(),
   name: z.string().min(1),
   type: PlayerType,
-  role: PlayerRole,
   skills: Skills,
   active: z.boolean().default(true),
   // Whether this player can log in to the admin UI. Credentials themselves
@@ -111,7 +109,7 @@ export const ImportEnvelope = z.object({
       id: z.string(),
       name: z.string(),
       type: PlayerType,
-      role: PlayerRole,
+      role: z.enum(['player', 'gk']).optional(), // legacy imports; ignored
       skills: Skills,
     })
   ),

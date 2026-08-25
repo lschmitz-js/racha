@@ -391,9 +391,7 @@ function LateSection({
           >
             <Avatar playerId={p.id} name={p.name} size={32} />
             <span className="text-sm font-medium truncate flex-1">
-              {p.name}
-              {p.role === 'gk' ? <span className="ml-1 text-xs">🧤</span> : null}
-            </span>
+              {p.name}            </span>
             {orderedTeams.length > 0 ? (
               orderedTeams.map((tm) => {
                 const recommended = tm.id === recommendedTeamId;
@@ -579,9 +577,7 @@ function ReadOnlyTeamCard({
           >
             <Avatar playerId={p.id} name={p.name} size={32} />
             <span className="text-sm font-medium truncate text-fg">
-              {p.name}
-              {p.role === 'gk' ? <span className="ml-1 text-xs">🧤</span> : null}
-            </span>
+              {p.name}            </span>
           </div>
         ))}
       </div>
@@ -642,9 +638,7 @@ function TeamCard({
           >
             <Avatar playerId={p.id} name={p.name} size={20} />
             <span className="flex-1 text-[11px] font-medium truncate text-fg">
-              {p.name}
-              {p.role === 'gk' ? <span className="text-[9px]">🧤</span> : null}
-            </span>
+              {p.name}            </span>
             <button
               type="button"
               className="text-muted hover:text-red-400 px-0.5 text-sm leading-none"
@@ -731,7 +725,6 @@ function AddPlayerSheet({
                   {onOtherVest ? <VestDot color={vests[onOtherVest].color} size={10} /> : null}
                   <span className="flex-1 text-fg">
                     {p.name}
-                    {p.role === 'gk' ? ' 🧤' : ''}
                   </span>
                   <span className="text-xs text-muted">
                     {onOtherVest

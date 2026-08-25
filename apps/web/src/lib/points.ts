@@ -1,7 +1,6 @@
 export interface StatRow {
   id: string;
   name: string;
-  role?: 'player' | 'gk';
   goals: number;
   assists: number;
   beautiful: number;
@@ -46,7 +45,6 @@ type Category =
   | 'assists'
   | 'beautiful'
   | 'bad'
-  | 'saves'
   | 'canetas'
   | 'quasegols';
 
@@ -75,7 +73,6 @@ export function bestOfEachCategory(rows: StatRow[]): BestEntry[] {
   pick('assists', (r) => r.assists);
   pick('beautiful', (r) => r.beautiful);
   pick('bad', (r) => r.bad);
-  pick('saves', (r) => r.saves);
   pick('canetas', (r) => r.canetas ?? 0);
   pick('quasegols', (r) => r.quasegols ?? 0);
   return out;

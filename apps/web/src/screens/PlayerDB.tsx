@@ -13,7 +13,6 @@ type Editing = {
   id?: string;
   name: string;
   type: 'season' | 'dropin';
-  role: 'player' | 'gk';
   skills: number[];
   is_admin: boolean;
   password: string; // blank = unchanged (edit) / no login (new)
@@ -26,7 +25,6 @@ type Editing = {
 const EMPTY: Editing = {
   name: '',
   type: 'dropin',
-  role: 'player',
   skills: [3, 3, 3, 3, 3, 3, 3, 3],
   is_admin: false,
   password: '',
@@ -38,7 +36,7 @@ export function PlayerDB() {
   const [editing, setEditing] = useState<Editing | null>(null);
   const [emergencyFor, setEmergencyFor] = useState<Player | null>(null);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<'all' | 'season' | 'dropin' | 'gk'>('all');
+  const [filter, setFilter] = useState<'all' | 'season' | 'dropin'>('all');
   const [menuOpen, setMenuOpen] = useState(false);
   const [vestsOpen, setVestsOpen] = useState(false);
   const t = useT();
@@ -54,7 +52,6 @@ export function PlayerDB() {
       const body: Parameters<typeof api.players.create>[0] = {
         name: e.name,
         type: e.type,
-        role: e.role,
         skills: e.skills,
         is_admin: e.is_admin,
         ...(e.password ? { password: e.password } : {}),
@@ -116,7 +113,6 @@ export function PlayerDB() {
     if (q && !p.name.toLowerCase().includes(q)) return false;
     if (filter === 'season') return p.type === 'season';
     if (filter === 'dropin') return p.type === 'dropin';
-    if (filter === 'gk') return p.role === 'gk';
     return true;
   });
 
@@ -124,7 +120,6 @@ export function PlayerDB() {
     ['all', t('players.filterAll')],
     ['season', t('players.season')],
     ['dropin', t('players.dropin')],
-    ['gk', t('players.goalkeepers')],
   ];
 
   return (
@@ -226,8 +221,7 @@ export function PlayerDB() {
                   ) : null}
                 </div>
                 <div className="text-xs text-muted truncate">
-                  {p.type === 'season' ? t('players.season') : t('players.dropin')} ·{' '}
-                  {p.role === 'gk' ? t('players.gk') : t('players.player')}
+                  {p.type === 'season' ? t('players.season') : t('players.dropin')}
                 </div>
                 {missing ? (
                   <div className="text-[11px] text-red-400 mt-0.5">⚠️ {t('players.noContact')}</div>
@@ -420,7 +414,6 @@ function toEditing(p: Player): Editing {
     id: p.id,
     name: p.name,
     type: p.type,
-    role: p.role,
     skills: [...p.skills],
     is_admin: !!p.is_admin,
     password: '',
@@ -549,28 +542,16 @@ function Modal({
             value={editing.name}
             onChange={(e) => onChange({ ...editing, name: e.target.value })}
           />
-          <div className="flex gap-2">
-            <select
-              className="flex-1 bg-bg3 border border-border rounded-lg px-3 py-2"
-              value={editing.type}
-              onChange={(e) =>
-                onChange({ ...editing, type: e.target.value as 'season' | 'dropin' })
-              }
-            >
-              <option value="season">{t('players.season')}</option>
-              <option value="dropin">{t('players.dropin')}</option>
-            </select>
-            <select
-              className="flex-1 bg-bg3 border border-border rounded-lg px-3 py-2"
-              value={editing.role}
-              onChange={(e) =>
-                onChange({ ...editing, role: e.target.value as 'player' | 'gk' })
-              }
-            >
-              <option value="player">{t('players.player')}</option>
-              <option value="gk">{t('players.gk')}</option>
-            </select>
-          </div>
+          <select
+            className="w-full bg-bg3 border border-border rounded-lg px-3 py-2"
+            value={editing.type}
+            onChange={(e) =>
+              onChange({ ...editing, type: e.target.value as 'season' | 'dropin' })
+            }
+          >
+            <option value="season">{t('players.season')}</option>
+            <option value="dropin">{t('players.dropin')}</option>
+          </select>
           <div className="space-y-2">
             {SKILLS.map((label, i) => (
               <SkillRow
