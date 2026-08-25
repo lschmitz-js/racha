@@ -465,7 +465,7 @@ const dict = {
 
     // events
     'event.goal': 'Gol',
-    'event.assist': 'Assist.',
+    'event.assist': 'Assistência',
     'event.beautiful': 'Jogada bonita',
     'event.bad': 'Cagada',
     'event.save': 'Defesa',
