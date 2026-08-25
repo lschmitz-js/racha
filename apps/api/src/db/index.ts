@@ -40,13 +40,19 @@ export function getDb(): DB {
   migratePlayerEmergency(db);
   migrateAuth(db);
 
-  process.on('SIGTERM', () => {
-    db.close();
-  });
-  process.on('SIGINT', () => {
-    db.close();
-    process.exit(0);
-  });
+  // Exit cleanly on both signals. SIGTERM is what `docker stop` and most
+  // process managers send — previously we only closed the DB without exiting,
+  // so the HTTP server kept the event loop alive and the container waited out
+  // its full stop-grace timeout on every deploy.
+  const shutdown = () => {
+    try {
+      db.close();
+    } finally {
+      process.exit(0);
+    }
+  };
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
 
   _db = db;
   return db;
