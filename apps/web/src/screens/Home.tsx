@@ -55,7 +55,7 @@ export function Home() {
 
   return (
     <div className="p-4 pb-28 space-y-5">
-      <header className="pt-2 pr-24">
+      <header>
         <h1 className="title-lg">{t('home.title')}</h1>
         <p className="text-sm text-muted">{t('home.subtitle')}</p>
       </header>

@@ -129,7 +129,7 @@ export function PlayerDB() {
 
   return (
     <div className="p-4 pb-28 space-y-4">
-      <header className="pr-24">
+      <header>
         <h1 className="title-lg">{t('players.title')}</h1>
         <p className="text-sm text-muted">{t('players.subtitle')}</p>
       </header>

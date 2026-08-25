@@ -20,3 +20,17 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </QueryClientProvider>
   </React.StrictMode>
 );
+
+// Fade out the index.html splash once the app has mounted (min ~500ms so it
+// doesn't just flash on fast loads).
+const SPLASH_MIN_MS = 500;
+const start = performance.now();
+requestAnimationFrame(() => {
+  const splash = document.getElementById('splash');
+  if (!splash) return;
+  const wait = Math.max(0, SPLASH_MIN_MS - (performance.now() - start));
+  setTimeout(() => {
+    splash.style.opacity = '0';
+    setTimeout(() => splash.remove(), 400);
+  }, wait);
+});

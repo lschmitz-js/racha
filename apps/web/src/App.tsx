@@ -83,7 +83,7 @@ function AppShell() {
   return (
     <div className={`min-h-full ${hideNav ? '' : 'pb-24'}`}>
       {hideNav ? null : (
-        <div className="fixed top-2 right-2 z-40 flex items-center gap-2">
+        <div className="flex items-center justify-end gap-2 px-4 pt-3 pb-1">
           <SignInButton />
           <LanguageToggle />
         </div>
