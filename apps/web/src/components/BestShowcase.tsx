@@ -7,11 +7,12 @@ const CAT_ICON: Record<BestEntry['category'], string> = {
   assists: '🅰',
   beautiful: '✨',
   bad: '💩',
+  saves: '🧤',
   canetas: '🪡',
   quasegols: '😱',
 };
 // Order of the stat-tile grid (mvp is the hero tile, rendered separately).
-const TILE_ORDER: BestEntry['category'][] = ['goals', 'assists', 'beautiful', 'canetas', 'bad'];
+const TILE_ORDER: BestEntry['category'][] = ['goals', 'assists', 'saves', 'beautiful', 'canetas', 'bad'];
 
 // MVP hero tile + a 2-col grid of icon-labeled stat tiles. Shared by the Stats
 // screen (season) and the completed-session recap (day).

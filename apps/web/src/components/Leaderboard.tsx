@@ -9,6 +9,7 @@ export type SortKey =
   | 'assists'
   | 'beautiful'
   | 'bad'
+  | 'saves'
   | 'canetas'
   | 'quasegols'
   | 'matches_played'
@@ -69,6 +70,7 @@ export function Leaderboard({
     { key: 'assists', label: 'A', tip: t('event.assist') },
     { key: 'beautiful', label: '✨', tip: t('event.beautiful') },
     { key: 'bad', label: '💩', tip: t('event.bad') },
+    { key: 'saves', label: '🧤', tip: t('event.save') },
     { key: 'canetas', label: '🪡', tip: t('event.caneta') },
     { key: 'quasegols', label: '😱', tip: t('event.quasegol') },
     ...(showMatches
@@ -131,6 +133,7 @@ export function Leaderboard({
               <td className="p-1 text-right tabular-nums">{r.assists}</td>
               <td className="p-1 text-right tabular-nums">{r.beautiful}</td>
               <td className="p-1 text-right tabular-nums">{r.bad}</td>
+              <td className="p-1 text-right tabular-nums">{r.saves}</td>
               <td className="p-1 text-right tabular-nums">{r.canetas ?? 0}</td>
               <td className="p-1 text-right tabular-nums">{r.quasegols ?? 0}</td>
               {showMatches ? (

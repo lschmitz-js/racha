@@ -14,6 +14,7 @@ const EVENT_TYPES: Array<{ type: EventType; icon: string }> = [
   { type: 'assist', icon: '🅰' },
   { type: 'beautiful', icon: '✨' },
   { type: 'caneta', icon: '🪡' },
+  { type: 'save', icon: '🧤' },
   { type: 'bad', icon: '💩' },
   { type: 'quasegol', icon: '😱' },
 ];

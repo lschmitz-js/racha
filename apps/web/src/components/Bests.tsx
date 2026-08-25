@@ -8,6 +8,7 @@ const CATEGORY_ICON: Record<BestEntry['category'], string> = {
   assists: '🅰',
   beautiful: '✨',
   bad: '💩',
+  saves: '🧤',
   canetas: '🪡',
   quasegols: '😱',
 };
