@@ -4,12 +4,12 @@ import { api } from '../lib/api.js';
 import { useT } from '../lib/i18n.js';
 import { Avatar } from '../lib/avatar.js';
 import { BestGrid } from '../components/Bests.js';
+import { BestShowcase } from '../components/BestShowcase.js';
 import { TopBoard } from '../components/TopBoard.js';
 import {
   bestOfEachCategory,
   calcPoints,
   fmtPoints,
-  type BestEntry,
   type StatRow,
 } from '../lib/points.js';
 
@@ -28,19 +28,6 @@ interface WeekRow {
   leaderboard: StatRow[];
 }
 
-const CAT_ICON: Record<BestEntry['category'], string> = {
-  mvp: '👑',
-  goals: '⚽',
-  assists: '🅰',
-  beautiful: '✨',
-  bad: '💩',
-  saves: '🧤',
-  canetas: '🪡',
-  quasegols: '😱',
-};
-// Order of the stat-tile grid (mvp is rendered separately as the hero tile).
-const TILE_ORDER: BestEntry['category'][] = ['goals', 'assists', 'saves', 'beautiful', 'canetas', 'bad'];
-
 export function Recap() {
   const seasonQ = useQuery({ queryKey: ['stats', 'season'], queryFn: api.stats.season });
   const weeksQ = useQuery({ queryKey: ['stats', 'weeks'], queryFn: api.stats.weeks });
@@ -56,10 +43,6 @@ export function Recap() {
     .map((r) => ({ ...r, points: calcPoints(r) }))
     .sort((a, b) => b.points - a.points);
   const bests = bestOfEachCategory(rows);
-  const mvp = bests.find((b) => b.category === 'mvp');
-  const tiles = TILE_ORDER.map((c) => bests.find((b) => b.category === c)).filter(
-    (b): b is BestEntry => !!b
-  );
 
   return (
     <div className="p-4 pb-28 space-y-5">
@@ -70,41 +53,8 @@ export function Recap() {
 
       {rows.length === 0 ? <div className="text-sm text-muted">{t('recap.noStats')}</div> : null}
 
-      {/* MVP hero tile */}
-      {mvp ? (
-        <div className="rounded-2xl border border-accent/40 bg-accent/[0.08] p-4 flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-accent/20 text-accent flex items-center justify-center text-2xl shrink-0">
-            👑
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="tile-label text-accent">{t('recap.mvpSeason')}</div>
-            <div className="text-lg font-bold truncate">
-              {mvp.players.map((p) => p.name).join(', ')}
-            </div>
-          </div>
-          <div className="text-2xl font-bold tabular-nums text-accent">{fmtPoints(mvp.value)}</div>
-        </div>
-      ) : null}
+      <BestShowcase bests={bests} mvpLabel={t('recap.mvpSeason')} />
 
-      {/* Stat tiles */}
-      {tiles.length > 0 ? (
-        <div className="grid grid-cols-2 gap-2">
-          {tiles.map((b) => (
-            <div key={b.category} className="stat-tile">
-              <div className="tile-label">
-                <span>{CAT_ICON[b.category]}</span>
-                <span>{t(`recap.cat.${b.category}`)}</span>
-              </div>
-              <div className="font-semibold truncate">
-                {b.players.map((p) => p.name).join(', ')}
-              </div>
-              <div className="text-xs text-muted">
-                {b.value} {t(`recap.unit.${b.category}` as any)}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : null}
 
       {/* Season leaderboard */}
       {leaderboard.length > 0 ? (

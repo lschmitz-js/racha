@@ -2,20 +2,48 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { useMemo, useState } from 'react';
 import { api } from '../lib/api.js';
-import { useT } from '../lib/i18n.js';
+import { useI18n, useT } from '../lib/i18n.js';
 import { useCanEdit } from '../lib/auth.js';
 import { Avatar } from '../lib/avatar.js';
-import { BestGrid } from '../components/Bests.js';
 import { Leaderboard } from '../components/Leaderboard.js';
+import { BestShowcase } from '../components/BestShowcase.js';
 import { bestOfEachCategory, calcPoints, type StatRow } from '../lib/points.js';
 import { calcScore, type Player, type Vest } from '@racha/shared';
 import { useVests, pillStyle, panelStyle, VestDot } from '../lib/vests.js';
+
+function fmtSessionDate(date: string, locale: string): string {
+  const d = new Date(date);
+  return isNaN(d.getTime())
+    ? date
+    : d.toLocaleDateString(locale, { weekday: 'long', month: 'short', day: 'numeric' });
+}
+
+function StatusPill({ status }: { status: string }) {
+  const t = useT();
+  const done = status === 'done';
+  const live = status === 'live';
+  return (
+    <span
+      className={`text-[11px] px-2 py-0.5 rounded-full border ${
+        done
+          ? 'text-accent border-accent/40 bg-accent/10'
+          : live
+          ? 'text-amber-300 border-amber-500/40 bg-amber-500/10'
+          : 'text-muted border-border'
+      }`}
+    >
+      {t(`status.${status as 'draft' | 'live' | 'done'}`)}
+    </span>
+  );
+}
 
 export function Session({ params }: { params: { id: string } }) {
   const sessionId = params.id;
   const [, setLocation] = useLocation();
   const qc = useQueryClient();
   const t = useT();
+  const { lang } = useI18n();
+  const locale = lang === 'pt' ? 'pt-BR' : 'en-US';
   const vests = useVests();
   const canEdit = useCanEdit();
 
@@ -120,14 +148,17 @@ export function Session({ params }: { params: { id: string } }) {
 
   return (
     <div className="p-4 pb-48 space-y-4">
-      <header className="flex items-center justify-between">
-        <div>
-          <button className="text-sm text-muted" onClick={() => setLocation('/')}>
-            {t('common.home')}
-          </button>
-          <h1 className="text-xl font-bold">{data.session.date}</h1>
-          <span className="text-xs text-muted">{t(`status.${data.session.status as 'draft' | 'live' | 'done'}`)}</span>
+      <header className="space-y-1">
+        <button className="text-sm text-muted hover:text-fg" onClick={() => setLocation('/')}>
+          {t('common.home')}
+        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <h1 className="title-lg capitalize">{fmtSessionDate(data.session.date, locale)}</h1>
+          <StatusPill status={data.session.status} />
         </div>
+        {data.session.status === 'done' && matches.length > 0 ? (
+          <p className="text-sm text-muted">{t('session.matchesPlayed', { n: matches.length })}</p>
+        ) : null}
       </header>
 
       {data.session.status !== 'done' && latePlayers.length > 0 ? (
@@ -429,9 +460,11 @@ function DoneSessionLayout({
   return (
     <>
       <section>
-        <h2 className="text-lg font-semibold mb-2">{t('recap.bestOfDay')}</h2>
+        <div className="section-head">
+          <h2 className="font-semibold">{t('recap.bestOfDay')}</h2>
+        </div>
         {recap && bests.length > 0 ? (
-          <BestGrid bests={bests} />
+          <BestShowcase bests={bests} />
         ) : (
           <div className="card text-sm text-muted">{t('recap.noStats')}</div>
         )}
@@ -439,33 +472,53 @@ function DoneSessionLayout({
 
       {leaderboardRows.length > 0 ? (
         <section>
-          <h2 className="text-lg font-semibold mb-2">{t('recap.leaderboard')}</h2>
+          <div className="section-head">
+            <h2 className="font-semibold">{t('recap.leaderboard')}</h2>
+          </div>
           <Leaderboard rows={leaderboardRows} showMatches={false} showSessions={false} />
         </section>
       ) : null}
 
       {matches.length > 0 ? (
         <section>
-          <h2 className="text-lg font-semibold mb-2">{t('session.matchesTonight')}</h2>
-          <div className="space-y-1">
-            {matches.map((m) => (
-              <button
-                key={m.id}
-                className="card w-full flex items-center justify-between hover:border-accent"
-                onClick={() => onOpenMatch(m.id)}
-              >
-                <span>{t('session.matchN', { n: m.ordinal })}</span>
-                <span className="text-xs text-muted">
-                  {t(`status.${m.status as 'pending' | 'running' | 'paused' | 'done'}`)}
-                </span>
-              </button>
-            ))}
+          <div className="section-head">
+            <h2 className="font-semibold">{t('session.matchesTonight')}</h2>
+            <span className="text-xs text-muted">{t('session.matchesTotal', { n: matches.length })}</span>
+          </div>
+          <div className="space-y-1.5">
+            {matches.map((m) => {
+              const done = m.status === 'done';
+              return (
+                <button
+                  key={m.id}
+                  className="card w-full flex items-center gap-3 hover:border-accent/50 transition"
+                  onClick={() => onOpenMatch(m.id)}
+                >
+                  <span className="w-6 h-6 shrink-0 rounded-md bg-bg3 border border-border flex items-center justify-center text-xs font-bold">
+                    {m.ordinal}
+                  </span>
+                  <span className="flex-1 text-left font-medium">
+                    {t('session.matchN', { n: m.ordinal })}
+                  </span>
+                  <span
+                    className={`text-[11px] px-2 py-0.5 rounded-full border ${
+                      done ? 'text-accent border-accent/40 bg-accent/10' : 'text-muted border-border'
+                    }`}
+                  >
+                    {t(`status.${m.status as 'pending' | 'running' | 'paused' | 'done'}`)}
+                  </span>
+                  <span className="text-muted">›</span>
+                </button>
+              );
+            })}
           </div>
         </section>
       ) : null}
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold">{t('session.teams')}</h2>
+        <div className="section-head">
+          <h2 className="font-semibold">{t('session.teams')}</h2>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           {teams.map((tm) => (
             <ReadOnlyTeamCard
