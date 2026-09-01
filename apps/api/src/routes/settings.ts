@@ -2,10 +2,13 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { getDb } from '../db/index.js';
 
-// App settings. Currently the vest colours: the three team "slots" stay
-// white/black/green internally, but each maps to a display colour + label the
-// organizer can configure. GET is public (every device needs the colours);
+// App settings (key/value JSON blobs). GET is public (every device needs these);
 // PUT is admin-gated by the global write gate in server.ts.
+//   vests   — the three team "slots" stay white/black/green internally, each
+//             mapping to a display colour + label the organizer can configure.
+//   contact — organizer-editable copy shown on the Rules screen (e-Transfer
+//             address + site URL). Kept here, in the DB, so it is NOT hardcoded
+//             in the (public) source.
 export const settings = new Hono();
 
 const DEFAULT_VESTS = {
@@ -13,6 +16,7 @@ const DEFAULT_VESTS = {
   black: { color: '#111827', label: 'Black' },
   green: { color: '#16a34a', label: 'Green' },
 };
+const DEFAULT_CONTACT = { etransfer: '', siteUrl: '' };
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const VestSlot = z.object({
@@ -24,30 +28,48 @@ const VestsInput = z.object({
   black: VestSlot,
   green: VestSlot,
 });
+const ContactInput = z.object({
+  etransfer: z.string().trim().max(120),
+  siteUrl: z.string().trim().max(200),
+});
 
-function readVests() {
-  const row = getDb().prepare("SELECT value FROM settings WHERE key = 'vests'").get() as
+function readJson<T>(key: string, fallback: T): T {
+  const row = getDb().prepare('SELECT value FROM settings WHERE key = ?').get(key) as
     | { value: string }
     | undefined;
-  if (!row) return DEFAULT_VESTS;
+  if (!row) return fallback;
   try {
-    return { ...DEFAULT_VESTS, ...JSON.parse(row.value) };
+    return { ...fallback, ...JSON.parse(row.value) };
   } catch {
-    return DEFAULT_VESTS;
+    return fallback;
   }
 }
 
-settings.get('/', (c) => {
-  return c.json({ vests: readVests() });
-});
-
-settings.put('/', async (c) => {
-  const body = z.object({ vests: VestsInput }).parse(await c.req.json());
+function writeJson(key: string, value: unknown) {
   getDb()
     .prepare(
-      `INSERT INTO settings (key, value, updated_at) VALUES ('vests', ?, ?)
+      `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
     )
-    .run(JSON.stringify(body.vests), Date.now());
-  return c.json({ vests: body.vests });
+    .run(key, JSON.stringify(value), Date.now());
+}
+
+settings.get('/', (c) => {
+  return c.json({
+    vests: readJson('vests', DEFAULT_VESTS),
+    contact: readJson('contact', DEFAULT_CONTACT),
+  });
+});
+
+// Accepts either or both of { vests, contact }; updates whichever is present.
+settings.put('/', async (c) => {
+  const body = z
+    .object({ vests: VestsInput.optional(), contact: ContactInput.optional() })
+    .parse(await c.req.json());
+  if (body.vests) writeJson('vests', body.vests);
+  if (body.contact) writeJson('contact', body.contact);
+  return c.json({
+    vests: readJson('vests', DEFAULT_VESTS),
+    contact: readJson('contact', DEFAULT_CONTACT),
+  });
 });

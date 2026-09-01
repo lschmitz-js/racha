@@ -216,8 +216,13 @@ const dict = {
     'players.none': 'No players found.',
     'players.remove': 'Remove player',
     'players.vestColours': 'Vest colours',
+    'players.contactInfo': 'Contact & payment',
     'settings.vestsTitle': 'Vest colours',
     'settings.vestsHint': 'Pick a colour for each of the three teams.',
+    'settings.contactTitle': 'Contact & payment',
+    'settings.contactHint': 'Shown on the Rules screen. Stored in the app, not the source code.',
+    'settings.etransfer': 'e-Transfer email',
+    'settings.siteUrl': 'Site URL',
     'settings.vestSlot': 'Team {n}',
 
     // emergency contacts
@@ -280,6 +285,8 @@ const dict = {
     'rules.title': 'Racha de Segunda',
     'rules.subtitle': 'Official Guidelines & Rules',
     'rules.rosterEmpty': 'No season players yet — add them in the Players tab.',
+    'rules.thisApp': 'this app',
+    'rules.askOrganizer': 'ask the organizer',
 
     // admin event editor
     'admin.editEvents': 'Edit events',
@@ -550,8 +557,13 @@ const dict = {
     'players.none': 'Nenhum jogador encontrado.',
     'players.remove': 'Remover jogador',
     'players.vestColours': 'Cores dos coletes',
+    'players.contactInfo': 'Contato & pagamento',
     'settings.vestsTitle': 'Cores dos coletes',
     'settings.vestsHint': 'Escolha uma cor para cada um dos três times.',
+    'settings.contactTitle': 'Contato & pagamento',
+    'settings.contactHint': 'Mostrado na tela de Regras. Guardado no app, não no código-fonte.',
+    'settings.etransfer': 'E-mail do e-Transfer',
+    'settings.siteUrl': 'URL do site',
     'settings.vestSlot': 'Time {n}',
 
     // emergency contacts
@@ -616,6 +628,8 @@ const dict = {
     'rules.title': 'Racha de Segunda',
     'rules.subtitle': 'Diretrizes & Regras Oficiais',
     'rules.rosterEmpty': 'Nenhum jogador fixo ainda — adicione na aba Jogadores.',
+    'rules.thisApp': 'o app',
+    'rules.askOrganizer': 'consulte o organizador',
 
     // admin event editor
     'admin.editEvents': 'Editar eventos',

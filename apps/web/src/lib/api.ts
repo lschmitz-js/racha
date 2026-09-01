@@ -80,11 +80,19 @@ export const api = {
 
   settings: {
     get: () =>
-      request<{ vests: Record<string, { color: string; label: string }> }>(`/api/settings`),
+      request<{
+        vests: Record<string, { color: string; label: string }>;
+        contact: { etransfer: string; siteUrl: string };
+      }>(`/api/settings`),
     updateVests: (vests: Record<string, { color: string; label: string }>) =>
       request<{ vests: Record<string, { color: string; label: string }> }>(`/api/settings`, {
         method: 'PUT',
         body: JSON.stringify({ vests }),
+      }),
+    updateContact: (contact: { etransfer: string; siteUrl: string }) =>
+      request<{ contact: { etransfer: string; siteUrl: string } }>(`/api/settings`, {
+        method: 'PUT',
+        body: JSON.stringify({ contact }),
       }),
   },
 

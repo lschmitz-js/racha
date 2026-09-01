@@ -126,7 +126,7 @@ const en: RulesDoc = [
         blocks: [
           {
             t: 'p',
-            text: 'We use racha.lbschmitz.ca strictly to balance and draw teams, track player levels/skills, and log match scores and individual stats.',
+            text: 'We use {siteUrl} strictly to balance and draw teams, track player levels/skills, and log match scores and individual stats.',
           },
         ],
       },
@@ -368,7 +368,7 @@ const en: RulesDoc = [
               { k: 'Fee', v: '$10 CAD' },
               { k: 'Deadline', v: 'Before the game starts — no pay, no play' },
               { k: 'Methods', v: 'Cash or e-Transfer' },
-              { k: 'e-Transfer', v: 'RachaPay@duck.com' },
+              { k: 'e-Transfer', v: '{etransfer}' },
             ],
           },
         ],
@@ -468,7 +468,7 @@ const pt: RulesDoc = [
         blocks: [
           {
             t: 'p',
-            text: 'Usamos o racha.lbschmitz.ca apenas para balancear e sortear os times, acompanhar o nível/skills dos jogadores e registrar placares e estatísticas individuais.',
+            text: 'Usamos o {siteUrl} apenas para balancear e sortear os times, acompanhar o nível/skills dos jogadores e registrar placares e estatísticas individuais.',
           },
         ],
       },
@@ -710,7 +710,7 @@ const pt: RulesDoc = [
               { k: 'Taxa', v: '$10 CAD' },
               { k: 'Prazo', v: 'Antes do jogo começar — sem pagar, sem jogar' },
               { k: 'Formas', v: 'Dinheiro ou e-Transfer' },
-              { k: 'e-Transfer', v: 'RachaPay@duck.com' },
+              { k: 'e-Transfer', v: '{etransfer}' },
             ],
           },
         ],

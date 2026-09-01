@@ -1,22 +1,31 @@
 import { useQuery } from '@tanstack/react-query';
 import { useI18n, useT } from '../lib/i18n.js';
 import { api } from '../lib/api.js';
+import { useContact } from '../lib/contact.js';
 import { rulesDoc, type Block } from './rules-content.js';
 
 // `roster` is the live season roster from the database; chips blocks render it
 // so the "Official Season Roster" stays in sync with the Players tab instead of
 // a hardcoded list. Falls back to the block's built-in items until data loads.
-function BlockView({ block, roster }: { block: Block; roster: string[] }) {
+function BlockView({
+  block,
+  roster,
+  sub,
+}: {
+  block: Block;
+  roster: string[];
+  sub: (s: string) => string;
+}) {
   const rosterEmpty = useT()('rules.rosterEmpty');
   switch (block.t) {
     case 'p':
-      return <p className="text-sm text-fg/90 leading-relaxed">{block.text}</p>;
+      return <p className="text-sm text-fg/90 leading-relaxed">{sub(block.text)}</p>;
 
     case 'list':
       return block.ordered ? (
         <ol className="list-decimal pl-5 space-y-1 text-sm text-fg/90 leading-relaxed marker:text-muted">
           {block.items.map((it, i) => (
-            <li key={i}>{it}</li>
+            <li key={i}>{sub(it)}</li>
           ))}
         </ol>
       ) : (
@@ -24,7 +33,7 @@ function BlockView({ block, roster }: { block: Block; roster: string[] }) {
           {block.items.map((it, i) => (
             <li key={i} className="flex gap-2">
               <span className="text-accent mt-px">›</span>
-              <span>{it}</span>
+              <span>{sub(it)}</span>
             </li>
           ))}
         </ul>
@@ -33,9 +42,9 @@ function BlockView({ block, roster }: { block: Block; roster: string[] }) {
     case 'sub':
       return (
         <div className="space-y-2 border-l-2 border-border pl-3">
-          <h4 className="text-sm font-semibold text-fg">{block.title}</h4>
+          <h4 className="text-sm font-semibold text-fg">{sub(block.title)}</h4>
           {block.blocks.map((b, i) => (
-            <BlockView key={i} block={b} roster={roster} />
+            <BlockView key={i} block={b} roster={roster} sub={sub} />
           ))}
         </div>
       );
@@ -51,7 +60,7 @@ function BlockView({ block, roster }: { block: Block; roster: string[] }) {
           }`}
         >
           <span className="mr-1">{warn ? '⚠️' : 'ℹ️'}</span>
-          {block.text}
+          {sub(block.text)}
         </div>
       );
     }
@@ -61,8 +70,8 @@ function BlockView({ block, roster }: { block: Block; roster: string[] }) {
         <dl className="space-y-1.5">
           {block.rows.map((r, i) => (
             <div key={i} className="flex gap-3 text-sm">
-              <dt className="w-28 shrink-0 text-muted">{r.k}</dt>
-              <dd className="font-medium text-fg">{r.v}</dd>
+              <dt className="w-28 shrink-0 text-muted">{sub(r.k)}</dt>
+              <dd className="font-medium text-fg">{sub(r.v)}</dd>
             </div>
           ))}
         </dl>
@@ -91,7 +100,7 @@ function BlockView({ block, roster }: { block: Block; roster: string[] }) {
     case 'code':
       return (
         <pre className="whitespace-pre-wrap break-words rounded-lg border border-border bg-bg3 px-3 py-2 text-xs text-fg/90 font-mono leading-relaxed">
-          {block.text}
+          {sub(block.text)}
         </pre>
       );
 
@@ -111,6 +120,17 @@ export function Rules() {
     .filter((p) => p.type === 'season' && p.active)
     .map((p) => p.name);
 
+  // Contact/payment copy comes from settings (DB), not source. Fill the
+  // {siteUrl} / {etransfer} tokens in the rules text, with neutral fallbacks
+  // until the organizer sets them in the app.
+  const contact = useContact();
+  const vars: Record<string, string> = {
+    siteUrl: contact.siteUrl.trim() || t('rules.thisApp'),
+    etransfer: contact.etransfer.trim() || t('rules.askOrganizer'),
+  };
+  const sub = (s: string) =>
+    s.replace(/\{(siteUrl|etransfer)\}/g, (_, k) => vars[k] ?? `{${k}}`);
+
   return (
     <div className="p-4 pb-32 space-y-4 max-w-2xl mx-auto">
       <header className="pt-6 pb-1 text-center">
@@ -128,7 +148,7 @@ export function Rules() {
           </summary>
           <div className="mt-3 space-y-3">
             {section.blocks.map((b, j) => (
-              <BlockView key={j} block={b} roster={roster} />
+              <BlockView key={j} block={b} roster={roster} sub={sub} />
             ))}
           </div>
         </details>

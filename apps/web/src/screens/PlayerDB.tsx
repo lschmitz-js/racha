@@ -5,6 +5,7 @@ import { Link } from 'wouter';
 import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../lib/api.js';
 import { VestSettings } from '../components/VestSettings.js';
+import { ContactSettings } from '../components/ContactSettings.js';
 import { useT } from '../lib/i18n.js';
 import { useCanEdit } from '../lib/auth.js';
 import { Avatar, resizeImageToBlob } from '../lib/avatar.js';
@@ -39,6 +40,7 @@ export function PlayerDB() {
   const [filter, setFilter] = useState<'all' | 'season' | 'dropin'>('all');
   const [menuOpen, setMenuOpen] = useState(false);
   const [vestsOpen, setVestsOpen] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
   const t = useT();
   const canEdit = useCanEdit();
   const emergencyStatusQ = useQuery({
@@ -157,6 +159,9 @@ export function PlayerDB() {
                   </Link>
                   <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-bg3" onClick={() => { setMenuOpen(false); setVestsOpen(true); }}>
                     🎽 {t('players.vestColours')}
+                  </button>
+                  <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-bg3" onClick={() => { setMenuOpen(false); setContactOpen(true); }}>
+                    💳 {t('players.contactInfo')}
                   </button>
                   <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-bg3" onClick={() => { setMenuOpen(false); handleExportEmergency(); }}>
                     🚨 {t('emergency.exportCsv')}
@@ -285,6 +290,7 @@ export function PlayerDB() {
       ) : null}
 
       {vestsOpen ? <VestSettings onClose={() => setVestsOpen(false)} /> : null}
+      {contactOpen ? <ContactSettings onClose={() => setContactOpen(false)} /> : null}
     </div>
   );
 }
