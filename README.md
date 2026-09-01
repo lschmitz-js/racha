@@ -3,8 +3,7 @@
 A small, installable web app for a Monday-night 5-a-side pickup group: balanced
 3-team draws, a live match clock with winner-stays rotation, per-event stat
 tracking, season/all-time leaderboards, an in-app emergency-contact system, and
-a full bilingual (Português / English) rulebook. Runs live at
-[racha.lbschmitz.ca](https://racha.lbschmitz.ca).
+a full bilingual (Português / English) rulebook.
 
 ## Features
 
@@ -125,9 +124,9 @@ tar czf racha-$(date +%F).tgz -C /tmp racha.db -C data avatars
 ```
 
 [`scripts/racha-backup.sh`](scripts/racha-backup.sh) does exactly this —
-snapshot, integrity check, tar with avatars, timestamped rotation (keep 30) — and
-is what the production instance runs on a nightly cron, mirroring the newest
-archive off-box. Point it at your stack with `RACHA_DIR`:
+snapshot, integrity check, tar with avatars, timestamped rotation (keep 30).
+Run it from a nightly cron and mirror the newest archive off-box. Point it at
+your stack with `RACHA_DIR`:
 
 ```sh
 # nightly at 03:17, as root

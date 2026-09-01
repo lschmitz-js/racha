@@ -157,12 +157,12 @@
 
   <!-- arrow phone → DNS -->
   <line x1="360" y1="84" x2="360" y2="118" stroke="#9a9a9a" stroke-width="1.5" marker-end="url(#arrow)"/>
-  <text x="370" y="106" fill="#22c55e" font-size="11">https://racha.lbschmitz.ca</text>
+  <text x="370" y="106" fill="#22c55e" font-size="11">https://your-domain</text>
 
   <!-- DNS -->
   <rect x="240" y="120" width="240" height="52" rx="10" fill="#141414" stroke="#2a2a2a"/>
-  <text x="360" y="142" fill="#e7e7e7" text-anchor="middle" font-size="13">DNS → 34.67.203.76</text>
-  <text x="360" y="160" fill="#9a9a9a" text-anchor="middle" font-size="11">Domain: lbschmitz.ca</text>
+  <text x="360" y="142" fill="#e7e7e7" text-anchor="middle" font-size="13">DNS → Cloudflare → origin VM</text>
+  <text x="360" y="160" fill="#9a9a9a" text-anchor="middle" font-size="11">Domain: your-domain</text>
 
   <!-- arrow DNS → VM -->
   <line x1="360" y1="172" x2="360" y2="204" stroke="#9a9a9a" stroke-width="1.5" marker-end="url(#arrow)"/>
@@ -343,9 +343,9 @@
   </thead>
   <tbody>
     <tr><td>Local dev</td><td><code>npm run dev</code> — Vite on :5173 proxying to API on :8080</td></tr>
-    <tr><td>Run tests</td><td><code>npm test --workspace=packages/shared</code></td></tr>
+    <tr><td>Run tests</td><td><code>npm test</code></td></tr>
     <tr><td>Push a change</td><td><code>git push</code> from laptop, then <code>git pull && docker compose up -d --build</code> on VM</td></tr>
-    <tr><td>Backup the DB</td><td><code>scp racha:/home/leoschmitz/racha/data/racha.db .</code></td></tr>
+    <tr><td>Backup the DB</td><td><code>scripts/racha-backup.sh</code> (snapshot DB + avatars)</td></tr>
     <tr><td>Tail logs</td><td><code>sudo docker compose logs -f</code></td></tr>
     <tr><td>Move to a new host</td><td><code>docker compose up -d</code> + restore <code>data/racha.db</code></td></tr>
   </tbody>
