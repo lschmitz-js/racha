@@ -778,10 +778,6 @@ function PostMatchPanel({
     mutationFn: api.matches.create,
     onSuccess: (m: any) => setLocation(`/matches/${m.id}`),
   });
-  const assign = useMutation({
-    mutationFn: ({ teamId, playerId }: { teamId: string; playerId: string }) =>
-      api.sessions.assignPlayerToTeam(sessionId, teamId, playerId),
-  });
 
   // The team about to sit (the "losers"): its players are the pool that can top
   // up a short incoming bench team, per the winner-stays rules.
@@ -801,7 +797,7 @@ function PostMatchPanel({
   // Reset the fill picks whenever the who-stays choice changes.
   useEffect(() => setFillIds(new Set()), [stayPicked, benchSwap]);
 
-  async function next() {
+  function next() {
     // On a draw there is no winner: the team you pick benches (benchSwap), the
     // other one stays, and the current bench team comes on. On a decisive result
     // the winner stays and the loser sits.
@@ -817,18 +813,14 @@ function PostMatchPanel({
       dropOut = loserTeam?.id;
     }
     if (!stayId || !dropOut) return;
-    // Top up the incoming (short) bench team from the losers first, so the new
-    // match snapshots the filled lineup.
-    for (const pid of fillIds) {
-      if (outTeam?.player_ids.includes(pid)) {
-        await assign.mutateAsync({ teamId: benchTeam.id, playerId: pid });
-      }
-    }
+    // The server returns the benched team's borrowed players home, then tops up
+    // the incoming team from the losers by whatever it still needs — all atomic.
     createMatch.mutate({
       session_id: sessionId,
       team_a_id: stayId,
       team_b_id: benchTeam.id,
       bench_team_id: dropOut,
+      borrow: fillIds.size ? { player_ids: [...fillIds] } : undefined,
     });
   }
 
@@ -933,12 +925,7 @@ function PostMatchPanel({
 
       <button
         className="w-full rounded-xl py-3 font-semibold bg-bg3 border-2 border-border text-fg flex items-center justify-center gap-2 transition enabled:hover:border-accent active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
-        disabled={
-          !stayPicked ||
-          (stayPicked === 'draw' && !benchSwap) ||
-          createMatch.isPending ||
-          assign.isPending
-        }
+        disabled={!stayPicked || (stayPicked === 'draw' && !benchSwap) || createMatch.isPending}
         onClick={next}
       >
         <VestDot color={vests[benchTeam.vest].color} />

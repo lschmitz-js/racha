@@ -140,3 +140,19 @@ CREATE TABLE IF NOT EXISTS checkins (
   UNIQUE(game_date, player_id)
 );
 CREATE INDEX IF NOT EXISTS idx_checkins_date ON checkins(game_date);
+
+-- Player loans between teams during a session's winner-stays rotation. When a
+-- short team borrows players from the team that just left, a loan records where
+-- each player should return to. A borrowed player stays while the borrower keeps
+-- winning; when the borrower goes to the bench (loses / steps off), the loan is
+-- closed and the player moves back to home_team_id.
+CREATE TABLE IF NOT EXISTS team_loans (
+  id               TEXT PRIMARY KEY,
+  session_id       TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  player_id        TEXT NOT NULL,
+  home_team_id     TEXT NOT NULL,
+  borrower_team_id TEXT NOT NULL,
+  created_at       INTEGER NOT NULL,
+  returned_at      INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_loans_active ON team_loans(session_id, borrower_team_id) WHERE returned_at IS NULL;

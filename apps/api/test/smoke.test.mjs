@@ -158,6 +158,43 @@ test('check-in: season only, public, toggle to clear', async () => {
   assert.equal((await api('/api/checkin', { method: 'POST', body: JSON.stringify({ player_id: 'nope', status: 'in' }) })).status, 404);
 });
 
+test('team loans: borrow tops up a short team, return-on-loss sends them home', async () => {
+  // 12 season players -> the draw makes white/black 5 each and green 2.
+  const ids = [];
+  for (let i = 0; i < 12; i++) {
+    const p = await (
+      await api('/api/players', { method: 'POST', headers: M, body: JSON.stringify(newPlayer({ name: 'Loan' + i, type: 'season' })) })
+    ).json();
+    ids.push(p.id);
+  }
+  const s = await (await api('/api/sessions', { method: 'POST', headers: M, body: JSON.stringify({ player_ids: ids }) })).json();
+  const drawn = await (await api('/api/sessions/' + s.id + '/draw', { method: 'POST', headers: M, body: JSON.stringify({}) })).json();
+  const team = (v) => drawn.teams.find((t) => t.vest === v);
+  const white = team('white'), black = team('black'), green = team('green');
+  assert.equal(green.player_ids.length, 2, 'green starts short (2)');
+
+  const sizeOf = (full, v) => full.teams.find((t) => t.vest === v).player_ids.length;
+  const post = (body) => api('/api/matches', { method: 'POST', headers: M, body: JSON.stringify(body) });
+
+  // Match 1: white v black, green benched.
+  await post({ session_id: s.id, team_a_id: white.id, team_b_id: black.id, bench_team_id: green.id });
+
+  // Match 2: white stays, green comes on and borrows 3 from black (the losers).
+  await post({
+    session_id: s.id, team_a_id: white.id, team_b_id: green.id, bench_team_id: black.id,
+    borrow: { player_ids: black.player_ids.slice(0, 3) },
+  });
+  let full = await (await api('/api/sessions/' + s.id)).json();
+  assert.equal(sizeOf(full, 'green'), 5, 'green topped up to 5');
+  assert.equal(sizeOf(full, 'black'), 2, 'black lent 3 away');
+
+  // Match 3: green loses -> green benched. Its borrowed players return to black.
+  await post({ session_id: s.id, team_a_id: white.id, team_b_id: black.id, bench_team_id: green.id });
+  full = await (await api('/api/sessions/' + s.id)).json();
+  assert.equal(sizeOf(full, 'black'), 5, 'black got its 3 back when green lost');
+  assert.equal(sizeOf(full, 'green'), 2, 'green back to its originals');
+});
+
 test('invalid input -> 400 (not 500)', async () => {
   assert.equal(
     (await api('/api/players', { method: 'POST', headers: M, body: JSON.stringify({ name: '' }) })).status,

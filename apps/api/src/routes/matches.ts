@@ -25,6 +25,10 @@ const CreateMatchInput = z.object({
   team_a_id: z.string(),
   team_b_id: z.string(),
   bench_team_id: z.string(),
+  // Players to lend into team B (the team coming on) from the team going to the
+  // bench, to top it up to five. Applied server-side after loan returns, capped
+  // at what's actually needed.
+  borrow: z.object({ player_ids: z.array(z.string()) }).optional(),
 });
 
 matches.post('/', async (c) => {
@@ -45,13 +49,79 @@ matches.post('/', async (c) => {
     .get(body.session_id) as { n: number };
   const ordinal = max.n + 1;
 
+  const now = Date.now();
+
+  // Move a player onto a team within this session (removing them from any other
+  // team first). Used by the loan return + borrow steps below.
+  const sessionTeamIds = (
+    db.prepare('SELECT id FROM session_teams WHERE session_id = ?').all(body.session_id) as {
+      id: string;
+    }[]
+  ).map((r) => r.id);
+  const teamIdPlaceholders = sessionTeamIds.map(() => '?').join(',');
+  const removeFromTeams = db.prepare(
+    `DELETE FROM session_team_players WHERE player_id = ? AND session_team_id IN (${teamIdPlaceholders})`
+  );
+  const addToTeam = db.prepare(
+    'INSERT OR IGNORE INTO session_team_players (session_team_id, player_id) VALUES (?, ?)'
+  );
+  const moveToTeam = (playerId: string, toTeamId: string) => {
+    removeFromTeams.run(playerId, ...sessionTeamIds);
+    addToTeam.run(toTeamId, playerId);
+  };
+  const teamCount = db.prepare(
+    'SELECT COUNT(*) AS c FROM session_team_players WHERE session_team_id = ?'
+  );
+
   const tx = db.transaction(() => {
+    // 1) Return: the team going to the bench gives back everything it borrowed —
+    //    winners keep their borrowed players, the team that steps off returns them.
+    const loans = db
+      .prepare(
+        `SELECT id, player_id, home_team_id FROM team_loans
+          WHERE session_id = ? AND borrower_team_id = ? AND returned_at IS NULL`
+      )
+      .all(body.session_id, body.bench_team_id) as {
+      id: string;
+      player_id: string;
+      home_team_id: string;
+    }[];
+    const closeLoan = db.prepare('UPDATE team_loans SET returned_at = ? WHERE id = ?');
+    for (const loan of loans) {
+      moveToTeam(loan.player_id, loan.home_team_id);
+      closeLoan.run(now, loan.id);
+    }
+
+    // 2) Borrow: top team B up to five from the team going to the bench, but only
+    //    by however much it still needs after the returns above.
+    if (body.borrow && body.borrow.player_ids.length) {
+      let needed = Math.max(0, 5 - (teamCount.get(body.team_b_id) as { c: number }).c);
+      const inBench = new Set(
+        (
+          db
+            .prepare('SELECT player_id FROM session_team_players WHERE session_team_id = ?')
+            .all(body.bench_team_id) as { player_id: string }[]
+        ).map((r) => r.player_id)
+      );
+      const insLoan = db.prepare(
+        `INSERT INTO team_loans (id, session_id, player_id, home_team_id, borrower_team_id, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`
+      );
+      for (const pid of body.borrow.player_ids) {
+        if (needed <= 0) break;
+        if (!inBench.has(pid)) continue;
+        moveToTeam(pid, body.team_b_id);
+        insLoan.run(uid(), body.session_id, pid, body.bench_team_id, body.team_b_id, now);
+        needed--;
+      }
+    }
+
     db.prepare(
       `INSERT INTO matches (id, session_id, ordinal, team_a_id, team_b_id, bench_team_id)
        VALUES (?, ?, ?, ?, ?, ?)`
     ).run(id, body.session_id, ordinal, body.team_a_id, body.team_b_id, body.bench_team_id);
 
-    // Lineup = all players on team A and team B at draw time (starting=1)
+    // Lineup = all players on team A and team B (starting=1), after the moves above.
     const teamPlayers = db.prepare(
       'SELECT player_id FROM session_team_players WHERE session_team_id = ?'
     );

@@ -221,8 +221,13 @@ export const api = {
   },
 
   matches: {
-    create: (input: { session_id: string; team_a_id: string; team_b_id: string; bench_team_id: string }) =>
-      request<any>(`/api/matches`, { method: 'POST', body: JSON.stringify(input) }),
+    create: (input: {
+      session_id: string;
+      team_a_id: string;
+      team_b_id: string;
+      bench_team_id: string;
+      borrow?: { player_ids: string[] };
+    }) => request<any>(`/api/matches`, { method: 'POST', body: JSON.stringify(input) }),
     get: (id: string) => request<any>(`/api/matches/${id}`),
     start: (id: string) => request<any>(`/api/matches/${id}/start`, { method: 'POST' }),
     pause: (id: string) => request<any>(`/api/matches/${id}/pause`, { method: 'POST' }),
