@@ -10,9 +10,11 @@ a full bilingual (Português / English) rulebook.
 - **Check-in (RSVP)** — players confirm for the next game in the Check-in tab
   (honor-system: tap your name, remembered on the device). The board is always
   tied to the next game from the schedule and rolls over automatically each week —
-  no poll to open. The confirmed list + waitlist follow the rules (season players
-  first, then drop-ins by check-in time, up to 18; 15 marks full teams). WhatsApp
-  is only a reminder — there's a "copy reminder" button.
+  no poll to open. The confirmed list + waitlist follow the rules: season players
+  are always confirmed (they can stretch the cap up to 18), then drop-ins fill by
+  check-in time up to the normal cap of 15 — anyone past that waits. Admins can
+  set, toggle, or clear anyone's check-in from the Manage list. WhatsApp is only a
+  reminder — there's a "copy reminder" button.
 - **Team draws & match play** — a racha needs at least 10 present to start
   (`MIN_PLAYERS`, shared). Starting pre-selects whoever confirmed on the check-in
   board. `balanceTeams` splits players by skill into white/black (5 each, the two

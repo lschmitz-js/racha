@@ -23,7 +23,7 @@ const writeMe = (id: string | null) => {
   }
 };
 
-const FULL_TEAMS = 15; // three teams of five; the cap (18) allows subs
+const FULL_TEAMS = 15; // three teams of five; season players can stretch it to 18
 
 export function CheckIn() {
   const t = useT();
@@ -45,7 +45,7 @@ export function CheckIn() {
     onError: (e: any) => alert(String(e?.message ?? e)),
   });
 
-  const board = (boardQ.data ?? { game_date: null, cap: 18, confirmed: [], waitlist: [], out: [] }) as CheckinBoard;
+  const board = (boardQ.data ?? { game_date: null, cap: 15, confirmed: [], waitlist: [], out: [] }) as CheckinBoard;
   // Season players must confirm; drop-ins may check in if they want to play.
   const roster = (playersQ.data ?? []).filter((p) => p.active);
   const me = meId ? roster.find((p) => p.id === meId) : undefined;
@@ -284,7 +284,7 @@ function Entry({
   entry: CheckinEntry;
   rank: number;
   canEdit: boolean;
-  onSet: (v: { id: string; status: 'in' | 'out' }) => void;
+  onSet: (v: { id: string; status: 'in' | 'out' | 'none' }) => void;
 }) {
   const t = useT();
   return (
@@ -302,8 +302,8 @@ function Entry({
       {canEdit ? (
         <button
           className="text-xs text-muted hover:text-red-400 px-1"
-          title={t('checkin.cantMake')}
-          onClick={() => onSet({ id: entry.id, status: 'out' })}
+          title={t('checkin.clear')}
+          onClick={() => onSet({ id: entry.id, status: 'none' })}
         >
           ✕
         </button>
@@ -368,7 +368,7 @@ function AdminManage({
 }: {
   roster: Array<{ id: string; name: string }>;
   board: CheckinBoard;
-  onSet: (v: { id: string; status: 'in' | 'out' }) => void;
+  onSet: (v: { id: string; status: 'in' | 'out' | 'none' }) => void;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -390,11 +390,12 @@ function AdminManage({
             return (
               <div key={p.id} className="card flex items-center gap-2 py-1.5">
                 <span className="flex-1 min-w-0 truncate text-sm">{p.name}</span>
+                {/* Tapping the active choice again clears it (back to no response). */}
                 <button
                   className={`text-xs px-2 py-1 rounded-lg border ${
                     status === 'in' ? 'bg-accent text-white border-accent' : 'border-border text-muted'
                   }`}
-                  onClick={() => onSet({ id: p.id, status: 'in' })}
+                  onClick={() => onSet({ id: p.id, status: status === 'in' ? 'none' : 'in' })}
                 >
                   {t('checkin.imIn')}
                 </button>
@@ -402,9 +403,16 @@ function AdminManage({
                   className={`text-xs px-2 py-1 rounded-lg border ${
                     status === 'out' ? 'bg-red-500/80 text-white border-red-500' : 'border-border text-muted'
                   }`}
-                  onClick={() => onSet({ id: p.id, status: 'out' })}
+                  onClick={() => onSet({ id: p.id, status: status === 'out' ? 'none' : 'out' })}
                 >
                   {t('checkin.cantMake')}
+                </button>
+                <button
+                  className="text-xs px-2 py-1 rounded-lg border border-border text-muted disabled:opacity-30 hover:text-fg"
+                  disabled={status === 'none'}
+                  onClick={() => onSet({ id: p.id, status: 'none' })}
+                >
+                  {t('checkin.clear')}
                 </button>
               </div>
             );

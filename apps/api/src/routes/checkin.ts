@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { uid, nextGameDateISO, CHECKIN_CAP } from '@racha/shared';
+import { uid, nextGameDateISO, CONFIRMED_CAP, SEASON_CAP } from '@racha/shared';
 import { getDb } from '../db/index.js';
 
 // Weekly game check-ins (RSVP). The game is always derived server-side from the
@@ -8,7 +8,8 @@ import { getDb } from '../db/index.js';
 // board rolls over automatically each week with no "open the list" step. Writes
 // are public/honor-system (a player taps their own name); admins can override
 // anyone via the same endpoint. The confirmed/waitlist split follows the rules:
-// season players first, then drop-ins by check-in time, up to CHECKIN_CAP.
+// season players are always confirmed (up to SEASON_CAP), then drop-ins by
+// check-in time fill the rest up to CONFIRMED_CAP.
 export const checkin = new Hono();
 
 const CheckinInput = z.object({
@@ -31,7 +32,7 @@ type Entry = { id: string; name: string; type: 'season' | 'dropin'; checked_in_a
 // split at the cap into confirmed vs waitlist, plus the explicit opt-outs.
 function readBoard(gameDate: string | null) {
   if (!gameDate) {
-    return { game_date: null, cap: CHECKIN_CAP, confirmed: [], waitlist: [], out: [] };
+    return { game_date: null, cap: CONFIRMED_CAP, confirmed: [], waitlist: [], out: [] };
   }
   // Season players must confirm; drop-ins check in optionally if they want to
   // play. Season players rank first, then drop-ins by check-in time.
@@ -51,26 +52,28 @@ function readBoard(gameDate: string | null) {
     checked_in_at: r.checked_in_at,
   });
 
-  const ins = rows
-    .filter((r) => r.status === 'in')
-    .sort(
-      (a, b) =>
-        (a.type === 'season' ? 0 : 1) - (b.type === 'season' ? 0 : 1) ||
-        (a.checked_in_at ?? 0) - (b.checked_in_at ?? 0)
-    )
-    .map(toEntry);
+  const byTime = (a: Row, b: Row) => (a.checked_in_at ?? 0) - (b.checked_in_at ?? 0);
+  const seasonIns = rows.filter((r) => r.status === 'in' && r.type === 'season').sort(byTime);
+  const dropIns = rows.filter((r) => r.status === 'in' && r.type === 'dropin').sort(byTime);
   const out = rows
     .filter((r) => r.status === 'out')
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(toEntry);
 
-  return {
-    game_date: gameDate,
-    cap: CHECKIN_CAP,
-    confirmed: ins.slice(0, CHECKIN_CAP),
-    waitlist: ins.slice(CHECKIN_CAP),
-    out,
-  };
+  // Season players are guaranteed a confirmed spot, up to the hard ceiling (18).
+  // Drop-ins then fill the rest, but only up to the normal cap of 15 total — so
+  // an all-season night can reach 18, while drop-ins never push past 15.
+  const confirmedSeason = seasonIns.slice(0, SEASON_CAP);
+  const dropSlots = Math.max(0, CONFIRMED_CAP - confirmedSeason.length);
+  const confirmedDrop = dropIns.slice(0, dropSlots);
+
+  const confirmed = [...confirmedSeason, ...confirmedDrop].map(toEntry);
+  const waitlist = [...seasonIns.slice(SEASON_CAP), ...dropIns.slice(dropSlots)].map(toEntry);
+  // The displayed cap is 15 normally, stretching only as far as the season
+  // players who actually checked in (up to 18).
+  const cap = Math.min(SEASON_CAP, Math.max(CONFIRMED_CAP, confirmedSeason.length));
+
+  return { game_date: gameDate, cap, confirmed, waitlist, out };
 }
 
 checkin.get('/', (c) => c.json(readBoard(nextGameDateISO())));

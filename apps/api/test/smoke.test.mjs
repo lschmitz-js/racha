@@ -153,6 +153,30 @@ test('check-in: public, season ranks above drop-ins, toggle to clear', async () 
   assert.equal((await api('/api/checkin', { method: 'POST', body: JSON.stringify({ player_id: 'nope', status: 'in' }) })).status, 404);
 });
 
+test('check-in cap: drop-ins stop at 15, season players can stretch it to 18', async () => {
+  // 16 season players all check in; the cap should grow to 16 and confirm them all.
+  const seasonIds = [];
+  for (let i = 0; i < 16; i++) {
+    const p = await (
+      await api('/api/players', { method: 'POST', headers: M, body: JSON.stringify(newPlayer({ name: 'Cap' + i, type: 'season' })) })
+    ).json();
+    seasonIds.push(p.id);
+    await api('/api/checkin', { method: 'POST', body: JSON.stringify({ player_id: p.id, status: 'in' }) });
+  }
+  const drop = await (
+    await api('/api/players', { method: 'POST', headers: M, body: JSON.stringify(newPlayer({ name: 'CapDrop', type: 'dropin' })) })
+  ).json();
+  const board = await (
+    await api('/api/checkin', { method: 'POST', body: JSON.stringify({ player_id: drop.id, status: 'in' }) })
+  ).json();
+
+  const confirmedIds = new Set(board.confirmed.map((e) => e.id));
+  assert.equal(board.cap, 16, 'cap stretches to the 16 season players who checked in');
+  for (const id of seasonIds) assert.ok(confirmedIds.has(id), 'every season player is confirmed');
+  assert.ok(!confirmedIds.has(drop.id), 'the drop-in is waitlisted — season already fills past 15');
+  assert.ok(board.waitlist.some((e) => e.id === drop.id), 'the drop-in shows on the waitlist');
+});
+
 test('team loans: borrow tops up a short team, return-on-loss sends them home', async () => {
   // 12 season players -> the draw makes white/black 5 each and green 2.
   const ids = [];

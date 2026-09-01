@@ -10,7 +10,12 @@
 export const LEAGUE_TZ = 'America/Vancouver';
 export const SEASON_START = '2026-09-14'; // Monday — season opener
 export const SEASON_END = '2027-06-21'; // Monday — last game
-export const CHECKIN_CAP = 18; // max players per game (3 teams; 15 is a full set)
+// Confirmed-spot rules. The normal cap is 15 (three teams of five). Season
+// players are guaranteed a spot, so an all-season night can stretch the cap up
+// to SEASON_CAP (18); drop-ins only ever fill up to CONFIRMED_CAP (15).
+export const CONFIRMED_CAP = 15; // normal confirmed cap; drop-ins never exceed this
+export const SEASON_CAP = 18; // hard ceiling, reached only if that many season players check in
+export const CHECKIN_CAP = SEASON_CAP; // back-compat alias (hard ceiling)
 export const MIN_PLAYERS = 10; // minimum present players needed to start a racha
 
 export interface NoGameDate {
