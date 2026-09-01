@@ -1,70 +1,141 @@
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { api } from '../lib/api.js';
-import { useT } from '../lib/i18n.js';
+import { useI18n, useT } from '../lib/i18n.js';
 import { useCanEdit } from '../lib/auth.js';
+
+// Next Monday (or today if it's Monday), for the "Next Racha" card.
+function nextMonday(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  const delta = (1 - d.getDay() + 7) % 7; // 1 = Monday
+  d.setDate(d.getDate() + delta);
+  return d;
+}
+
+function ClockIcon() {
+  return (
+    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  );
+}
+function PinIcon() {
+  return (
+    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+      <path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11Z" />
+      <circle cx="12" cy="10" r="2.5" />
+    </svg>
+  );
+}
 
 export function Home() {
   const [, setLocation] = useLocation();
   const t = useT();
+  const { lang } = useI18n();
   const canEdit = useCanEdit();
 
   const activeQ = useQuery({ queryKey: ['session', 'active'], queryFn: api.sessions.active });
   const sessionsQ = useQuery({ queryKey: ['sessions'], queryFn: api.sessions.list });
 
+  const locale = lang === 'pt' ? 'pt-BR' : 'en-US';
+  const nextLabel = nextMonday().toLocaleDateString(locale, {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  });
+  const fmtDate = (s: string) => {
+    const d = new Date(s);
+    return isNaN(d.getTime())
+      ? s
+      : d.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' });
+  };
+  const active = activeQ.data;
+
   return (
-    <div className="p-4 pb-32 space-y-6">
-      <header className="pt-6 pb-2 flex justify-center">
-        <img
-          src="/logo-512.png"
-          alt={t('home.welcome')}
-          className="w-56 h-56 sm:w-64 sm:h-64 object-contain"
-        />
+    <div className="p-4 pb-28 space-y-5">
+      <header>
+        <h1 className="title-lg">{t('home.title')}</h1>
+        <p className="text-sm text-muted">{t('home.subtitle')}</p>
       </header>
 
-      {activeQ.data ? (
-        <div className="card flex items-center justify-between">
-          <div>
-            <div className="text-sm text-muted">{t('home.activeSession')}</div>
-            <div className="font-semibold">{activeQ.data.date}</div>
+      {/* Next racha / resume-active card */}
+      <div className="rounded-2xl border border-accent/30 bg-accent/[0.06] p-4 space-y-3">
+        <div className="tile-label text-accent">
+          {active ? t('home.activeSession') : t('home.nextRacha')}
+        </div>
+        <div className="text-2xl font-bold capitalize">{active ? fmtDate(active.date) : nextLabel}</div>
+        <div className="text-sm text-muted space-y-1">
+          <div className="flex items-center gap-1.5">
+            <ClockIcon /> {t('home.time')}
           </div>
-          <button className="btn-primary" onClick={() => setLocation(`/sessions/${activeQ.data.id}`)}>
-            {t('home.open')}
-          </button>
+          <div className="flex items-center gap-1.5">
+            <PinIcon /> {t('home.location')}
+          </div>
         </div>
-      ) : (
-        <div>
-          <button
-            className="btn-primary w-full text-lg py-4"
-            disabled={!canEdit}
-            title={!canEdit ? t('auth.adminOnly') : undefined}
-            onClick={() => setLocation('/start')}
-          >
-            {t('home.startRacha')}
+        {active ? (
+          <button className="btn-primary w-full" onClick={() => setLocation(`/sessions/${active.id}`)}>
+            {t('home.openSession')} →
           </button>
-          {!canEdit ? (
-            <div className="text-xs text-muted mt-2 text-center">{t('auth.adminOnly')}</div>
-          ) : null}
-        </div>
-      )}
+        ) : (
+          <>
+            <button
+              className="btn-primary w-full"
+              disabled={!canEdit}
+              onClick={() => setLocation('/start')}
+            >
+              ▶ {t('home.startRacha')}
+            </button>
+            {!canEdit ? (
+              <p className="text-xs text-muted text-center">{t('auth.adminOnly')}</p>
+            ) : null}
+          </>
+        )}
+      </div>
 
       {sessionsQ.data && sessionsQ.data.length > 0 ? (
         <section>
-          <h2 className="text-lg font-semibold mb-2">{t('home.pastSessions')}</h2>
+          <div className="section-head">
+            <h2 className="font-semibold">{t('home.pastSessions')}</h2>
+          </div>
           <div className="space-y-2">
-            {sessionsQ.data.slice(0, 10).map((s: any) => (
-              <button
-                key={s.id}
-                onClick={() => setLocation(`/sessions/${s.id}`)}
-                className="card w-full flex items-center justify-between hover:border-accent transition"
-              >
-                <div className="text-left">
-                  <div className="font-medium">{s.date}</div>
-                  <div className="text-xs text-muted">{t(`status.${s.status as 'draft' | 'live' | 'done'}`)}</div>
-                </div>
-                <span className="text-muted">→</span>
-              </button>
-            ))}
+            {sessionsQ.data.slice(0, 8).map((s: any) => {
+              const d = new Date(s.date);
+              const mon = isNaN(d.getTime())
+                ? ''
+                : d.toLocaleDateString(locale, { month: 'short' }).toUpperCase();
+              const day = isNaN(d.getTime()) ? '' : String(d.getDate());
+              const done = s.status === 'done';
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => setLocation(`/sessions/${s.id}`)}
+                  className="card w-full flex items-center gap-3 hover:border-accent/50 transition"
+                >
+                  <div className="w-11 h-11 shrink-0 rounded-lg bg-bg3 border border-border flex flex-col items-center justify-center leading-none">
+                    <span className="text-[9px] text-muted">{mon}</span>
+                    <span className="text-base font-bold">{day}</span>
+                  </div>
+                  <div className="flex-1 text-left min-w-0">
+                    <div className="font-medium truncate capitalize">{fmtDate(s.date)}</div>
+                    <div className="text-xs text-muted">
+                      {t(`status.${s.status as 'draft' | 'live' | 'done'}`)}
+                    </div>
+                  </div>
+                  <span
+                    className={`text-[11px] px-2 py-0.5 rounded-full border ${
+                      done
+                        ? 'text-accent border-accent/40 bg-accent/10'
+                        : 'text-muted border-border'
+                    }`}
+                  >
+                    {t(`status.${s.status as 'draft' | 'live' | 'done'}`)}
+                  </span>
+                  <span className="text-muted">›</span>
+                </button>
+              );
+            })}
           </div>
         </section>
       ) : null}

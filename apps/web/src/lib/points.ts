@@ -1,7 +1,6 @@
 export interface StatRow {
   id: string;
   name: string;
-  role?: 'player' | 'gk';
   goals: number;
   assists: number;
   beautiful: number;

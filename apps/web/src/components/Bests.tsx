@@ -39,9 +39,7 @@ function BestCard({ entry, compact }: { entry: BestEntry; compact?: boolean }) {
     entry.category === 'mvp' ? fmtPoints(entry.value) : entry.value.toString();
   const players = entry.players;
   const tied = players.length > 1;
-  const names = players
-    .map((p) => `${p.name}${p.role === 'gk' ? ' 🧤' : ''}`)
-    .join(', ');
+  const names = players.map((p) => p.name).join(', ');
   return (
     <div
       className={`rounded-lg border ${

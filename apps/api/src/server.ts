@@ -15,6 +15,7 @@ import { stats } from './routes/stats.js';
 import { emergency } from './routes/emergency.js';
 import { auth as authRoutes } from './routes/auth.js';
 import { audit as auditRoutes } from './routes/audit.js';
+import { settings as settingsRoutes } from './routes/settings.js';
 import { sessionUser, logAudit, purgeExpiredSessions, type AuthUser, type AppVariables } from './auth.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -228,6 +229,7 @@ setInterval(() => purgeExpiredSessions(), 60 * 60 * 1000).unref();
 app.get('/api/health', (c) => c.json({ ok: true }));
 app.route('/api/auth', authRoutes);
 app.route('/api/audit', auditRoutes);
+app.route('/api/settings', settingsRoutes);
 app.route('/api/players', players);
 app.route('/api/emergency', emergency);
 app.route('/api/sessions', sessions);

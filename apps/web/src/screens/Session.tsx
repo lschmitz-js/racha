@@ -2,44 +2,49 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { useMemo, useState } from 'react';
 import { api } from '../lib/api.js';
-import { useT } from '../lib/i18n.js';
+import { useI18n, useT } from '../lib/i18n.js';
 import { useCanEdit } from '../lib/auth.js';
 import { Avatar } from '../lib/avatar.js';
-import { BestGrid } from '../components/Bests.js';
 import { Leaderboard } from '../components/Leaderboard.js';
+import { BestShowcase } from '../components/BestShowcase.js';
 import { bestOfEachCategory, calcPoints, type StatRow } from '../lib/points.js';
 import { calcScore, type Player, type Vest } from '@racha/shared';
+import { useVests, pillStyle, panelStyle, VestDot } from '../lib/vests.js';
 
-const VEST_COLORS: Record<Vest, string> = {
-  white: 'vest-white',
-  black: 'vest-black',
-  green: 'vest-green',
-};
+function fmtSessionDate(date: string, locale: string): string {
+  const d = new Date(date);
+  return isNaN(d.getTime())
+    ? date
+    : d.toLocaleDateString(locale, { weekday: 'long', month: 'short', day: 'numeric' });
+}
 
-// Readable text colours on dark bg, themed by vest.
-const VEST_TEXT: Record<Vest, string> = {
-  white: 'text-white',
-  black: 'text-slate-300',
-  green: 'text-green-300',
-};
-
-const VEST_BORDER: Record<Vest, string> = {
-  white: 'border-white_v/40',
-  black: 'border-slate-500/60',
-  green: 'border-green_v/60',
-};
-
-const VEST_PANEL_BG: Record<Vest, string> = {
-  white: 'bg-slate-200/10',
-  black: 'bg-black/60',
-  green: 'bg-green-900/30',
-};
+function StatusPill({ status }: { status: string }) {
+  const t = useT();
+  const done = status === 'done';
+  const live = status === 'live';
+  return (
+    <span
+      className={`text-[11px] px-2 py-0.5 rounded-full border ${
+        done
+          ? 'text-accent border-accent/40 bg-accent/10'
+          : live
+          ? 'text-amber-300 border-amber-500/40 bg-amber-500/10'
+          : 'text-muted border-border'
+      }`}
+    >
+      {t(`status.${status as 'draft' | 'live' | 'done'}`)}
+    </span>
+  );
+}
 
 export function Session({ params }: { params: { id: string } }) {
   const sessionId = params.id;
   const [, setLocation] = useLocation();
   const qc = useQueryClient();
   const t = useT();
+  const { lang } = useI18n();
+  const locale = lang === 'pt' ? 'pt-BR' : 'en-US';
+  const vests = useVests();
   const canEdit = useCanEdit();
 
   const playersQ = useQuery({ queryKey: ['players'], queryFn: api.players.list });
@@ -143,14 +148,17 @@ export function Session({ params }: { params: { id: string } }) {
 
   return (
     <div className="p-4 pb-48 space-y-4">
-      <header className="flex items-center justify-between">
-        <div>
-          <button className="text-sm text-muted" onClick={() => setLocation('/')}>
-            {t('common.home')}
-          </button>
-          <h1 className="text-xl font-bold">{data.session.date}</h1>
-          <span className="text-xs text-muted">{t(`status.${data.session.status as 'draft' | 'live' | 'done'}`)}</span>
+      <header className="space-y-1">
+        <button className="text-sm text-muted hover:text-fg" onClick={() => setLocation('/')}>
+          {t('common.home')}
+        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <h1 className="title-lg capitalize">{fmtSessionDate(data.session.date, locale)}</h1>
+          <StatusPill status={data.session.status} />
         </div>
+        {data.session.status === 'done' && matches.length > 0 ? (
+          <p className="text-sm text-muted">{t('session.matchesPlayed', { n: matches.length })}</p>
+        ) : null}
       </header>
 
       {data.session.status !== 'done' && latePlayers.length > 0 ? (
@@ -287,9 +295,9 @@ export function Session({ params }: { params: { id: string } }) {
                   <div className="text-xs text-muted text-center">
                     {pickedTeams.a && pickedTeams.b && benchTeam
                       ? t('session.matchup', {
-                          a: t(`vest.${teams.find((tm) => tm.id === pickedTeams.a)!.vest}`),
-                          b: t(`vest.${teams.find((tm) => tm.id === pickedTeams.b)!.vest}`),
-                          c: t(`vest.${benchTeam.vest}`),
+                          a: vests[teams.find((tm) => tm.id === pickedTeams.a)!.vest].label,
+                          b: vests[teams.find((tm) => tm.id === pickedTeams.b)!.vest].label,
+                          c: vests[benchTeam.vest].label,
                         })
                       : t('session.pickTwo')}
                   </div>
@@ -359,6 +367,7 @@ function LateSection({
   pending: boolean;
 }) {
   const t = useT();
+  const vests = useVests();
   // Recommended vest first, so the obvious tap is the leftmost button.
   const orderedTeams = [...teams].sort(
     (a, b) =>
@@ -382,9 +391,7 @@ function LateSection({
           >
             <Avatar playerId={p.id} name={p.name} size={32} />
             <span className="text-sm font-medium truncate flex-1">
-              {p.name}
-              {p.role === 'gk' ? <span className="ml-1 text-xs">🧤</span> : null}
-            </span>
+              {p.name}            </span>
             {orderedTeams.length > 0 ? (
               orderedTeams.map((tm) => {
                 const recommended = tm.id === recommendedTeamId;
@@ -393,14 +400,14 @@ function LateSection({
                     key={tm.id}
                     type="button"
                     disabled={pending}
-                    className={`text-xs px-2 py-1 rounded-md ${VEST_COLORS[tm.vest]} disabled:opacity-40 ${
+                    className={`text-xs px-2 py-1 rounded-md font-semibold disabled:opacity-40 ${
                       recommended ? 'ring-2 ring-accent' : 'opacity-60'
                     }`}
                     onClick={() => onAssign(p.id, tm.id)}
-                    style={{ minHeight: 36 }}
+                    style={{ minHeight: 36, ...pillStyle(vests[tm.vest].color) }}
                   >
                     {recommended ? '⭐ ' : '→ '}
-                    {t(`vest.${tm.vest}`)}
+                    {vests[tm.vest].label}
                   </button>
                 );
               })
@@ -451,9 +458,11 @@ function DoneSessionLayout({
   return (
     <>
       <section>
-        <h2 className="text-lg font-semibold mb-2">{t('recap.bestOfDay')}</h2>
+        <div className="section-head">
+          <h2 className="font-semibold">{t('recap.bestOfDay')}</h2>
+        </div>
         {recap && bests.length > 0 ? (
-          <BestGrid bests={bests} />
+          <BestShowcase bests={bests} />
         ) : (
           <div className="card text-sm text-muted">{t('recap.noStats')}</div>
         )}
@@ -461,33 +470,53 @@ function DoneSessionLayout({
 
       {leaderboardRows.length > 0 ? (
         <section>
-          <h2 className="text-lg font-semibold mb-2">{t('recap.leaderboard')}</h2>
+          <div className="section-head">
+            <h2 className="font-semibold">{t('recap.leaderboard')}</h2>
+          </div>
           <Leaderboard rows={leaderboardRows} showMatches={false} showSessions={false} />
         </section>
       ) : null}
 
       {matches.length > 0 ? (
         <section>
-          <h2 className="text-lg font-semibold mb-2">{t('session.matchesTonight')}</h2>
-          <div className="space-y-1">
-            {matches.map((m) => (
-              <button
-                key={m.id}
-                className="card w-full flex items-center justify-between hover:border-accent"
-                onClick={() => onOpenMatch(m.id)}
-              >
-                <span>{t('session.matchN', { n: m.ordinal })}</span>
-                <span className="text-xs text-muted">
-                  {t(`status.${m.status as 'pending' | 'running' | 'paused' | 'done'}`)}
-                </span>
-              </button>
-            ))}
+          <div className="section-head">
+            <h2 className="font-semibold">{t('session.matchesTonight')}</h2>
+            <span className="text-xs text-muted">{t('session.matchesTotal', { n: matches.length })}</span>
+          </div>
+          <div className="space-y-1.5">
+            {matches.map((m) => {
+              const done = m.status === 'done';
+              return (
+                <button
+                  key={m.id}
+                  className="card w-full flex items-center gap-3 hover:border-accent/50 transition"
+                  onClick={() => onOpenMatch(m.id)}
+                >
+                  <span className="w-6 h-6 shrink-0 rounded-md bg-bg3 border border-border flex items-center justify-center text-xs font-bold">
+                    {m.ordinal}
+                  </span>
+                  <span className="flex-1 text-left font-medium">
+                    {t('session.matchN', { n: m.ordinal })}
+                  </span>
+                  <span
+                    className={`text-[11px] px-2 py-0.5 rounded-full border ${
+                      done ? 'text-accent border-accent/40 bg-accent/10' : 'text-muted border-border'
+                    }`}
+                  >
+                    {t(`status.${m.status as 'pending' | 'running' | 'paused' | 'done'}`)}
+                  </span>
+                  <span className="text-muted">›</span>
+                </button>
+              );
+            })}
           </div>
         </section>
       ) : null}
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold">{t('session.teams')}</h2>
+        <div className="section-head">
+          <h2 className="font-semibold">{t('session.teams')}</h2>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           {teams.map((tm) => (
             <ReadOnlyTeamCard
@@ -527,15 +556,14 @@ function ReadOnlyTeamCard({
   players: Player[];
 }) {
   const t = useT();
+  const vests = useVests();
   const totalScore = players.reduce((s, p) => s + calcScore(p.skills), 0);
   const avg = players.length ? Math.round((totalScore / players.length) * 10) / 10 : 0;
   return (
-    <div
-      className={`p-3 rounded-xl border-2 ${VEST_BORDER[team.vest]} ${VEST_PANEL_BG[team.vest]}`}
-    >
+    <div className="p-3 rounded-xl border-2" style={panelStyle(vests[team.vest].color)}>
       <div className="flex items-center justify-between mb-2">
-        <div className={`px-2 py-1 rounded-md inline-block ${VEST_COLORS[team.vest]}`}>
-          {t(`vest.${team.vest}`)} (⚡{totalScore} · {avg})
+        <div className="px-2 py-1 rounded-md inline-block font-semibold" style={pillStyle(vests[team.vest].color)}>
+          {vests[team.vest].label} (⚡{totalScore} · {avg})
         </div>
         <span className="text-xs text-muted">
           {t('team.playersCount', { n: players.length })}
@@ -548,10 +576,8 @@ function ReadOnlyTeamCard({
             className="flex items-center gap-2 px-2 py-1 rounded-lg bg-bg3 border border-border"
           >
             <Avatar playerId={p.id} name={p.name} size={32} />
-            <span className={`text-sm font-medium truncate ${VEST_TEXT[team.vest]}`}>
-              {p.name}
-              {p.role === 'gk' ? <span className="ml-1 text-xs">🧤</span> : null}
-            </span>
+            <span className="text-sm font-medium truncate text-fg">
+              {p.name}            </span>
           </div>
         ))}
       </div>
@@ -575,6 +601,7 @@ function TeamCard({
   onAddPlayer: () => void;
 }) {
   const t = useT();
+  const vests = useVests();
   const totalScore = players.reduce((s, p) => s + calcScore(p.skills), 0);
   const avg = players.length ? Math.round((totalScore / players.length) * 10) / 10 : 0;
   return (
@@ -586,18 +613,13 @@ function TeamCard({
         if (e.key === 'Enter' || e.key === ' ') onPick();
       }}
       className={`p-2 rounded-xl border-2 cursor-pointer select-none transition ${
-        VEST_PANEL_BG[team.vest]
-      } ${
-        selectedSide
-          ? 'border-accent ring-2 ring-accent/40'
-          : VEST_BORDER[team.vest]
+        selectedSide ? 'border-accent ring-2 ring-accent/40' : ''
       }`}
+      style={panelStyle(vests[team.vest].color)}
     >
       <div className="flex items-center justify-between gap-1 mb-1">
-        <span
-          className={`px-1.5 py-0.5 rounded text-xs font-semibold ${VEST_COLORS[team.vest]}`}
-        >
-          {t(`vest.${team.vest}`)}
+        <span className="px-1.5 py-0.5 rounded text-xs font-semibold" style={pillStyle(vests[team.vest].color)}>
+          {vests[team.vest].label}
         </span>
         {selectedSide ? (
           <span className="px-1.5 py-0.5 rounded text-xs font-bold bg-accent text-black">
@@ -605,7 +627,7 @@ function TeamCard({
           </span>
         ) : null}
       </div>
-      <div className={`text-[11px] tabular-nums mb-1 ${VEST_TEXT[team.vest]}`}>
+      <div className="text-[11px] tabular-nums mb-1 text-muted">
         ⚡{totalScore} · {avg} · {players.length}
       </div>
       <div className="flex flex-col gap-1">
@@ -615,12 +637,8 @@ function TeamCard({
             className="flex items-center gap-1 px-1 py-0.5 rounded-md bg-bg3 border border-border min-w-0"
           >
             <Avatar playerId={p.id} name={p.name} size={20} />
-            <span
-              className={`flex-1 text-[11px] font-medium truncate ${VEST_TEXT[team.vest]}`}
-            >
-              {p.name}
-              {p.role === 'gk' ? <span className="text-[9px]">🧤</span> : null}
-            </span>
+            <span className="flex-1 text-[11px] font-medium truncate text-fg">
+              {p.name}            </span>
             <button
               type="button"
               className="text-muted hover:text-red-400 px-0.5 text-sm leading-none"
@@ -665,6 +683,7 @@ function AddPlayerSheet({
   onPick: (playerId: string) => void;
 }) {
   const t = useT();
+  const vests = useVests();
   // Players currently on this team (excluded), and tag others by source.
   const onThisTeam = new Set(teams.find((tt) => tt.id === team.id)?.player_ids ?? []);
   const teamByPlayer = new Map<string, Vest>();
@@ -681,7 +700,7 @@ function AddPlayerSheet({
       <div className="bg-bg2 border-t border-border rounded-t-xl p-4 w-full max-h-[80vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-lg font-semibold">
-            {t('team.addTitle', { vest: t(`vest.${team.vest}`) })}
+            {t('team.addTitle', { vest: vests[team.vest].label })}
           </h2>
           <button className="text-muted" onClick={onClose}>
             ×
@@ -703,15 +722,13 @@ function AddPlayerSheet({
                   }}
                 >
                   <Avatar playerId={p.id} name={p.name} size={32} />
-                  <span
-                    className={`flex-1 ${onOtherVest ? VEST_TEXT[onOtherVest] : ''}`}
-                  >
+                  {onOtherVest ? <VestDot color={vests[onOtherVest].color} size={10} /> : null}
+                  <span className="flex-1 text-fg">
                     {p.name}
-                    {p.role === 'gk' ? ' 🧤' : ''}
                   </span>
                   <span className="text-xs text-muted">
                     {onOtherVest
-                      ? t('team.moveFrom', { vest: t(`vest.${onOtherVest}`) })
+                      ? t('team.moveFrom', { vest: vests[onOtherVest].label })
                       : t('team.notInSession')}
                   </span>
                 </button>

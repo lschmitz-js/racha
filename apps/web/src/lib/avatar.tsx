@@ -42,6 +42,15 @@ const SIZE_CLASS: Record<number, string> = {
   80: 'w-20 h-20 text-lg',
 };
 
+// Deterministic vivid colour per player, so a photo-less avatar still reads as a
+// distinct coloured initial (matches the mobile design).
+const AVATAR_COLORS = ['#22c55e', '#ec4899', '#3b82f6', '#f97316', '#a855f7', '#14b8a6', '#ef4444', '#eab308'];
+export function avatarColor(key: string): string {
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length]!;
+}
+
 export function Avatar({
   playerId,
   name,
@@ -59,7 +68,8 @@ export function Avatar({
   if (errored) {
     return (
       <span
-        className={`inline-flex items-center justify-center rounded-full bg-bg3 border border-border text-muted font-semibold ${sizeClass}`}
+        className={`inline-flex items-center justify-center rounded-full text-white font-bold ${sizeClass}`}
+        style={{ backgroundColor: avatarColor(playerId || name) }}
         aria-label={name}
       >
         {initial}

@@ -48,6 +48,26 @@
   .card {
     @apply bg-bg2 border border-border rounded-xl p-3;
   }
+  /* Large-title screen header (native pattern): big bold title + muted subtitle. */
+  .title-lg {
+    @apply text-2xl font-bold tracking-tight;
+  }
+  /* Compact KPI tile with an icon-label on top and a big value. */
+  .stat-tile {
+    @apply bg-bg2 border border-border rounded-xl p-3 flex flex-col gap-1;
+  }
+  .tile-label {
+    @apply text-[10px] uppercase tracking-wide text-muted flex items-center gap-1;
+  }
+  /* Section header row: title on the left, optional action on the right. */
+  .section-head {
+    @apply flex items-center justify-between mb-2;
+  }
+  /* Floating action button, sits above the floating tab bar. */
+  .fab {
+    @apply fixed right-4 z-30 w-14 h-14 rounded-full bg-accent text-black text-2xl flex items-center justify-center shadow-lg shadow-black/40 active:scale-95 transition;
+    bottom: calc(env(safe-area-inset-bottom) + 5.5rem);
+  }
   .input {
     @apply w-full bg-bg3 border border-border rounded-lg px-3 py-2 text-text focus:border-accent focus:outline-none;
   }

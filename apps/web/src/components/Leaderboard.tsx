@@ -126,10 +126,7 @@ export function Leaderboard({
               <td className="p-1 font-medium">
                 <span className="inline-flex items-center gap-2">
                   <Avatar playerId={r.id} name={r.name} size={24} />
-                  <span>
-                    {r.name}
-                    {r.role === 'gk' ? <span className="ml-1 text-xs">🧤</span> : null}
-                  </span>
+                  <span>{r.name}</span>
                 </span>
               </td>
               <td className="p-1 text-right tabular-nums">{r.goals}</td>

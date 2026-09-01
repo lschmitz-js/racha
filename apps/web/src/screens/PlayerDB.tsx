@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Link } from 'wouter';
 import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../lib/api.js';
+import { VestSettings } from '../components/VestSettings.js';
 import { useT } from '../lib/i18n.js';
 import { useCanEdit } from '../lib/auth.js';
 import { Avatar, resizeImageToBlob } from '../lib/avatar.js';
@@ -12,7 +13,6 @@ type Editing = {
   id?: string;
   name: string;
   type: 'season' | 'dropin';
-  role: 'player' | 'gk';
   skills: number[];
   is_admin: boolean;
   password: string; // blank = unchanged (edit) / no login (new)
@@ -25,7 +25,6 @@ type Editing = {
 const EMPTY: Editing = {
   name: '',
   type: 'dropin',
-  role: 'player',
   skills: [3, 3, 3, 3, 3, 3, 3, 3],
   is_admin: false,
   password: '',
@@ -36,6 +35,10 @@ export function PlayerDB() {
   const playersQ = useQuery({ queryKey: ['players'], queryFn: api.players.list });
   const [editing, setEditing] = useState<Editing | null>(null);
   const [emergencyFor, setEmergencyFor] = useState<Player | null>(null);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<'all' | 'season' | 'dropin'>('all');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [vestsOpen, setVestsOpen] = useState(false);
   const t = useT();
   const canEdit = useCanEdit();
   const emergencyStatusQ = useQuery({
@@ -49,7 +52,6 @@ export function PlayerDB() {
       const body: Parameters<typeof api.players.create>[0] = {
         name: e.name,
         type: e.type,
-        role: e.role,
         skills: e.skills,
         is_admin: e.is_admin,
         ...(e.password ? { password: e.password } : {}),
@@ -105,55 +107,112 @@ export function PlayerDB() {
   }
 
   if (playersQ.isLoading) return <div className="p-4 text-muted">{t('common.loading')}</div>;
-  const players = (playersQ.data ?? []).filter((p) => p.active);
+  const all = (playersQ.data ?? []).filter((p) => p.active);
+  const q = search.trim().toLowerCase();
+  const players = all.filter((p) => {
+    if (q && !p.name.toLowerCase().includes(q)) return false;
+    if (filter === 'season') return p.type === 'season';
+    if (filter === 'dropin') return p.type === 'dropin';
+    return true;
+  });
+
+  const FILTERS: Array<[typeof filter, string]> = [
+    ['all', t('players.filterAll')],
+    ['season', t('players.season')],
+    ['dropin', t('players.dropin')],
+  ];
 
   return (
-    <div className="p-4 pb-32 space-y-3">
-      <header className="space-y-3">
-        <h1 className="text-xl font-bold pr-24">{t('players.title')}</h1>
-        <div className="flex flex-wrap gap-2">
-          <button className="btn" onClick={handleExport}>
-            {t('common.export')}
-          </button>
-          {canEdit ? (
-            <>
-              <Link href="/history" className="btn no-underline">
-                🕑 {t('players.history')}
-              </Link>
-              <button className="btn" onClick={handleExportEmergency}>
-                🚨 {t('emergency.exportCsv')}
-              </button>
-              <label className="btn cursor-pointer">
-                {t('common.import')}
-                <input
-                  type="file"
-                  accept=".json,application/json"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) handleImport(f).catch((err) => alert(t('players.importFailed', { msg: err.message })));
-                    e.currentTarget.value = '';
-                  }}
-                />
-              </label>
-              <button className="btn-primary" onClick={() => setEditing({ ...EMPTY })}>
-                {t('common.new')}
-              </button>
-            </>
-          ) : null}
-        </div>
+    <div className="p-4 pb-28 space-y-4">
+      <header>
+        <h1 className="title-lg">{t('players.title')}</h1>
+        <p className="text-sm text-muted">{t('players.subtitle')}</p>
       </header>
-      {!canEdit ? (
-        <div className="text-xs text-muted">{t('auth.adminOnly')}</div>
-      ) : null}
+
+      <div className="flex items-center gap-2">
+        <label className="flex-1 flex items-center gap-2 bg-bg2 border border-border rounded-xl px-3 py-2.5">
+          <SearchIcon />
+          <input
+            className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted"
+            placeholder={t('players.search')}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </label>
+        {canEdit ? (
+          <div className="relative shrink-0">
+            <button
+              className="w-11 h-11 rounded-xl border border-border bg-bg2 flex items-center justify-center text-lg"
+              aria-label={t('common.more')}
+              onClick={() => setMenuOpen((o) => !o)}
+            >
+              ⋯
+            </button>
+            {menuOpen ? (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
+                <div className="absolute right-0 mt-1 z-40 w-52 rounded-xl border border-border bg-bg2 shadow-lg shadow-black/40 p-1 text-sm">
+                  <Link href="/history" className="block px-3 py-2 rounded-lg hover:bg-bg3 no-underline text-fg" onClick={() => setMenuOpen(false)}>
+                    🕑 {t('players.history')}
+                  </Link>
+                  <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-bg3" onClick={() => { setMenuOpen(false); setVestsOpen(true); }}>
+                    🎽 {t('players.vestColours')}
+                  </button>
+                  <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-bg3" onClick={() => { setMenuOpen(false); handleExportEmergency(); }}>
+                    🚨 {t('emergency.exportCsv')}
+                  </button>
+                  <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-bg3" onClick={() => { setMenuOpen(false); handleExport(); }}>
+                    ⬇ {t('common.export')}
+                  </button>
+                  <label className="block px-3 py-2 rounded-lg hover:bg-bg3 cursor-pointer">
+                    ⬆ {t('common.import')}
+                    <input
+                      type="file"
+                      accept=".json,application/json"
+                      className="hidden"
+                      onChange={(e) => {
+                        setMenuOpen(false);
+                        const f = e.target.files?.[0];
+                        if (f) handleImport(f).catch((err) => alert(t('players.importFailed', { msg: err.message })));
+                        e.currentTarget.value = '';
+                      }}
+                    />
+                  </label>
+                </div>
+              </>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="flex gap-2 overflow-x-auto -mx-1 px-1 pb-1">
+        {FILTERS.map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setFilter(key)}
+            className={`shrink-0 px-3.5 py-1.5 rounded-full text-sm border transition ${
+              filter === key
+                ? 'bg-accent/20 border-accent text-accent'
+                : 'bg-bg2 border-border text-muted'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       <div className="space-y-2">
-        {players.map((p) => (
-          <div key={p.id} className="card flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <Avatar playerId={p.id} name={p.name} size={40} />
-              <div className="min-w-0">
-                <div className="font-medium truncate flex items-center gap-1.5">
+        {players.map((p) => {
+          const missing = canEdit && emergencyStatusQ.data && !emergencyStatusQ.data[p.id];
+          return (
+            <div
+              key={p.id}
+              className={`card flex items-center gap-3 ${canEdit ? 'cursor-pointer hover:border-accent/50 transition' : ''}`}
+              onClick={canEdit ? () => setEditing(toEditing(p)) : undefined}
+            >
+              <Avatar playerId={p.id} name={p.name} size={44} />
+              <div className="min-w-0 flex-1">
+                <div className="font-semibold truncate flex items-center gap-1.5">
                   {p.name}
                   {p.is_admin ? (
                     <span className="text-[10px] uppercase tracking-wide text-accent border border-accent/40 rounded px-1 py-px">
@@ -162,41 +221,44 @@ export function PlayerDB() {
                   ) : null}
                 </div>
                 <div className="text-xs text-muted truncate">
-                  {p.type === 'season' ? t('players.season') : t('players.dropin')} ·{' '}
-                  {p.role === 'gk' ? t('players.gk') : t('players.player')} ·{' '}
-                  {t('players.avg', { n: avg(p.skills) })}
+                  {p.type === 'season' ? t('players.season') : t('players.dropin')}
                 </div>
-                {canEdit && emergencyStatusQ.data && !emergencyStatusQ.data[p.id] ? (
-                  <div className="text-xs text-red-400 mt-0.5">{t('emergency.missingBadge')}</div>
+                {missing ? (
+                  <div className="text-[11px] text-red-400 mt-0.5">⚠️ {t('players.noContact')}</div>
+                ) : null}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="inline-flex items-center gap-0.5 text-sm font-semibold text-accent">
+                  <RatingArrow />
+                  {avg(p.skills)}
+                </span>
+                {canEdit ? (
+                  <button
+                    className="w-9 h-9 rounded-lg border border-border bg-bg3 flex items-center justify-center"
+                    title={t('players.emergency')}
+                    aria-label={t('players.emergency')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEmergencyFor(p);
+                    }}
+                  >
+                    🚨
+                  </button>
                 ) : null}
               </div>
             </div>
-            {canEdit ? (
-              <div className="flex gap-2">
-                <button
-                  className="btn"
-                  title={t('players.emergency')}
-                  aria-label={t('players.emergency')}
-                  onClick={() => setEmergencyFor(p)}
-                >
-                  🚨
-                </button>
-                <button className="btn" onClick={() => setEditing(toEditing(p))}>
-                  {t('common.edit')}
-                </button>
-                <button
-                  className="btn-danger"
-                  onClick={() => {
-                    if (confirm(t('players.confirmRemove', { name: p.name }))) remove.mutate(p.id);
-                  }}
-                >
-                  ×
-                </button>
-              </div>
-            ) : null}
-          </div>
-        ))}
+          );
+        })}
+        {players.length === 0 ? (
+          <div className="text-center text-muted text-sm py-8">{t('players.none')}</div>
+        ) : null}
       </div>
+
+      {canEdit ? (
+        <button className="fab" aria-label={t('common.new')} onClick={() => setEditing({ ...EMPTY })}>
+          +
+        </button>
+      ) : null}
 
       {editing ? (
         <Modal
@@ -205,12 +267,24 @@ export function PlayerDB() {
           onClose={() => setEditing(null)}
           onSave={() => save.mutate(editing)}
           saving={save.isPending}
+          onRemove={
+            editing.id
+              ? () => {
+                  if (confirm(t('players.confirmRemove', { name: editing.name }))) {
+                    remove.mutate(editing.id!);
+                    setEditing(null);
+                  }
+                }
+              : undefined
+          }
         />
       ) : null}
 
       {emergencyFor ? (
         <EmergencyPanel player={emergencyFor} onClose={() => setEmergencyFor(null)} />
       ) : null}
+
+      {vestsOpen ? <VestSettings onClose={() => setVestsOpen(false)} /> : null}
     </div>
   );
 }
@@ -340,7 +414,6 @@ function toEditing(p: Player): Editing {
     id: p.id,
     name: p.name,
     type: p.type,
-    role: p.role,
     skills: [...p.skills],
     is_admin: !!p.is_admin,
     password: '',
@@ -351,18 +424,37 @@ function avg(skills: number[]): number {
   return Math.round((skills.reduce((a, b) => a + b, 0) / skills.length) * 10) / 10;
 }
 
+function SearchIcon() {
+  return (
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="text-muted shrink-0">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3-3" />
+    </svg>
+  );
+}
+
+function RatingArrow() {
+  return (
+    <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 19V5M5 12l7-7 7 7" />
+    </svg>
+  );
+}
+
 function Modal({
   editing,
   onChange,
   onClose,
   onSave,
   saving,
+  onRemove,
 }: {
   editing: Editing;
   onChange: (e: Editing) => void;
   onClose: () => void;
   onSave: () => void;
   saving: boolean;
+  onRemove?: () => void;
 }) {
   const t = useT();
 
@@ -450,28 +542,16 @@ function Modal({
             value={editing.name}
             onChange={(e) => onChange({ ...editing, name: e.target.value })}
           />
-          <div className="flex gap-2">
-            <select
-              className="flex-1 bg-bg3 border border-border rounded-lg px-3 py-2"
-              value={editing.type}
-              onChange={(e) =>
-                onChange({ ...editing, type: e.target.value as 'season' | 'dropin' })
-              }
-            >
-              <option value="season">{t('players.season')}</option>
-              <option value="dropin">{t('players.dropin')}</option>
-            </select>
-            <select
-              className="flex-1 bg-bg3 border border-border rounded-lg px-3 py-2"
-              value={editing.role}
-              onChange={(e) =>
-                onChange({ ...editing, role: e.target.value as 'player' | 'gk' })
-              }
-            >
-              <option value="player">{t('players.player')}</option>
-              <option value="gk">{t('players.gk')}</option>
-            </select>
-          </div>
+          <select
+            className="w-full bg-bg3 border border-border rounded-lg px-3 py-2"
+            value={editing.type}
+            onChange={(e) =>
+              onChange({ ...editing, type: e.target.value as 'season' | 'dropin' })
+            }
+          >
+            <option value="season">{t('players.season')}</option>
+            <option value="dropin">{t('players.dropin')}</option>
+          </select>
           <div className="space-y-2">
             {SKILLS.map((label, i) => (
               <SkillRow
@@ -526,6 +606,11 @@ function Modal({
             {saving ? t('common.saving') : t('common.save')}
           </button>
         </div>
+        {onRemove ? (
+          <button className="btn-danger w-full mt-2" onClick={onRemove}>
+            {t('players.remove')}
+          </button>
+        ) : null}
       </div>
     </div>
   );

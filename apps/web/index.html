@@ -13,8 +13,43 @@
     <link rel="icon" type="image/png" sizes="512x512" href="/logo-512.png" />
     <link rel="apple-touch-icon" href="/logo-512.png" />
     <title>Racha de Segunda</title>
+    <style>
+      /* In-app splash, shown immediately (before the JS bundle loads) and
+         removed by main.tsx once the app has mounted. */
+      #splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        background: #0a0a0a;
+        transition: opacity 0.4s ease;
+      }
+      #splash img { width: 190px; height: 190px; object-fit: contain; }
+      #splash .tagline { color: #9a9a9a; font: 500 14px system-ui, sans-serif; }
+      #splash .dots { display: flex; gap: 6px; }
+      #splash .dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: #22c55e;
+        animation: splashPulse 1s infinite ease-in-out both;
+      }
+      #splash .dot:nth-child(1) { animation-delay: -0.32s; }
+      #splash .dot:nth-child(2) { animation-delay: -0.16s; }
+      @keyframes splashPulse {
+        0%, 80%, 100% { opacity: 0.25; transform: scale(0.8); }
+        40% { opacity: 1; transform: scale(1); }
+      }
+    </style>
   </head>
   <body class="bg-bg text-text">
+    <div id="splash">
+      <img src="/logo-512.png" alt="Racha de Segunda" />
+      <div class="tagline">Segunda-feira · 6:00 PM</div>
+      <div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
