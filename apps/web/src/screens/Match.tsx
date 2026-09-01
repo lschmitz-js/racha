@@ -379,6 +379,7 @@ export function Match({ params }: { params: { id: string } }) {
           teamA={teamA!}
           teamB={teamB!}
           benchTeam={benchTeam!}
+          players={players}
           sessionId={m.session_id}
           currentResult={m.result}
           goalsA={goalsA}
@@ -741,15 +742,17 @@ function PostMatchPanel({
   teamA,
   teamB,
   benchTeam,
+  players,
   sessionId,
   currentResult,
   goalsA,
   goalsB,
 }: {
   matchId: string;
-  teamA: { id: string; vest: Vest };
-  teamB: { id: string; vest: Vest };
-  benchTeam: { id: string; vest: Vest };
+  teamA: SessionTeam;
+  teamB: SessionTeam;
+  benchTeam: SessionTeam;
+  players: Player[];
   sessionId: string;
   currentResult: 'a' | 'b' | 'draw' | 'pending';
   goalsA: number;
@@ -775,8 +778,30 @@ function PostMatchPanel({
     mutationFn: api.matches.create,
     onSuccess: (m: any) => setLocation(`/matches/${m.id}`),
   });
+  const assign = useMutation({
+    mutationFn: ({ teamId, playerId }: { teamId: string; playerId: string }) =>
+      api.sessions.assignPlayerToTeam(sessionId, teamId, playerId),
+  });
 
-  function next() {
+  // The team about to sit (the "losers"): its players are the pool that can top
+  // up a short incoming bench team, per the winner-stays rules.
+  const outTeam =
+    stayPicked === 'draw'
+      ? benchSwap === teamA.id
+        ? teamA
+        : benchSwap === teamB.id
+          ? teamB
+          : null
+      : loserTeam;
+  const needed = Math.max(0, 5 - benchTeam.player_ids.length);
+  const canFill = needed > 0 && !!outTeam && outTeam.player_ids.length > 0;
+
+  const [fillIds, setFillIds] = useState<Set<string>>(new Set());
+  const byId = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
+  // Reset the fill picks whenever the who-stays choice changes.
+  useEffect(() => setFillIds(new Set()), [stayPicked, benchSwap]);
+
+  async function next() {
     // On a draw there is no winner: the team you pick benches (benchSwap), the
     // other one stays, and the current bench team comes on. On a decisive result
     // the winner stays and the loser sits.
@@ -792,6 +817,13 @@ function PostMatchPanel({
       dropOut = loserTeam?.id;
     }
     if (!stayId || !dropOut) return;
+    // Top up the incoming (short) bench team from the losers first, so the new
+    // match snapshots the filled lineup.
+    for (const pid of fillIds) {
+      if (outTeam?.player_ids.includes(pid)) {
+        await assign.mutateAsync({ teamId: benchTeam.id, playerId: pid });
+      }
+    }
     createMatch.mutate({
       session_id: sessionId,
       team_a_id: stayId,
@@ -857,9 +889,56 @@ function PostMatchPanel({
         </div>
       ) : null}
 
+      {canFill && outTeam ? (
+        <div>
+          <div className="text-sm text-muted mb-1">
+            {t('match.needFill', {
+              inVest: vests[benchTeam.vest].label,
+              n: needed,
+              outVest: vests[outTeam.vest].label,
+            })}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {outTeam.player_ids
+              .map((pid) => byId.get(pid))
+              .filter((p): p is Player => !!p)
+              .map((p) => {
+                const sel = fillIds.has(p.id);
+                const atCap = !sel && fillIds.size >= needed;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    disabled={atCap}
+                    onClick={() =>
+                      setFillIds((s) => {
+                        const n = new Set(s);
+                        if (n.has(p.id)) n.delete(p.id);
+                        else n.add(p.id);
+                        return n;
+                      })
+                    }
+                    className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-sm transition ${
+                      sel ? 'border-accent bg-accent/10 ring-2 ring-accent' : 'bg-bg3 border-border'
+                    } ${atCap ? 'opacity-40 pointer-events-none' : ''}`}
+                  >
+                    <Avatar playerId={p.id} name={p.name} size={22} />
+                    <span className="truncate max-w-[7rem]">{p.name}</span>
+                  </button>
+                );
+              })}
+          </div>
+        </div>
+      ) : null}
+
       <button
         className="w-full rounded-xl py-3 font-semibold bg-bg3 border-2 border-border text-fg flex items-center justify-center gap-2 transition enabled:hover:border-accent active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
-        disabled={!stayPicked || (stayPicked === 'draw' && !benchSwap) || createMatch.isPending}
+        disabled={
+          !stayPicked ||
+          (stayPicked === 'draw' && !benchSwap) ||
+          createMatch.isPending ||
+          assign.isPending
+        }
         onClick={next}
       >
         <VestDot color={vests[benchTeam.vest].color} />
