@@ -40,13 +40,18 @@ app.onError((err, c) => {
   return c.json({ error: 'internal error' }, 500);
 });
 
-// Security response headers (defense-in-depth; Caddy also sets these at the edge
-// in production). `no-referrer` keeps the emergency link token out of the
-// Referer header when a player follows a link from their form.
+// Security response headers (defense-in-depth). `no-referrer` keeps the
+// emergency link token out of the Referer header when a player follows a link
+// from their form. HSTS is set here (not only at the edge) so a browser that
+// reaches the site over HTTPS — which it always does, via Cloudflare/Caddy — is
+// told to stick to HTTPS for a year. Browsers ignore HSTS over plain HTTP and on
+// localhost, so this is safe in dev too. `includeSubDomains` scopes to
+// racha.lbschmitz.ca and its subdomains only, never sibling hosts. No `preload`.
 app.use('*', async (c, next) => {
   c.header('X-Content-Type-Options', 'nosniff');
   c.header('X-Frame-Options', 'DENY');
   c.header('Referrer-Policy', 'no-referrer');
+  c.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   await next();
 });
 
