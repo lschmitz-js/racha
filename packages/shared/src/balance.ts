@@ -91,12 +91,17 @@ export function balanceTeams(
       sorted = [...scored].sort((a, b) => b.score - a.score);
     }
 
-    // Matches are 5v5, so with 10+ players white and black always get exactly
-    // 5 and green takes the remainder (the rotating bench squad). Below 10,
-    // fall back to an even split.
+    // Team sizing follows the two match formats:
+    //  • Standard (10–15): matches are 5v5, so white and black get exactly 5
+    //    and green takes the remainder (the short, rotating squad that borrows
+    //    from the losers when it comes on). 15 → 5/5/5.
+    //  • Full House (16–18): three teams with one sub each (6 max per team), so
+    //    the extra players spread evenly instead of piling onto green.
+    //    16 → 6/5/5, 17 → 6/6/5, 18 → 6/6/6.
+    // Below 10 (shouldn't happen — MIN_PLAYERS is 10) we also split evenly.
     const n = scored.length;
     let caps: number[];
-    if (n >= 10) {
+    if (n >= 10 && n <= 15) {
       caps = [5, 5, n - 10];
     } else {
       const base = Math.floor(n / 3);

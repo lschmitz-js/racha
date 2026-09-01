@@ -20,14 +20,28 @@ test('calcScore matches existing HTML rounding (nearest 0.5)', () => {
   assert.equal(calcScore([5, 5, 5, 5, 5, 5, 5, 5]), 5);
 });
 
-test('normal mode fills white and black with 5 each, green takes the rest', () => {
-  for (const n of [10, 11, 13, 15, 18]) {
+test('standard mode (10-15) fills white and black with 5 each, green takes the rest', () => {
+  for (const n of [10, 11, 13, 15]) {
     const players = fixture.db.slice(0, n);
     const teams = balanceTeams(players, false, 'normal');
     assert.equal(teams.length, 3);
     assert.equal(teams[0]!.players.length, 5, `white with ${n} players`);
     assert.equal(teams[1]!.players.length, 5, `black with ${n} players`);
     assert.equal(teams[2]!.players.length, n - 10, `green with ${n} players`);
+  }
+});
+
+test('full house (16-18) spreads the subs evenly — 18 is 6/6/6', () => {
+  const expected: Record<number, number[]> = {
+    16: [5, 5, 6],
+    17: [5, 6, 6],
+    18: [6, 6, 6],
+  };
+  for (const n of [16, 17, 18]) {
+    const players = fixture.db.slice(0, n);
+    const teams = balanceTeams(players, false, 'normal');
+    const sizes = teams.map((t) => t.players.length).sort((a, b) => a - b);
+    assert.deepEqual(sizes, expected[n], `sizes with ${n} players`);
   }
 });
 

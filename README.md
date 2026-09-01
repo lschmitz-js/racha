@@ -17,8 +17,10 @@ a full bilingual (Português / English) rulebook.
   reminder — there's a "copy reminder" button.
 - **Team draws & match play** — a racha needs at least 10 present to start
   (`MIN_PLAYERS`, shared). Starting pre-selects whoever confirmed on the check-in
-  board. `balanceTeams` splits players by skill into white/black (5 each, the two
-  playing sides) plus green (the rotating remainder). A match clock (5 min
+  board. `balanceTeams` splits players by skill: **standard (10–15)** gives
+  white/black 5 each (the two playing sides) plus green (the rotating remainder,
+  5/5/5 at 15); **full house (16–18)** spreads the subs evenly into three teams
+  of up to 6 (one sub each), so 18 is 6/6/6. A match clock (5 min
   standard, 6 min in the 16–18 "full house") drives winner-stays rotation with the
   documented tie rules (first game: odds-or-evens; later games: the challenger
   stays). When the team coming on is short of five, the post-match panel tops it up
