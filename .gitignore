@@ -9,3 +9,14 @@ data/
 *.db-wal
 .DS_Store
 *.log
+
+# Local DB/data exports — contain player names/skills, never commit.
+# (racha_de_segunda_2026-04-28.json is a deliberately tracked test fixture.)
+/racha_de_segunda_*.json
+
+# Backup archives produced by scripts/racha-backup.sh
+*.tgz
+backups/
+
+# TypeScript incremental build info
+*.tsbuildinfo

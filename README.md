@@ -124,10 +124,18 @@ sqlite3 /tmp/racha-snapshot.db 'PRAGMA integrity_check;'   # expect: ok
 tar czf racha-$(date +%F).tgz -C /tmp racha.db -C data avatars
 ```
 
-The production instance runs exactly this on a nightly cron with 30-day rotation
-and an integrity check, and mirrors the newest archive off-box. (Litestream is a
-good option if you want continuous streaming replication instead — see
-`litestream.yml`.)
+[`scripts/racha-backup.sh`](scripts/racha-backup.sh) does exactly this —
+snapshot, integrity check, tar with avatars, timestamped rotation (keep 30) — and
+is what the production instance runs on a nightly cron, mirroring the newest
+archive off-box. Point it at your stack with `RACHA_DIR`:
+
+```sh
+# nightly at 03:17, as root
+17 3 * * * root RACHA_DIR=/srv/racha /usr/local/bin/racha-backup.sh
+```
+
+(Litestream is a good option if you want continuous streaming replication
+instead — see `litestream.yml`.)
 
 ## Importing existing data
 
@@ -140,6 +148,7 @@ The single-file legacy app exports `{ db, weekIds }` JSON. As an admin, hit
   players, emergency, sessions, matches, events, stats).
 - `apps/web` — Vite + React SPA (`src/screens/*`, `src/lib/*`).
 - `packages/shared` — Zod schemas + the ported `balanceTeams` algorithm.
+- `scripts` — ops helpers (e.g. `racha-backup.sh`).
 
 ## Tests
 
