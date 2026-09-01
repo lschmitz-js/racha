@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
-import { useMemo, useState } from 'react';
-import type { Player } from '@racha/shared';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { type Player, MIN_PLAYERS } from '@racha/shared';
 import { api } from '../lib/api.js';
 import { useT } from '../lib/i18n.js';
 import { useCanEdit } from '../lib/auth.js';
@@ -15,9 +15,21 @@ export function WhoIsHere() {
 
   const playersQ = useQuery({ queryKey: ['players'], queryFn: api.players.list });
   const activeQ = useQuery({ queryKey: ['session', 'active'], queryFn: api.sessions.active });
+  const checkinQ = useQuery({ queryKey: ['checkin'], queryFn: api.checkin.get });
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [late, setLate] = useState<Set<string>>(new Set());
+
+  // Pre-select whoever confirmed on the check-in board (once), so the organizer
+  // starts from the confirmed list and just adjusts for no-shows / walk-ins.
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (seededRef.current) return;
+    const confirmed = checkinQ.data?.confirmed;
+    if (!confirmed) return;
+    seededRef.current = true;
+    if (confirmed.length) setSelected(new Set(confirmed.map((e) => e.id)));
+  }, [checkinQ.data]);
 
   const create = useMutation({
     mutationFn: ({ ids, lateIds }: { ids: string[]; lateIds: string[] }) =>
@@ -80,7 +92,7 @@ export function WhoIsHere() {
     );
   }
 
-  const remaining = Math.max(0, 6 - selected.size);
+  const remaining = Math.max(0, MIN_PLAYERS - selected.size);
 
   return (
     <div className="pb-32">
@@ -93,6 +105,11 @@ export function WhoIsHere() {
 
       <div className="p-4 space-y-4">
         <p className="text-sm text-muted">{t('lineup.subtitle')}</p>
+        {(checkinQ.data?.confirmed?.length ?? 0) > 0 ? (
+          <p className="text-xs text-accent">
+            {t('lineup.prefilled', { n: checkinQ.data!.confirmed.length })}
+          </p>
+        ) : null}
 
       {sessionPlayers.length > 0 ? (
         <section>

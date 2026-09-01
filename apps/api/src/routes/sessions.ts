@@ -1,6 +1,14 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { balanceTeams, type BalanceMode, type Player, uid, VESTS, type Vest } from '@racha/shared';
+import {
+  balanceTeams,
+  type BalanceMode,
+  type Player,
+  uid,
+  VESTS,
+  type Vest,
+  MIN_PLAYERS,
+} from '@racha/shared';
 import { getDb } from '../db/index.js';
 
 type SessionRow = {
@@ -91,7 +99,7 @@ sessions.get('/:id', (c) => {
 
 const CreateSessionInput = z.object({
   date: z.string().optional(),
-  player_ids: z.array(z.string()).min(6),
+  player_ids: z.array(z.string()).min(MIN_PLAYERS),
   // Subset of player_ids who are expected tonight but haven't arrived yet.
   // They join the session roster with arrived=0 and stay out of draws.
   late_ids: z.array(z.string()).default([]),

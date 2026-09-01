@@ -88,6 +88,7 @@ const dict = {
     // who is here
     'lineup.title': 'Who is here?',
     'lineup.subtitle': 'Tap everyone who is playing tonight.',
+    'lineup.prefilled': '✓ {n} pre-selected from check-in — adjust for no-shows or walk-ins.',
     'lineup.needMore': 'Need {n} more',
     'lineup.start': 'Start session →',
     'lineup.cancel': '← Cancel',
@@ -454,6 +455,7 @@ const dict = {
     // who is here
     'lineup.title': 'Quem veio?',
     'lineup.subtitle': 'Toque em todos que vão jogar hoje.',
+    'lineup.prefilled': '✓ {n} pré-selecionados pela confirmação — ajuste faltas ou avulsos.',
     'lineup.needMore': 'Faltam {n}',
     'lineup.start': 'Iniciar sessão →',
     'lineup.cancel': '← Cancelar',

@@ -11,6 +11,7 @@ export const LEAGUE_TZ = 'America/Vancouver';
 export const SEASON_START = '2026-09-14'; // Monday — season opener
 export const SEASON_END = '2027-06-21'; // Monday — last game
 export const CHECKIN_CAP = 18; // max players per game (3 teams; 15 is a full set)
+export const MIN_PLAYERS = 10; // minimum present players needed to start a racha
 
 export interface NoGameDate {
   date: string; // YYYY-MM-DD
