@@ -40,7 +40,7 @@ const en: RulesDoc = [
         rows: [
           { k: 'Season', v: 'Sep 14, 2026 → Jun 21, 2027' },
           { k: 'Day & Time', v: 'Every Monday, 6:00 PM – 8:00 PM' },
-          { k: 'Location', v: 'Elsie Roy Elementary School (Gymnasium)' },
+          { k: 'Location', v: 'Elsie Roy Elementary School (Gym), Vancouver, BC' },
           { k: 'Address', v: '150 Drake St, Vancouver, BC V6Z 2X1' },
         ],
       },
@@ -386,7 +386,7 @@ const pt: RulesDoc = [
         rows: [
           { k: 'Temporada', v: '14/set/2026 → 21/jun/2027' },
           { k: 'Dia & Horário', v: 'Toda segunda, 18h00 – 20h00' },
-          { k: 'Local', v: 'Elsie Roy Elementary School (Ginásio)' },
+          { k: 'Local', v: 'Elsie Roy Elementary School (Gym), Vancouver, BC' },
           { k: 'Endereço', v: '150 Drake St, Vancouver, BC V6Z 2X1' },
         ],
       },
