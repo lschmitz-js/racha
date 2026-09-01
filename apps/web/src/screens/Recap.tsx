@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { api } from '../lib/api.js';
-import { useT } from '../lib/i18n.js';
+import { useT, useI18n } from '../lib/i18n.js';
+import { SEASON_START, SEASON_END } from '../lib/schedule.js';
 import { Avatar } from '../lib/avatar.js';
 import { BestGrid } from '../components/Bests.js';
 import { BestShowcase } from '../components/BestShowcase.js';
@@ -29,35 +31,81 @@ interface WeekRow {
 }
 
 export function Recap() {
-  const seasonQ = useQuery({ queryKey: ['stats', 'season'], queryFn: api.stats.season });
-  const weeksQ = useQuery({ queryKey: ['stats', 'weeks'], queryFn: api.stats.weeks });
   const t = useT();
+  const { lang } = useI18n();
+  const [scope, setScope] = useState<'season' | 'all'>('season');
+  const range = scope === 'season' ? { from: SEASON_START, to: SEASON_END } : undefined;
+
+  const seasonQ = useQuery({
+    queryKey: ['stats', 'season', scope],
+    queryFn: () => api.stats.season(range),
+  });
+  const weeksQ = useQuery({ queryKey: ['stats', 'weeks'], queryFn: api.stats.weeks });
 
   if (seasonQ.isLoading || weeksQ.isLoading)
     return <div className="p-4 text-muted">{t('common.loading')}</div>;
 
   const rows = (seasonQ.data ?? []) as SeasonRow[];
-  const weeks = (weeksQ.data ?? []) as WeekRow[];
+  const inRange = (d: string) => d >= SEASON_START && d <= SEASON_END;
+  const weeks = ((weeksQ.data ?? []) as WeekRow[]).filter(
+    (w) => scope === 'all' || inRange(w.date)
+  );
 
   const leaderboard = rows
     .map((r) => ({ ...r, points: calcPoints(r) }))
     .sort((a, b) => b.points - a.points);
   const bests = bestOfEachCategory(rows);
 
+  const locale = lang === 'pt' ? 'pt-BR' : 'en-US';
+  const fmtSeasonDate = (iso: string) => {
+    const [y, m, d] = iso.split('-').map(Number) as [number, number, number];
+    return new Date(y, m - 1, d).toLocaleDateString(locale, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+  const rangeLabel =
+    scope === 'season'
+      ? `${fmtSeasonDate(SEASON_START)} → ${fmtSeasonDate(SEASON_END)}`
+      : t('recap.scope.all');
+
   return (
     <div className="p-4 pb-28 space-y-5">
-      <header>
-        <h1 className="title-lg">{t('recap.title')}</h1>
-        <p className="text-sm text-muted">{t('recap.subtitle')}</p>
+      <header className="space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="title-lg">{t('recap.title')}</h1>
+          <div className="inline-flex shrink-0 rounded-xl border border-border bg-bg3 p-0.5 text-sm">
+            {(['season', 'all'] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => setScope(s)}
+                className={`px-3 py-1 rounded-lg transition ${
+                  scope === s ? 'bg-accent text-white font-medium' : 'text-muted'
+                }`}
+              >
+                {t(`recap.scope.${s}`)}
+              </button>
+            ))}
+          </div>
+        </div>
+        <p className="text-sm text-muted tabular-nums">{rangeLabel}</p>
       </header>
 
-      {rows.length === 0 ? <div className="text-sm text-muted">{t('recap.noStats')}</div> : null}
+      {rows.length === 0 || leaderboard.every((r) => r.points === 0) ? (
+        <div className="text-sm text-muted">
+          {scope === 'season' ? t('recap.noStatsSeason') : t('recap.noStats')}
+        </div>
+      ) : (
+        <BestShowcase
+          bests={bests}
+          mvpLabel={scope === 'season' ? t('recap.mvpSeason') : t('recap.mvpAll')}
+        />
+      )}
 
-      <BestShowcase bests={bests} mvpLabel={t('recap.mvpSeason')} />
 
-
-      {/* Season leaderboard */}
-      {leaderboard.length > 0 ? (
+      {/* Leaderboard */}
+      {leaderboard.some((r) => r.points > 0) ? (
         <section>
           <div className="section-head">
             <h2 className="font-semibold">{t('recap.leaderboard')}</h2>

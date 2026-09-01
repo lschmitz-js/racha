@@ -246,7 +246,14 @@ export const api = {
   },
 
   stats: {
-    season: () => request<any[]>(`/api/stats/season`),
+    // No range => all-time; { from, to } => that season window.
+    season: (range?: { from?: string; to?: string }) => {
+      const q = new URLSearchParams();
+      if (range?.from) q.set('from', range.from);
+      if (range?.to) q.set('to', range.to);
+      const qs = q.toString();
+      return request<any[]>(`/api/stats/season${qs ? `?${qs}` : ''}`);
+    },
     weeks: () => request<any[]>(`/api/stats/weeks`),
   },
 };
