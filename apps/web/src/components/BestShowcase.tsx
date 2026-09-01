@@ -1,4 +1,5 @@
 import { useT } from '../lib/i18n.js';
+import { Avatar } from '../lib/avatar.js';
 import { fmtPoints, type BestEntry } from '../lib/points.js';
 
 const CAT_ICON: Record<BestEntry['category'], string> = {
@@ -27,8 +28,15 @@ export function BestShowcase({ bests, mvpLabel }: { bests: BestEntry[]; mvpLabel
     <div className="space-y-3">
       {mvp ? (
         <div className="rounded-2xl border border-accent/40 bg-accent/[0.08] p-4 flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-accent/20 text-accent flex items-center justify-center text-2xl shrink-0">
-            👑
+          <div className="relative w-12 h-12 shrink-0">
+            {mvp.players[0] ? (
+              <Avatar playerId={mvp.players[0].id} name={mvp.players[0].name} size={48} />
+            ) : (
+              <div className="w-12 h-12 rounded-xl bg-accent/20 text-accent flex items-center justify-center text-2xl">
+                👑
+              </div>
+            )}
+            <span className="absolute -top-1.5 -right-1.5 text-base">👑</span>
           </div>
           <div className="min-w-0 flex-1">
             <div className="tile-label text-accent">{mvpLabel ?? t('recap.cat.mvp')}</div>
@@ -48,8 +56,13 @@ export function BestShowcase({ bests, mvpLabel }: { bests: BestEntry[]; mvpLabel
                 <span>{CAT_ICON[b.category]}</span>
                 <span>{t(`recap.cat.${b.category}`)}</span>
               </div>
-              <div className="font-semibold truncate">
-                {b.players.map((p) => p.name).join(', ')}
+              <div className="flex items-center gap-1.5 min-w-0">
+                {b.players[0] ? (
+                  <Avatar playerId={b.players[0].id} name={b.players[0].name} size={20} />
+                ) : null}
+                <span className="font-semibold truncate">
+                  {b.players.map((p) => p.name).join(', ')}
+                </span>
               </div>
               <div className="text-xs text-muted">
                 {b.value} {t(`recap.unit.${b.category}` as any)}
