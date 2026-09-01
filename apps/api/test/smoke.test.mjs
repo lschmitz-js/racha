@@ -131,6 +131,30 @@ test('emergency self-service flow + PII never leaks', async () => {
   for (const pl of list) assert.ok(!('password_hash' in pl) && !('role' in pl));
 });
 
+test('check-in is public and orders season before drop-ins', async () => {
+  const sea = await (
+    await api('/api/players', { method: 'POST', headers: M, body: JSON.stringify(newPlayer({ name: 'Sea1', type: 'season' })) })
+  ).json();
+  const drop = await (
+    await api('/api/players', { method: 'POST', headers: M, body: JSON.stringify(newPlayer({ name: 'Drop1', type: 'dropin' })) })
+  ).json();
+
+  // Public write (no auth): drop-in checks in first, then the season player.
+  assert.equal((await api('/api/checkin', { method: 'POST', body: JSON.stringify({ player_id: drop.id, status: 'in' }) })).status, 200);
+  const board = await (await api('/api/checkin', { method: 'POST', body: JSON.stringify({ player_id: sea.id, status: 'in' }) })).json();
+
+  const names = board.confirmed.map((e) => e.name);
+  assert.ok(names.indexOf('Sea1') < names.indexOf('Drop1'), 'season player ranks above the earlier drop-in');
+
+  // Opting out moves you off the confirmed list.
+  const after = await (await api('/api/checkin', { method: 'POST', body: JSON.stringify({ player_id: sea.id, status: 'out' }) })).json();
+  assert.ok(!after.confirmed.some((e) => e.id === sea.id));
+  assert.ok(after.out.some((e) => e.id === sea.id));
+
+  // Unknown player is rejected.
+  assert.equal((await api('/api/checkin', { method: 'POST', body: JSON.stringify({ player_id: 'nope', status: 'in' }) })).status, 404);
+});
+
 test('invalid input -> 400 (not 500)', async () => {
   assert.equal(
     (await api('/api/players', { method: 'POST', headers: M, body: JSON.stringify({ name: '' }) })).status,

@@ -3,7 +3,7 @@ import { useLocation } from 'wouter';
 import { api } from '../lib/api.js';
 import { useI18n, useT } from '../lib/i18n.js';
 import { useCanEdit } from '../lib/auth.js';
-import { nextGameDate } from '../lib/schedule.js';
+import { nextGameDateISO } from '../lib/schedule.js';
 
 function ClockIcon() {
   return (
@@ -32,9 +32,9 @@ export function Home() {
   const sessionsQ = useQuery({ queryKey: ['sessions'], queryFn: api.sessions.list });
 
   const locale = lang === 'pt' ? 'pt-BR' : 'en-US';
-  const next = nextGameDate();
-  const nextLabel = next
-    ? next.toLocaleDateString(locale, {
+  const nextIso = nextGameDateISO();
+  const nextLabel = nextIso
+    ? new Date(nextIso + 'T12:00:00').toLocaleDateString(locale, {
         weekday: 'long',
         month: 'short',
         day: 'numeric',
@@ -75,15 +75,13 @@ export function Home() {
           </button>
         ) : (
           <>
-            <button
-              className="btn-primary w-full"
-              disabled={!canEdit}
-              onClick={() => setLocation('/start')}
-            >
-              ▶ {t('home.startRacha')}
+            <button className="btn-primary w-full" onClick={() => setLocation('/checkin')}>
+              ✅ {t('home.checkIn')}
             </button>
-            {!canEdit ? (
-              <p className="text-xs text-muted text-center">{t('auth.adminOnly')}</p>
+            {canEdit ? (
+              <button className="btn w-full" onClick={() => setLocation('/start')}>
+                ▶ {t('home.startRacha')}
+              </button>
             ) : null}
           </>
         )}

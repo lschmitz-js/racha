@@ -1,6 +1,7 @@
 import { Route, Switch, Link, useLocation } from 'wouter';
 import { useState } from 'react';
 import { Home } from './screens/Home.js';
+import { CheckIn } from './screens/CheckIn.js';
 import { WhoIsHere } from './screens/WhoIsHere.js';
 import { PlayerDB } from './screens/PlayerDB.js';
 import { Session } from './screens/Session.js';
@@ -24,7 +25,7 @@ export function App() {
   );
 }
 
-type TabKey = 'home' | 'players' | 'stats' | 'rules';
+type TabKey = 'home' | 'checkin' | 'players' | 'stats' | 'rules';
 
 function TabIcon({ name }: { name: TabKey }) {
   const common = {
@@ -43,6 +44,14 @@ function TabIcon({ name }: { name: TabKey }) {
         <svg {...common}>
           <path d="M3 10.5 12 3l9 7.5" />
           <path d="M5 9.5V21h14V9.5" />
+        </svg>
+      );
+    case 'checkin':
+      return (
+        <svg {...common}>
+          <path d="M9 5h6a1 1 0 0 1 1 1v0H8v0a1 1 0 0 1 1-1Z" />
+          <path d="M8 6H6a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-2" />
+          <path d="m9 14 2 2 4-4" />
         </svg>
       );
     case 'players':
@@ -75,6 +84,7 @@ function AppShell() {
   const hideNav = location.startsWith('/matches/') || location.startsWith('/e/');
   const tabs: Array<{ path: string; label: string; icon: TabKey }> = [
     { path: '/', label: t('nav.home'), icon: 'home' },
+    { path: '/checkin', label: t('nav.checkin'), icon: 'checkin' },
     { path: '/players', label: t('nav.players'), icon: 'players' },
     { path: '/recap', label: t('nav.recap'), icon: 'stats' },
     { path: '/rules', label: t('nav.rules'), icon: 'rules' },
@@ -90,6 +100,7 @@ function AppShell() {
       )}
       <Switch>
         <Route path="/" component={Home} />
+        <Route path="/checkin" component={CheckIn} />
         <Route path="/start" component={WhoIsHere} />
         <Route path="/players" component={PlayerDB} />
         <Route path="/sessions/:id" component={Session} />

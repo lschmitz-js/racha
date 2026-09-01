@@ -16,6 +16,7 @@ import { emergency } from './routes/emergency.js';
 import { auth as authRoutes } from './routes/auth.js';
 import { audit as auditRoutes } from './routes/audit.js';
 import { settings as settingsRoutes } from './routes/settings.js';
+import { checkin } from './routes/checkin.js';
 import { sessionUser, logAudit, purgeExpiredSessions, type AuthUser, type AppVariables } from './auth.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -147,7 +148,11 @@ function resolveUser(c: any): AuthUser | null {
   return sessionUser(provided);
 }
 
-const isPublicSelfService = (path: string) => path.startsWith('/api/emergency/');
+// Public/honor-system writes that the fail-closed gate lets through without an
+// admin (and that the audit middleware skips): the emergency self-service form
+// and the weekly game check-in.
+const isPublicSelfService = (path: string) =>
+  path.startsWith('/api/emergency/') || path === '/api/checkin';
 const isReadMethod = (m: string) => m === 'GET' || m === 'HEAD' || m === 'OPTIONS';
 const redactPath = (p: string) => p.replace(/(\/api\/emergency\/)[^/?]+/, '$1<token>');
 
@@ -248,6 +253,7 @@ app.route('/api/sessions', sessions);
 app.route('/api/matches', matches);
 app.route('/api/events', events);
 app.route('/api/stats', stats);
+app.route('/api/checkin', checkin);
 
 // Static SPA fallback. Looks at apps/web/dist next to the api dist (production
 // container layout) and falls back to apps/web/dist via repo root for dev.

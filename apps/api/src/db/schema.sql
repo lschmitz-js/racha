@@ -124,3 +124,19 @@ CREATE TABLE IF NOT EXISTS match_events (
 
 CREATE INDEX IF NOT EXISTS idx_events_match  ON match_events(match_id, clock_ms);
 CREATE INDEX IF NOT EXISTS idx_events_player ON match_events(player_id, type);
+
+-- Weekly game check-ins (RSVP). Keyed by game_date (YYYY-MM-DD, from the shared
+-- schedule's nextGameDateISO), so each week's board is independent and rolls
+-- over automatically as the schedule advances. status is 'in' or 'out';
+-- checked_in_at records when the player last set 'in' (the waitlist tiebreaker).
+-- Writes are public/honor-system (like emergency self-service).
+CREATE TABLE IF NOT EXISTS checkins (
+  id            TEXT PRIMARY KEY,
+  game_date     TEXT NOT NULL,
+  player_id     TEXT NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  status        TEXT NOT NULL DEFAULT 'in' CHECK(status IN ('in','out')),
+  checked_in_at INTEGER,
+  updated_at    INTEGER NOT NULL,
+  UNIQUE(game_date, player_id)
+);
+CREATE INDEX IF NOT EXISTS idx_checkins_date ON checkins(game_date);

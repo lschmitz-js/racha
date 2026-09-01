@@ -25,6 +25,20 @@ export interface AuditEntry {
   created_at: number;
 }
 
+export interface CheckinEntry {
+  id: string;
+  name: string;
+  type: 'season' | 'dropin';
+  checked_in_at: number | null;
+}
+export interface CheckinBoard {
+  game_date: string | null;
+  cap: number;
+  confirmed: CheckinEntry[];
+  waitlist: CheckinEntry[];
+  out: CheckinEntry[];
+}
+
 // Fields accepted when creating/updating a player. is_admin + password are
 // optional admin-management fields; password is write-only.
 type PlayerWrite = Omit<Player, 'id' | 'active' | 'is_admin'> & {
@@ -263,5 +277,14 @@ export const api = {
       return request<any[]>(`/api/stats/season${qs ? `?${qs}` : ''}`);
     },
     weeks: () => request<any[]>(`/api/stats/weeks`),
+  },
+
+  checkin: {
+    get: () => request<CheckinBoard>(`/api/checkin`),
+    set: (player_id: string, status: 'in' | 'out') =>
+      request<CheckinBoard>(`/api/checkin`, {
+        method: 'POST',
+        body: JSON.stringify({ player_id, status }),
+      }),
   },
 };
