@@ -266,7 +266,7 @@ export function CheckIn() {
       {/* Admin: add / fix anyone not already in the lists */}
       {canEdit ? (
         <AdminManage
-          roster={roster.map((p) => ({ id: p.id, name: p.name }))}
+          roster={roster.map((p) => ({ id: p.id, name: p.name, type: p.type }))}
           board={board}
           onSet={set.mutate}
         />
@@ -366,14 +366,24 @@ function AdminManage({
   board,
   onSet,
 }: {
-  roster: Array<{ id: string; name: string }>;
+  roster: Array<{ id: string; name: string; type: 'season' | 'dropin' }>;
   board: CheckinBoard;
   onSet: (v: { id: string; status: 'in' | 'out' | 'none' }) => void;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'season' | 'dropin'>('all');
   const inIds = new Set([...board.confirmed, ...board.waitlist].map((e) => e.id));
   const outIds = new Set(board.out.map((e) => e.id));
+
+  const seasonCount = roster.filter((p) => p.type === 'season').length;
+  const filters: Array<{ key: 'all' | 'season' | 'dropin'; label: string; n: number }> = [
+    { key: 'all', label: t('checkin.all'), n: roster.length },
+    { key: 'season', label: t('checkin.season'), n: seasonCount },
+    { key: 'dropin', label: t('checkin.dropins'), n: roster.length - seasonCount },
+  ];
+  const shown = roster.filter((p) => filter === 'all' || p.type === filter);
+
   return (
     <section>
       <button
@@ -384,12 +394,36 @@ function AdminManage({
         {t('checkin.manage')}
       </button>
       {open ? (
-        <div className="mt-2 space-y-1.5">
-          {roster.map((p) => {
+        <div className="mt-2 space-y-2">
+          {/* Filter by season vs drop-in so it's clear who's who. */}
+          <div className="inline-flex rounded-lg border border-border overflow-hidden text-xs">
+            {filters.map((f) => (
+              <button
+                key={f.key}
+                className={`px-3 py-1.5 border-r border-border last:border-r-0 ${
+                  filter === f.key ? 'bg-accent text-white' : 'text-muted hover:text-fg'
+                }`}
+                onClick={() => setFilter(f.key)}
+              >
+                {f.label} <span className="tabular-nums opacity-80">{f.n}</span>
+              </button>
+            ))}
+          </div>
+          <div className="space-y-1.5">
+          {shown.map((p) => {
             const status = inIds.has(p.id) ? 'in' : outIds.has(p.id) ? 'out' : 'none';
             return (
               <div key={p.id} className="card flex items-center gap-2 py-1.5">
                 <span className="flex-1 min-w-0 truncate text-sm">{p.name}</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 ${
+                    p.type === 'season'
+                      ? 'border-accent/40 text-accent'
+                      : 'border-border text-muted'
+                  }`}
+                >
+                  {p.type === 'season' ? t('checkin.season') : t('checkin.dropin')}
+                </span>
                 {/* Tapping the active choice again clears it (back to no response). */}
                 <button
                   className={`text-xs px-2 py-1 rounded-lg border ${
@@ -417,6 +451,7 @@ function AdminManage({
               </div>
             );
           })}
+          </div>
         </div>
       ) : null}
     </section>
