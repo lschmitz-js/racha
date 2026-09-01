@@ -131,7 +131,7 @@ test('emergency self-service flow + PII never leaks', async () => {
   for (const pl of list) assert.ok(!('password_hash' in pl) && !('role' in pl));
 });
 
-test('check-in: season only, public, toggle to clear', async () => {
+test('check-in: public, season ranks above drop-ins, toggle to clear', async () => {
   const sea = await (
     await api('/api/players', { method: 'POST', headers: M, body: JSON.stringify(newPlayer({ name: 'Sea1', type: 'season' })) })
   ).json();
@@ -139,16 +139,11 @@ test('check-in: season only, public, toggle to clear', async () => {
     await api('/api/players', { method: 'POST', headers: M, body: JSON.stringify(newPlayer({ name: 'Drop1', type: 'dropin' })) })
   ).json();
 
-  // Public write (no auth): a season player checks in.
+  // Public writes (no auth): a drop-in may check in too; they just rank after season.
+  assert.equal((await api('/api/checkin', { method: 'POST', body: JSON.stringify({ player_id: drop.id, status: 'in' }) })).status, 200);
   const board = await (await api('/api/checkin', { method: 'POST', body: JSON.stringify({ player_id: sea.id, status: 'in' }) })).json();
-  assert.ok(board.confirmed.some((e) => e.id === sea.id), 'season player is confirmed');
-
-  // Drop-ins can't check in.
-  assert.equal(
-    (await api('/api/checkin', { method: 'POST', body: JSON.stringify({ player_id: drop.id, status: 'in' }) })).status,
-    400,
-    'check-in is season-only'
-  );
+  const names = board.confirmed.map((e) => e.name);
+  assert.ok(names.indexOf('Sea1') < names.indexOf('Drop1'), 'season player ranks above the earlier drop-in');
 
   // Pressing again ('none') clears the check-in entirely.
   const cleared = await (await api('/api/checkin', { method: 'POST', body: JSON.stringify({ player_id: sea.id, status: 'none' }) })).json();

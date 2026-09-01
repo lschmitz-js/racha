@@ -95,7 +95,7 @@ const en: RulesDoc = [
         blocks: [
           {
             t: 'p',
-            text: 'Season players confirm in the app: open the Check-in tab and tap “I’m in” or “Can’t make it” for the next game. The app keeps the Confirmed list automatically. Drop-ins don’t check in — they fill any leftover spots on the night. WhatsApp is only used for a weekly reminder.',
+            text: 'Open the Check-in tab and tap “I’m in” or “Can’t make it” for the next game. Season players must confirm; drop-ins can check in too if they want a spot (optional for them). The app keeps the Confirmed list automatically. WhatsApp is only used for a weekly reminder.',
           },
         ],
       },
@@ -144,7 +144,7 @@ const en: RulesDoc = [
         blocks: [
           {
             t: 'p',
-            text: 'If fewer than 15 season players confirm, the remaining spots are filled by drop-ins on the night, first-come, coordinated by the organizer. The app shows how many season players have confirmed, so the number of open spots is clear.',
+            text: 'If fewer than 15 season players confirm, the remaining spots go to the drop-ins who checked in, by check-in time — the sooner you check in, the better your chance. The app shows the confirmed list and how many spots are open.',
           },
         ],
       },
@@ -441,7 +441,7 @@ const pt: RulesDoc = [
         blocks: [
           {
             t: 'p',
-            text: 'Os fixos confirmam no app: abra a aba Presença e toque em “Eu vou” ou “Não vou” para o próximo jogo. O app mantém a lista de Confirmados automaticamente. Os avulsos não confirmam — eles preenchem as vagas que sobrarem na hora. O WhatsApp serve só para o lembrete semanal.',
+            text: 'Abra a aba Presença e toque em “Eu vou” ou “Não vou” para o próximo jogo. Os fixos precisam confirmar; os avulsos podem confirmar também se quiserem vaga (opcional para eles). O app mantém a lista de Confirmados automaticamente. O WhatsApp serve só para o lembrete semanal.',
           },
         ],
       },
@@ -490,7 +490,7 @@ const pt: RulesDoc = [
         blocks: [
           {
             t: 'p',
-            text: 'Se menos de 15 fixos confirmarem, as vagas restantes são preenchidas por avulsos na hora, por ordem de chegada, organizadas pelo organizador. O app mostra quantos fixos confirmaram, então fica claro quantas vagas estão abertas.',
+            text: 'Se menos de 15 fixos confirmarem, as vagas restantes vão para os avulsos que confirmaram, por horário de confirmação — quanto antes confirmar, maior a chance. O app mostra a lista de confirmados e quantas vagas estão abertas.',
           },
         ],
       },

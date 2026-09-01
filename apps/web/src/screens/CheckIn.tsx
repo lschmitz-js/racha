@@ -46,9 +46,15 @@ export function CheckIn() {
   });
 
   const board = (boardQ.data ?? { game_date: null, cap: 18, confirmed: [], waitlist: [], out: [] }) as CheckinBoard;
-  // Only season players check in; drop-ins are added on the night.
-  const roster = (playersQ.data ?? []).filter((p) => p.active && p.type === 'season');
+  // Season players must confirm; drop-ins may check in if they want to play.
+  const roster = (playersQ.data ?? []).filter((p) => p.active);
   const me = meId ? roster.find((p) => p.id === meId) : undefined;
+
+  // Season players who haven't responded yet (confirmation is expected of them).
+  const respondedIds = new Set(
+    [...board.confirmed, ...board.waitlist, ...board.out].map((e) => e.id)
+  );
+  const awaitingSeason = roster.filter((p) => p.type === 'season' && !respondedIds.has(p.id));
 
   const locale = lang === 'pt' ? 'pt-BR' : 'en-US';
   const dateLabel = board.game_date
@@ -230,6 +236,27 @@ export function CheckIn() {
             {board.out.map((e) => (
               <span key={e.id} className="text-sm text-muted px-2.5 py-1 rounded-full border border-border">
                 {e.name}
+              </span>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {/* Season players still expected to confirm */}
+      {awaitingSeason.length > 0 ? (
+        <section>
+          <div className="section-head">
+            <h2 className="font-semibold text-muted">
+              {t('checkin.awaiting')} <span>{awaitingSeason.length}</span>
+            </h2>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {awaitingSeason.map((p) => (
+              <span
+                key={p.id}
+                className="text-sm text-muted px-2.5 py-1 rounded-full border border-dashed border-border"
+              >
+                {p.name}
               </span>
             ))}
           </div>
