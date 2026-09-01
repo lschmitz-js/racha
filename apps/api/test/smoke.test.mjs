@@ -131,7 +131,7 @@ test('emergency self-service flow + PII never leaks', async () => {
   for (const pl of list) assert.ok(!('password_hash' in pl) && !('role' in pl));
 });
 
-test('check-in is public and orders season before drop-ins', async () => {
+test('check-in: season only, public, toggle to clear', async () => {
   const sea = await (
     await api('/api/players', { method: 'POST', headers: M, body: JSON.stringify(newPlayer({ name: 'Sea1', type: 'season' })) })
   ).json();
@@ -139,17 +139,20 @@ test('check-in is public and orders season before drop-ins', async () => {
     await api('/api/players', { method: 'POST', headers: M, body: JSON.stringify(newPlayer({ name: 'Drop1', type: 'dropin' })) })
   ).json();
 
-  // Public write (no auth): drop-in checks in first, then the season player.
-  assert.equal((await api('/api/checkin', { method: 'POST', body: JSON.stringify({ player_id: drop.id, status: 'in' }) })).status, 200);
+  // Public write (no auth): a season player checks in.
   const board = await (await api('/api/checkin', { method: 'POST', body: JSON.stringify({ player_id: sea.id, status: 'in' }) })).json();
+  assert.ok(board.confirmed.some((e) => e.id === sea.id), 'season player is confirmed');
 
-  const names = board.confirmed.map((e) => e.name);
-  assert.ok(names.indexOf('Sea1') < names.indexOf('Drop1'), 'season player ranks above the earlier drop-in');
+  // Drop-ins can't check in.
+  assert.equal(
+    (await api('/api/checkin', { method: 'POST', body: JSON.stringify({ player_id: drop.id, status: 'in' }) })).status,
+    400,
+    'check-in is season-only'
+  );
 
-  // Opting out moves you off the confirmed list.
-  const after = await (await api('/api/checkin', { method: 'POST', body: JSON.stringify({ player_id: sea.id, status: 'out' }) })).json();
-  assert.ok(!after.confirmed.some((e) => e.id === sea.id));
-  assert.ok(after.out.some((e) => e.id === sea.id));
+  // Pressing again ('none') clears the check-in entirely.
+  const cleared = await (await api('/api/checkin', { method: 'POST', body: JSON.stringify({ player_id: sea.id, status: 'none' }) })).json();
+  assert.ok(!cleared.confirmed.some((e) => e.id === sea.id) && !cleared.out.some((e) => e.id === sea.id), 'cleared back to no response');
 
   // Unknown player is rejected.
   assert.equal((await api('/api/checkin', { method: 'POST', body: JSON.stringify({ player_id: 'nope', status: 'in' }) })).status, 404);

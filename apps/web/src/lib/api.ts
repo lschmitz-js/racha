@@ -281,7 +281,7 @@ export const api = {
 
   checkin: {
     get: () => request<CheckinBoard>(`/api/checkin`),
-    set: (player_id: string, status: 'in' | 'out') =>
+    set: (player_id: string, status: 'in' | 'out' | 'none') =>
       request<CheckinBoard>(`/api/checkin`, {
         method: 'POST',
         body: JSON.stringify({ player_id, status }),

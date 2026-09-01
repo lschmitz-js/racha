@@ -13,7 +13,9 @@ export const checkin = new Hono();
 
 const CheckinInput = z.object({
   player_id: z.string().min(1),
-  status: z.enum(['in', 'out']),
+  // 'none' clears the player's check-in entirely (back to no response) — used
+  // when a player taps their already-selected choice again.
+  status: z.enum(['in', 'out', 'none']),
 });
 
 type Row = {
@@ -31,11 +33,13 @@ function readBoard(gameDate: string | null) {
   if (!gameDate) {
     return { game_date: null, cap: CHECKIN_CAP, confirmed: [], waitlist: [], out: [] };
   }
+  // Only season players check in — drop-ins fill any remaining spots on the
+  // night, coordinated by the organizer.
   const rows = getDb()
     .prepare(
       `SELECT c.player_id, p.name, p.type, c.status, c.checked_in_at
          FROM checkins c
-         JOIN players p ON p.id = c.player_id AND p.active = 1
+         JOIN players p ON p.id = c.player_id AND p.active = 1 AND p.type = 'season'
         WHERE c.game_date = ?`
     )
     .all(gameDate) as Row[];
@@ -78,9 +82,17 @@ checkin.post('/', async (c) => {
 
   const db = getDb();
   const player = db
-    .prepare('SELECT id FROM players WHERE id = ? AND active = 1')
-    .get(player_id) as { id: string } | undefined;
+    .prepare('SELECT id, type FROM players WHERE id = ? AND active = 1')
+    .get(player_id) as { id: string; type: string } | undefined;
   if (!player) return c.json({ error: 'unknown player' }, 404);
+  if (player.type !== 'season') {
+    return c.json({ error: 'check-in is for season players only' }, 400);
+  }
+
+  if (status === 'none') {
+    db.prepare('DELETE FROM checkins WHERE game_date = ? AND player_id = ?').run(gameDate, player_id);
+    return c.json(readBoard(gameDate));
+  }
 
   const now = Date.now();
   const existing = db

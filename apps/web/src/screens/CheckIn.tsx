@@ -39,13 +39,15 @@ export function CheckIn() {
   const [search, setSearch] = useState('');
 
   const set = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: 'in' | 'out' }) => api.checkin.set(id, status),
+    mutationFn: ({ id, status }: { id: string; status: 'in' | 'out' | 'none' }) =>
+      api.checkin.set(id, status),
     onSuccess: (board) => qc.setQueryData(['checkin'], board),
     onError: (e: any) => alert(String(e?.message ?? e)),
   });
 
   const board = (boardQ.data ?? { game_date: null, cap: 18, confirmed: [], waitlist: [], out: [] }) as CheckinBoard;
-  const roster = (playersQ.data ?? []).filter((p) => p.active);
+  // Only season players check in; drop-ins are added on the night.
+  const roster = (playersQ.data ?? []).filter((p) => p.active && p.type === 'season');
   const me = meId ? roster.find((p) => p.id === meId) : undefined;
 
   const locale = lang === 'pt' ? 'pt-BR' : 'en-US';
@@ -112,8 +114,11 @@ export function CheckIn() {
             <Avatar playerId={me.id} name={me.name} size={40} />
             <div className="flex-1 min-w-0">
               <div className="font-semibold truncate">{me.name}</div>
-              <button className="text-xs text-muted hover:text-fg" onClick={() => setPicking(true)}>
-                {t('checkin.notYou')} {t('checkin.change')}
+              <button
+                className="mt-1 inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-md border border-accent/60 text-accent hover:bg-accent/10"
+                onClick={() => setPicking(true)}
+              >
+                {t('checkin.notYou')} {t('checkin.change')} →
               </button>
             </div>
             {myStatus === 'in' ? (
@@ -138,7 +143,12 @@ export function CheckIn() {
                   : 'border-border bg-bg2 hover:border-accent'
               }`}
               disabled={set.isPending}
-              onClick={() => set.mutate({ id: me.id, status: 'in' })}
+              onClick={() =>
+                set.mutate({
+                  id: me.id,
+                  status: myStatus === 'in' || myStatus === 'wait' ? 'none' : 'in',
+                })
+              }
             >
               ✅ {t('checkin.imIn')}
             </button>
@@ -149,7 +159,9 @@ export function CheckIn() {
                   : 'border-border bg-bg2 hover:border-red-500/60'
               }`}
               disabled={set.isPending}
-              onClick={() => set.mutate({ id: me.id, status: 'out' })}
+              onClick={() =>
+                set.mutate({ id: me.id, status: myStatus === 'out' ? 'none' : 'out' })
+              }
             >
               ✕ {t('checkin.cantMake')}
             </button>
