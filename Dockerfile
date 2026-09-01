@@ -41,4 +41,9 @@ COPY package.json ./
 VOLUME ["/data"]
 EXPOSE 8080
 
+# Drop from root to the image's unprivileged `node` user (uid 1000). The app
+# only writes to /data, so that bind-mount must be owned by uid 1000 on the host
+# (chown -R 1000:1000 ./data); everything under /app is read-only to the app.
+USER node
+
 CMD ["node", "apps/api/dist/server.js"]
