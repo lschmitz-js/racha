@@ -1,5 +1,10 @@
 // Bilingual content for the Rules screen. Kept out of lib/i18n.tsx because it is
 // a large static document rather than short UI strings. Rendered by Rules.tsx.
+//
+// NOTE: the "Season" range and the "No Game Dates" list below are the
+// human-readable mirror of lib/schedule.ts (SEASON_START/END + NO_GAME_DATES),
+// which is what the "Next racha" card actually computes from. When a season
+// changes, update BOTH this file and lib/schedule.ts.
 
 export type Block =
   | { t: 'p'; text: string }

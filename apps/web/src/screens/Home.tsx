@@ -3,15 +3,7 @@ import { useLocation } from 'wouter';
 import { api } from '../lib/api.js';
 import { useI18n, useT } from '../lib/i18n.js';
 import { useCanEdit } from '../lib/auth.js';
-
-// Next Monday (or today if it's Monday), for the "Next Racha" card.
-function nextMonday(): Date {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  const delta = (1 - d.getDay() + 7) % 7; // 1 = Monday
-  d.setDate(d.getDate() + delta);
-  return d;
-}
+import { nextGameDate } from '../lib/schedule.js';
 
 function ClockIcon() {
   return (
@@ -40,11 +32,14 @@ export function Home() {
   const sessionsQ = useQuery({ queryKey: ['sessions'], queryFn: api.sessions.list });
 
   const locale = lang === 'pt' ? 'pt-BR' : 'en-US';
-  const nextLabel = nextMonday().toLocaleDateString(locale, {
-    weekday: 'long',
-    month: 'short',
-    day: 'numeric',
-  });
+  const next = nextGameDate();
+  const nextLabel = next
+    ? next.toLocaleDateString(locale, {
+        weekday: 'long',
+        month: 'short',
+        day: 'numeric',
+      })
+    : t('home.seasonOver');
   const fmtDate = (s: string) => {
     const d = new Date(s);
     return isNaN(d.getTime())
