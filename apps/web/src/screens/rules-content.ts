@@ -25,36 +25,10 @@ export interface Section {
 
 export type RulesDoc = Section[];
 
-const POLL_OPEN = `⚽ Racha de Segunda - Monday, [Insert Date], 6PM-8PM @ Elsie Roy (150 Drake St) - Please vote below 👇
-⚠️ Drop-in spots filled by fastest vote order!
+const REMINDER = `⚽ Racha de Segunda — Monday, [Insert Date], 6PM-8PM @ Elsie Roy (150 Drake St)
 
-🟢 Playing (Season)
-🔴 Out (Season)
-🟡 Drop-In (Group)
-🔵 Drop-In (External)`;
-
-const POLL_CLOSE = `⚽ Racha de Segunda - Monday, [Insert Date], 6PM-8PM @ Elsie Roy (150 Drake St)
-
-Players Confirmed! 👇
-
-1 -
-2 -
-3 -
-4 -
-5 -
-6 -
-7 -
-8 -
-9 -
-10 -
-11 -
-12 -
-13 -
-14 -
-15 -
-16 -
-17 -
-18 -`;
+👉 Check in on the app — open the Check-in tab and tap "I'm in" or "Can't make it".
+Confirm by Friday 3PM. Spots fill by check-in time, so don't leave it late!`;
 
 const en: RulesDoc = [
   {
@@ -118,7 +92,12 @@ const en: RulesDoc = [
       {
         t: 'sub',
         title: 'Attendance & RSVPs',
-        blocks: [{ t: 'p', text: 'Done exclusively via the WhatsApp group polls each week.' }],
+        blocks: [
+          {
+            t: 'p',
+            text: 'Done in the app: open the Check-in tab and tap “I’m in” or “Can’t make it” for the next game. The app keeps the Confirmed list and Waitlist automatically — no WhatsApp poll to open or count. WhatsApp is only used for a weekly reminder to check in.',
+          },
+        ],
       },
       {
         t: 'sub',
@@ -139,9 +118,9 @@ const en: RulesDoc = [
       {
         t: 'list',
         items: [
-          'Wednesday 10:00 AM — the weekly poll goes up on WhatsApp.',
-          'Friday before 3:00 PM — deadline to remove your name without any penalty.',
-          'Friday 3:00 PM — the list is officially closed.',
+          'Any time during the week — check in on the app for the next game (it’s always open; no poll to wait for).',
+          'Friday before 3:00 PM — deadline to change your mind (check out) without any penalty.',
+          'Friday 3:00 PM — the list is final: the Confirmed players and Waitlist are set.',
         ],
       },
     ],
@@ -165,14 +144,14 @@ const en: RulesDoc = [
         blocks: [
           {
             t: 'p',
-            text: 'If fewer than 15 season players confirm for the week, the remaining spots are filled by drop-ins, strictly by the timestamp/order of the votes on the poll — the faster you vote, the better your chance.',
+            text: 'If fewer than 15 season players confirm for the week, the remaining spots are filled by drop-ins, strictly by check-in time in the app — the sooner you check in, the better your chance. The app shows this live as the Confirmed list and the Waitlist.',
           },
         ],
       },
       {
         t: 'callout',
         tone: 'warn',
-        text: 'No-Show Rule: if you are confirmed on the list after Friday 3:00 PM and fail to show up without a valid, last-minute emergency, you get a 1-game suspension.',
+        text: 'No-Show Rule: if you are confirmed in the app after Friday 3:00 PM and fail to show up without a valid, last-minute emergency, you get a 1-game suspension.',
       },
     ],
   },
@@ -382,17 +361,16 @@ const en: RulesDoc = [
   },
   {
     icon: '📝',
-    title: 'WhatsApp Message Templates',
+    title: 'WhatsApp Reminder',
     blocks: [
       {
-        t: 'sub',
-        title: 'Opening the Poll (Wednesday 10:00 AM)',
-        blocks: [{ t: 'code', text: POLL_OPEN }],
+        t: 'p',
+        text: 'No more poll to open or tally. Once a week, drop a reminder in the group so people check in on the app. The Check-in screen has a “Copy WhatsApp reminder” button that fills in the date and current count for you.',
       },
       {
         t: 'sub',
-        title: 'Closing the List (Friday 3:00 PM)',
-        blocks: [{ t: 'code', text: POLL_CLOSE }],
+        title: 'Weekly reminder',
+        blocks: [{ t: 'code', text: REMINDER }],
       },
     ],
   },
@@ -460,7 +438,12 @@ const pt: RulesDoc = [
       {
         t: 'sub',
         title: 'Presença & Confirmações',
-        blocks: [{ t: 'p', text: 'Feitas exclusivamente pelas enquetes do grupo do WhatsApp toda semana.' }],
+        blocks: [
+          {
+            t: 'p',
+            text: 'Feitas no app: abra a aba Presença e toque em “Eu vou” ou “Não vou” para o próximo jogo. O app mantém a lista de Confirmados e a de Espera automaticamente — sem enquete do WhatsApp para abrir ou contar. O WhatsApp serve só para o lembrete semanal de confirmar presença.',
+          },
+        ],
       },
       {
         t: 'sub',
@@ -481,9 +464,9 @@ const pt: RulesDoc = [
       {
         t: 'list',
         items: [
-          'Quarta 10h00 — a enquete da semana vai ao ar no WhatsApp.',
-          'Sexta antes das 15h00 — prazo para tirar seu nome sem punição.',
-          'Sexta 15h00 — a lista é oficialmente fechada.',
+          'Durante a semana — confirme presença no app para o próximo jogo (fica sempre aberto; sem enquete para esperar).',
+          'Sexta antes das 15h00 — prazo para desistir (marcar “Não vou”) sem punição.',
+          'Sexta 15h00 — a lista é final: os Confirmados e a lista de Espera ficam definidos.',
         ],
       },
     ],
@@ -507,14 +490,14 @@ const pt: RulesDoc = [
         blocks: [
           {
             t: 'p',
-            text: 'Se menos de 15 fixos confirmarem na semana, as vagas restantes são preenchidas por avulsos, estritamente pela ordem/horário dos votos na enquete — quanto mais rápido votar, maior a chance.',
+            text: 'Se menos de 15 fixos confirmarem na semana, as vagas restantes são preenchidas por avulsos, estritamente pela ordem/horário de confirmação no app — quanto antes confirmar, maior a chance. O app mostra isso ao vivo como lista de Confirmados e lista de Espera.',
           },
         ],
       },
       {
         t: 'callout',
         tone: 'warn',
-        text: 'Regra do No-Show: se você está confirmado na lista depois de sexta 15h00 e não aparece sem uma emergência de última hora válida, leva 1 jogo de suspensão.',
+        text: 'Regra do No-Show: se você está confirmado no app depois de sexta 15h00 e não aparece sem uma emergência de última hora válida, leva 1 jogo de suspensão.',
       },
     ],
   },
@@ -724,17 +707,16 @@ const pt: RulesDoc = [
   },
   {
     icon: '📝',
-    title: 'Modelos de Mensagem do WhatsApp',
+    title: 'Lembrete do WhatsApp',
     blocks: [
       {
-        t: 'sub',
-        title: 'Abrindo a Enquete (Quarta 10h00)',
-        blocks: [{ t: 'code', text: POLL_OPEN }],
+        t: 'p',
+        text: 'Sem enquete para abrir ou contar. Uma vez por semana, mande um lembrete no grupo para o pessoal confirmar no app. A tela de Presença tem um botão “Copiar lembrete do WhatsApp” que já preenche a data e o total de confirmados.',
       },
       {
         t: 'sub',
-        title: 'Fechando a Lista (Sexta 15h00)',
-        blocks: [{ t: 'code', text: POLL_CLOSE }],
+        title: 'Lembrete semanal',
+        blocks: [{ t: 'code', text: REMINDER }],
       },
     ],
   },
