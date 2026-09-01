@@ -7,22 +7,31 @@ a full bilingual (Português / English) rulebook.
 
 ## Features
 
-- **Team draws & match play** — `balanceTeams` splits the confirmed players into
-  three balanced teams; teams can also be hand-tweaked by dragging players
-  between them. A match clock (5 min standard, 6 min in the 16–18 player "full
-  house" format) drives winner-stays rotation, with the documented tie rules
-  (first game: odds-or-evens; later games: the challenger stays).
+- **Check-in (RSVP)** — players confirm for the next game in the Check-in tab
+  (honor-system: tap your name, remembered on the device). The board is always
+  tied to the next game from the schedule and rolls over automatically each week —
+  no poll to open. The confirmed list + waitlist follow the rules (season players
+  first, then drop-ins by check-in time, up to 18; 15 marks full teams). WhatsApp
+  is only a reminder — there's a "copy reminder" button.
+- **Team draws & match play** — a racha needs at least 10 present to start
+  (`MIN_PLAYERS`, shared). Starting pre-selects whoever confirmed on the check-in
+  board. `balanceTeams` splits players by skill into white/black (5 each, the two
+  playing sides) plus green (the rotating remainder). A match clock (5 min
+  standard, 6 min in the 16–18 "full house") drives winner-stays rotation with the
+  documented tie rules (first game: odds-or-evens; later games: the challenger
+  stays). When the team coming on is short of five, the post-match panel tops it up
+  from the team that just left. Teams can also be hand-tweaked by dragging players.
 - **Live stats** — goals, assists, beautiful plays, howlers, saves, nutmegs
   (*canetas*), and open misses (*quase-gols*) are logged per player, per match.
   There is no fixed goalkeeper role — whoever is in net still gets credited with
   saves.
 - **Recaps & leaderboards** — a points-based leaderboard, per-week recaps, and
   best-of-category / MVP cards. A **Season / All-time toggle** scopes everything;
-  the Season view is bounded by the dates in `apps/web/src/lib/schedule.ts` and
+  the Season view is bounded by the dates in `packages/shared/src/schedule.ts` and
   shows the season's start/end range.
 - **Season schedule** — the home "Next racha" card computes the next *playable*
   Monday from the season window and the list of no-game holidays, both defined in
-  `apps/web/src/lib/schedule.ts` (mirrored in the Rules screen).
+  `packages/shared/src/schedule.ts` (mirrored in the Rules screen).
 - **Editable roster** — the season roster is managed on the Players tab (no names
   hardcoded). Players can be imported/exported as JSON.
 - **Emergency contacts** — each player gets a private, unguessable self-service
@@ -156,7 +165,7 @@ The single-file legacy app exports `{ db, weekIds }` JSON. As an admin, hit
 ## Repo layout
 
 - `apps/api` — Hono + SQLite backend (`src/routes/*` = auth, audit, settings,
-  players, emergency, sessions, matches, events, stats).
+  players, emergency, checkin, sessions, matches, events, stats).
 - `apps/web` — Vite + React SPA (`src/screens/*`, `src/lib/*`).
 - `packages/shared` — Zod schemas + the ported `balanceTeams` algorithm.
 - `scripts` — ops helpers (e.g. `racha-backup.sh`).
