@@ -26,10 +26,17 @@ export async function hashPassword(pw: string): Promise<string> {
   return `scrypt$${salt.toString('base64')}$${dk.toString('base64')}`;
 }
 
+// A throwaway salt used to burn an equivalent scrypt on the failure path so a
+// missing/invalid stored hash can't be told apart from a wrong password by
+// response timing (defeats username enumeration).
+const DUMMY_SALT = randomBytes(16);
+
 export async function verifyPassword(pw: string, stored: string | null | undefined): Promise<boolean> {
-  if (!stored) return false;
-  const [scheme, saltB64, hashB64] = stored.split('$');
-  if (scheme !== 'scrypt' || !saltB64 || !hashB64) return false;
+  const [scheme, saltB64, hashB64] = (stored ?? '').split('$');
+  if (scheme !== 'scrypt' || !saltB64 || !hashB64) {
+    await scrypt(pw, DUMMY_SALT, 32); // constant-work miss path
+    return false;
+  }
   const salt = Buffer.from(saltB64, 'base64');
   const expected = Buffer.from(hashB64, 'base64');
   const dk = await scrypt(pw, salt, expected.length);

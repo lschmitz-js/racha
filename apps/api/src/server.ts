@@ -112,6 +112,13 @@ if (RL_MAX > 0) {
 const TOKEN = process.env.RACHA_TOKEN;
 const authRequired = !!TOKEN;
 if (!TOKEN) {
+  if (process.env.NODE_ENV === 'production') {
+    console.error(
+      '[racha] FATAL: RACHA_TOKEN is not set. Refusing to start unauthenticated in production. ' +
+        'Set RACHA_TOKEN to a strong secret.'
+    );
+    process.exit(1);
+  }
   console.warn(
     '[racha] WARNING: RACHA_TOKEN is not set — all write endpoints are UNAUTHENTICATED. ' +
       'Set RACHA_TOKEN to lock down a public deployment.'

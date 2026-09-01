@@ -12,7 +12,7 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { getDb } from '../db/index.js';
-import { hashPassword, destroyUserSessions } from '../auth.js';
+import { hashPassword, destroyUserSessions, type AppVariables } from '../auth.js';
 
 const AVATAR_DIR =
   process.env.AVATAR_DIR ||
@@ -64,23 +64,44 @@ type PlayerRow = {
   created_at: number;
 };
 
-function rowToPlayer(r: PlayerRow): Player {
+// `includeAdmin` gates the is_admin flag: only authenticated admins see who is
+// an admin, so an unauthenticated caller of GET /players can't enumerate admin
+// accounts to target for login. Write handlers (admin-only) pass the default.
+function rowToPlayer(r: PlayerRow, includeAdmin = true): Player {
   return {
     id: r.id,
     name: r.name,
     type: r.type,
     skills: JSON.parse(r.skills_json),
     active: !!r.active,
-    is_admin: !!r.is_admin,
+    is_admin: includeAdmin ? !!r.is_admin : false,
   };
 }
 
-export const players = new Hono();
+// Detect real image content from magic bytes, so a spoofed Content-Type can't
+// slip a non-image (or an SVG) past the MIME whitelist.
+function sniffImageExt(buf: Buffer): 'jpg' | 'png' | 'webp' | null {
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'jpg';
+  if (
+    buf.length >= 8 &&
+    buf[0] === 0x89 &&
+    buf[1] === 0x50 &&
+    buf[2] === 0x4e &&
+    buf[3] === 0x47
+  )
+    return 'png';
+  if (buf.length >= 12 && buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP')
+    return 'webp';
+  return null;
+}
+
+export const players = new Hono<{ Variables: AppVariables }>();
 
 players.get('/', (c) => {
   const db = getDb();
   const rows = db.prepare('SELECT * FROM players ORDER BY name').all() as PlayerRow[];
-  return c.json(rows.map(rowToPlayer));
+  const isAdmin = !!c.get('user');
+  return c.json(rows.map((r) => rowToPlayer(r, isAdmin)));
 });
 
 // --- Emergency contacts (admin) --------------------------------------------
@@ -208,7 +229,7 @@ const PlayerInput = z.object({
   // Admin management (optional). `password` is write-only and, when present,
   // is hashed with scrypt; it is never read back.
   is_admin: z.boolean().optional(),
-  password: z.string().min(6).optional(),
+  password: z.string().min(8).max(200).optional(),
 });
 
 players.post('/', async (c) => {
@@ -327,12 +348,19 @@ players.post('/:id/avatar', async (c) => {
   if (!ext) return c.json({ error: 'unsupported image type' }, 400);
   if (file.size > MAX_AVATAR_BYTES) return c.json({ error: 'too large' }, 413);
 
+  // Verify the actual bytes are one of our allowed image types and match the
+  // declared type — a spoofed Content-Type alone is not trusted.
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const sniffed = sniffImageExt(buffer);
+  if (!sniffed || sniffed !== ext) {
+    return c.json({ error: 'file content is not a valid image of the declared type' }, 400);
+  }
+
   // Wipe any prior avatar (possibly with a different extension) so we don't
   // end up with stale orphans on the disk.
   const prior = findAvatarFile(id);
   if (prior) unlinkSync(prior.path);
 
-  const buffer = Buffer.from(await file.arrayBuffer());
   writeFileSync(join(AVATAR_DIR, `${id}.${ext}`), buffer);
   return c.json({ ok: true, ext });
 });

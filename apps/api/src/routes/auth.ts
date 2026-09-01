@@ -26,7 +26,9 @@ auth.post('/login', async (c) => {
     )
     .get(name) as { id: string; name: string; password_hash: string | null } | undefined;
 
-  const ok = row ? await verifyPassword(password, row.password_hash) : false;
+  // Always run verifyPassword (even when no such admin) so the response time
+  // does not reveal whether the name exists — see DUMMY_SALT in auth.ts.
+  const ok = await verifyPassword(password, row?.password_hash ?? null);
   if (!row || !ok) {
     return c.json({ error: 'invalid credentials' }, 401);
   }

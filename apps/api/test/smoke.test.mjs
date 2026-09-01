@@ -100,6 +100,17 @@ test('master creates an admin; login issues a session that can write; logout rev
   );
 });
 
+test('public roster hides is_admin; admins see it', async () => {
+  const pub = await (await api('/api/players')).json();
+  const anaPub = pub.find((p) => p.name === 'Ana');
+  assert.ok(anaPub, 'Ana is in the public list');
+  assert.equal(anaPub.is_admin, false, 'is_admin must be hidden from unauthenticated callers');
+
+  const priv = await (await api('/api/players', { headers: M })).json();
+  const anaPriv = priv.find((p) => p.name === 'Ana');
+  assert.equal(anaPriv.is_admin, true, 'authenticated admins see the real is_admin flag');
+});
+
 test('emergency self-service flow + PII never leaks', async () => {
   const p = await (
     await api('/api/players', { method: 'POST', headers: M, body: JSON.stringify(newPlayer({ name: 'Cid' })) })
