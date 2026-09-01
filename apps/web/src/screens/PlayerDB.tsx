@@ -144,11 +144,14 @@ export function PlayerDB() {
         {canEdit ? (
           <div className="relative shrink-0">
             <button
-              className="w-11 h-11 rounded-xl border border-border bg-bg2 flex items-center justify-center text-lg"
-              aria-label={t('common.more')}
+              className="h-11 px-3.5 rounded-xl border border-border bg-bg2 flex items-center gap-2 text-sm font-medium"
+              aria-label={t('common.menu')}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
               onClick={() => setMenuOpen((o) => !o)}
             >
-              ⋯
+              <MenuIcon />
+              {t('common.menu')}
             </button>
             {menuOpen ? (
               <>
@@ -435,6 +438,14 @@ function SearchIcon() {
     <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="text-muted shrink-0">
       <circle cx="11" cy="11" r="7" />
       <path d="m20 20-3-3" />
+    </svg>
+  );
+}
+
+function MenuIcon() {
+  return (
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="shrink-0">
+      <path d="M4 6h16M4 12h16M4 18h16" />
     </svg>
   );
 }
