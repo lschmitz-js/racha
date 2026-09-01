@@ -38,6 +38,7 @@ export function getDb(): DB {
   migrateMatchEventsCheck(db);
   migrateSessionPlayersArrived(db);
   migratePlayerEmergency(db);
+  migrateAuth(db);
 
   process.on('SIGTERM', () => {
     db.close();
@@ -117,4 +118,16 @@ function migratePlayerEmergency(db: DB) {
   db.exec(
     'CREATE UNIQUE INDEX IF NOT EXISTS idx_players_emergency_token ON players(emergency_token) WHERE emergency_token IS NOT NULL'
   );
+}
+
+// Per-user auth: pre-existing DBs lack players.is_admin / password_hash.
+// (auth_sessions and audit_log are created by schema.sql via IF NOT EXISTS.)
+function migrateAuth(db: DB) {
+  const cols = db.prepare('PRAGMA table_info(players)').all() as Array<{ name: string }>;
+  if (!cols.some((c) => c.name === 'is_admin')) {
+    db.exec('ALTER TABLE players ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0');
+  }
+  if (!cols.some((c) => c.name === 'password_hash')) {
+    db.exec('ALTER TABLE players ADD COLUMN password_hash TEXT');
+  }
 }

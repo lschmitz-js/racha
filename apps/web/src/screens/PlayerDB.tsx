@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { SKILLS, type Player, ImportEnvelope } from '@racha/shared';
 import { useState } from 'react';
+import { Link } from 'wouter';
 import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../lib/api.js';
 import { useT } from '../lib/i18n.js';
@@ -13,6 +14,8 @@ type Editing = {
   type: 'season' | 'dropin';
   role: 'player' | 'gk';
   skills: number[];
+  is_admin: boolean;
+  password: string; // blank = unchanged (edit) / no login (new)
   pendingAvatar?: Blob | null;
   removeAvatar?: boolean;
   avatarPreviewUrl?: string | null;
@@ -24,6 +27,8 @@ const EMPTY: Editing = {
   type: 'dropin',
   role: 'player',
   skills: [3, 3, 3, 3, 3, 3, 3, 3],
+  is_admin: false,
+  password: '',
 };
 
 export function PlayerDB() {
@@ -41,7 +46,14 @@ export function PlayerDB() {
 
   const save = useMutation({
     mutationFn: async (e: Editing) => {
-      const body = { name: e.name, type: e.type, role: e.role, skills: e.skills };
+      const body: Parameters<typeof api.players.create>[0] = {
+        name: e.name,
+        type: e.type,
+        role: e.role,
+        skills: e.skills,
+        is_admin: e.is_admin,
+        ...(e.password ? { password: e.password } : {}),
+      };
       const saved = e.id ? await api.players.update(e.id, body) : await api.players.create(body);
       if (e.pendingAvatar) {
         await api.players.uploadAvatar(saved.id, e.pendingAvatar);
@@ -105,6 +117,9 @@ export function PlayerDB() {
           </button>
           {canEdit ? (
             <>
+              <Link href="/history" className="btn no-underline">
+                🕑 {t('players.history')}
+              </Link>
               <button className="btn" onClick={handleExportEmergency}>
                 🚨 {t('emergency.exportCsv')}
               </button>
@@ -138,7 +153,14 @@ export function PlayerDB() {
             <div className="flex items-center gap-3 min-w-0">
               <Avatar playerId={p.id} name={p.name} size={40} />
               <div className="min-w-0">
-                <div className="font-medium truncate">{p.name}</div>
+                <div className="font-medium truncate flex items-center gap-1.5">
+                  {p.name}
+                  {p.is_admin ? (
+                    <span className="text-[10px] uppercase tracking-wide text-accent border border-accent/40 rounded px-1 py-px">
+                      {t('players.admin')}
+                    </span>
+                  ) : null}
+                </div>
                 <div className="text-xs text-muted truncate">
                   {p.type === 'season' ? t('players.season') : t('players.dropin')} ·{' '}
                   {p.role === 'gk' ? t('players.gk') : t('players.player')} ·{' '}
@@ -314,7 +336,15 @@ function EmergencyPanel({ player, onClose }: { player: Player; onClose: () => vo
 }
 
 function toEditing(p: Player): Editing {
-  return { id: p.id, name: p.name, type: p.type, role: p.role, skills: [...p.skills] };
+  return {
+    id: p.id,
+    name: p.name,
+    type: p.type,
+    role: p.role,
+    skills: [...p.skills],
+    is_admin: !!p.is_admin,
+    password: '',
+  };
 }
 
 function avg(skills: number[]): number {
@@ -455,6 +485,33 @@ function Modal({
                 }}
               />
             ))}
+          </div>
+
+          {/* Admin access + login password */}
+          <div className="border-t border-border pt-3 space-y-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                className="w-4 h-4 accent-accent"
+                checked={editing.is_admin}
+                onChange={(e) => onChange({ ...editing, is_admin: e.target.checked })}
+              />
+              <span className="text-sm font-medium">{t('players.admin')}</span>
+            </label>
+            <p className="text-xs text-muted">{t('players.adminHint')}</p>
+            {editing.is_admin ? (
+              <>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  className="w-full bg-bg3 border border-border rounded-lg px-3 py-2"
+                  placeholder={editing.id ? t('players.passwordNew') : t('players.password')}
+                  value={editing.password}
+                  onChange={(e) => onChange({ ...editing, password: e.target.value })}
+                />
+                <p className="text-xs text-muted">{t('players.passwordReq')}</p>
+              </>
+            ) : null}
           </div>
         </div>
         <div className="mt-4 flex gap-2">

@@ -1,11 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { api, getAdminToken, setAdminToken } from './api.js';
+import { api, getAdminToken, setAdminToken, type AuthUser } from './api.js';
 
 interface AuthContext {
   authRequired: boolean;
   signedIn: boolean;
-  signIn: (token: string) => Promise<boolean>;
+  user: AuthUser | null;
+  // Log in with a player name + password (returns true on success).
+  login: (name: string, password: string) => Promise<boolean>;
+  // Break-glass: authenticate by pasting the master token directly.
+  loginMaster: (token: string) => Promise<boolean>;
   signOut: () => void;
 }
 
@@ -13,7 +17,7 @@ const Ctx = createContext<AuthContext | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [authRequired, setAuthRequired] = useState(false);
-  const [signedIn, setSignedIn] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -22,17 +26,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((r) => {
         if (cancelled) return;
         setAuthRequired(r.required);
-        setSignedIn(r.required ? !!r.ok : true);
+        setUser(r.user);
         if (r.required && !r.ok && getAdminToken()) {
-          // Stale token — clear it.
-          setAdminToken(null);
+          setAdminToken(null); // stale token
         }
       })
       .catch(() => {
-        // If the check fails, assume auth is not required so the UI doesn't lock up.
         if (!cancelled) {
           setAuthRequired(false);
-          setSignedIn(true);
+          setUser(null);
         }
       });
     return () => {
@@ -40,32 +42,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const signIn = useCallback(async (token: string) => {
+  const login = useCallback(async (name: string, password: string) => {
+    try {
+      const r = await api.auth.login(name, password);
+      setAdminToken(r.token);
+      setUser(r.user);
+      setAuthRequired(true);
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const loginMaster = useCallback(async (token: string) => {
     setAdminToken(token);
     try {
       const r = await api.authCheck();
       if (r.required && !r.ok) {
         setAdminToken(null);
-        setSignedIn(false);
+        setUser(null);
         return false;
       }
       setAuthRequired(r.required);
-      setSignedIn(true);
+      setUser(r.user);
       return true;
     } catch {
       setAdminToken(null);
-      setSignedIn(false);
+      setUser(null);
       return false;
     }
   }, []);
 
   const signOut = useCallback(() => {
+    // Best-effort server-side revocation; the local token is cleared regardless.
+    api.auth.logout().catch(() => {});
     setAdminToken(null);
-    setSignedIn(!authRequired);
-  }, [authRequired]);
+    setUser(null);
+  }, []);
+
+  const signedIn = !authRequired || !!user;
 
   return (
-    <Ctx.Provider value={{ authRequired, signedIn, signIn, signOut }}>
+    <Ctx.Provider value={{ authRequired, signedIn, user, login, loginMaster, signOut }}>
       {children}
     </Ctx.Provider>
   );
@@ -79,6 +97,6 @@ export function useAuth(): AuthContext {
 
 // True when the user is allowed to perform admin-only actions (gated UI).
 export function useCanEdit(): boolean {
-  const { authRequired, signedIn } = useAuth();
-  return !authRequired || signedIn;
+  const { authRequired, user } = useAuth();
+  return !authRequired || !!user;
 }

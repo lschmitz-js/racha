@@ -9,8 +9,10 @@ import { MatchEvents } from './screens/MatchEvents.js';
 import { Recap } from './screens/Recap.js';
 import { Rules } from './screens/Rules.js';
 import { EmergencyForm } from './screens/EmergencyForm.js';
+import { History } from './screens/History.js';
 import { I18nProvider, LanguageToggle, useT } from './lib/i18n.js';
 import { AuthProvider, useAuth } from './lib/auth.js';
+import { SignInModal } from './components/SignInModal.js';
 
 export function App() {
   return (
@@ -50,6 +52,7 @@ function AppShell() {
         <Route path="/matches/:id" component={Match} />
         <Route path="/recap" component={Recap} />
         <Route path="/rules" component={Rules} />
+        <Route path="/history" component={History} />
         <Route path="/e/:token" component={EmergencyForm} />
         <Route>{() => <div className="p-4">{t('common.notFound')}</div>}</Route>
       </Switch>
@@ -83,81 +86,38 @@ function AppShell() {
 }
 
 function SignInButton() {
-  const { authRequired, signedIn, signIn, signOut } = useAuth();
+  const { authRequired, signedIn, user, signOut } = useAuth();
   const t = useT();
   const [open, setOpen] = useState(false);
-  const [pwd, setPwd] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
 
   if (!authRequired) return null;
 
-  const label = signedIn ? '🔓' : '🔒';
-  const aria = signedIn ? t('auth.signOut') : t('auth.signIn');
+  if (signedIn) {
+    return (
+      <button
+        type="button"
+        title={t('auth.signOut')}
+        onClick={signOut}
+        className="text-xs px-2 py-1 rounded-md border border-border bg-bg2 hover:border-accent flex items-center gap-1"
+      >
+        <span>🔓</span>
+        {user ? <span className="max-w-[7rem] truncate">{user.name}</span> : null}
+      </button>
+    );
+  }
 
   return (
     <>
       <button
         type="button"
-        aria-label={aria}
-        title={aria}
-        onClick={() => {
-          if (signedIn) {
-            signOut();
-          } else {
-            setError(null);
-            setPwd('');
-            setOpen(true);
-          }
-        }}
+        aria-label={t('auth.signIn')}
+        title={t('auth.signIn')}
+        onClick={() => setOpen(true)}
         className="text-xs px-2 py-1 rounded-md border border-border bg-bg2 hover:border-accent"
       >
-        {label}
+        🔒
       </button>
-      {open ? (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-bg2 border border-border rounded-xl p-4 w-full max-w-sm">
-            <h2 className="text-lg font-semibold mb-3">{t('auth.adminMode')}</h2>
-            <input
-              type="password"
-              autoFocus
-              className="w-full bg-bg3 border border-border rounded-lg px-3 py-2 mb-2"
-              placeholder={t('auth.passwordPlaceholder')}
-              value={pwd}
-              onChange={(e) => setPwd(e.target.value)}
-              onKeyDown={async (e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  setBusy(true);
-                  const ok = await signIn(pwd);
-                  setBusy(false);
-                  if (ok) setOpen(false);
-                  else setError(t('auth.wrongPassword'));
-                }
-              }}
-            />
-            {error ? <div className="text-xs text-red-400 mb-2">{error}</div> : null}
-            <div className="flex gap-2">
-              <button className="btn flex-1" onClick={() => setOpen(false)} disabled={busy}>
-                {t('common.cancel')}
-              </button>
-              <button
-                className="btn-primary flex-1"
-                disabled={busy || !pwd}
-                onClick={async () => {
-                  setBusy(true);
-                  const ok = await signIn(pwd);
-                  setBusy(false);
-                  if (ok) setOpen(false);
-                  else setError(t('auth.wrongPassword'));
-                }}
-              >
-                {t('auth.signIn')}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {open ? <SignInModal onClose={() => setOpen(false)} /> : null}
     </>
   );
 }

@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { calcScore, uid, type EventType, type Player, type Vest } from '@racha/shared';
 import { api } from '../lib/api.js';
 import { LanguageToggle, useT } from '../lib/i18n.js';
-import { useCanEdit, useAuth } from '../lib/auth.js';
+import { useCanEdit } from '../lib/auth.js';
+import { SignInModal } from '../components/SignInModal.js';
 import { Avatar } from '../lib/avatar.js';
 import { formatClock, useClock, computeClockMs } from '../lib/clock.js';
 import {
@@ -889,45 +890,17 @@ void computeClockMs;
 // Shown on the match screen when admin auth is required but the user is not
 // signed in. Recording writes are gated server-side, so without this the
 // organizer would hit 401s; the top-bar sign-in is hidden on match screens, so
-// we offer a compact inline sign-in right here.
+// we surface a sign-in button that opens the shared name+password dialog.
 function RecordSignInBanner() {
   const t = useT();
-  const { signIn } = useAuth();
-  const [pwd, setPwd] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState(false);
-
-  async function submit() {
-    if (!pwd || busy) return;
-    setBusy(true);
-    const ok = await signIn(pwd);
-    setBusy(false);
-    if (!ok) setErr(true);
-  }
-
+  const [open, setOpen] = useState(false);
   return (
     <div className="px-3 py-2 bg-amber-500/10 border-b border-amber-500/40 flex flex-wrap items-center gap-2 text-sm">
-      <span className="text-amber-200">🔒 {t('auth.recordLocked')}</span>
-      <input
-        type="password"
-        value={pwd}
-        onChange={(e) => {
-          setPwd(e.target.value);
-          setErr(false);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            void submit();
-          }
-        }}
-        placeholder={t('auth.passwordPlaceholder')}
-        className="flex-1 min-w-[8rem] bg-bg3 border border-border rounded-lg px-3 py-1.5"
-      />
-      <button className="btn-primary py-1.5" disabled={busy || !pwd} onClick={submit}>
-        {busy ? t('common.saving') : t('auth.signIn')}
+      <span className="text-amber-200 flex-1">🔒 {t('auth.recordLocked')}</span>
+      <button className="btn-primary py-1.5" onClick={() => setOpen(true)}>
+        {t('auth.signIn')}
       </button>
-      {err ? <span className="text-red-400 w-full">{t('auth.wrongPassword')}</span> : null}
+      {open ? <SignInModal onClose={() => setOpen(false)} /> : null}
     </div>
   );
 }
