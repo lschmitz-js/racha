@@ -33,8 +33,10 @@ a full bilingual (Português / English) rulebook.
 - **Accounts, admin & audit** — admins sign in with their player name + password;
   a server-side session then authorizes writes. State-changing admin actions and
   login attempts are recorded in an audit log, viewable on the History screen.
-- **Configurable kit** — vest colors and labels are stored in settings (not
-  hardcoded) and edited in-app; the UI picks readable text colors automatically.
+- **In-app settings** — vest colors/labels and the Rules-screen contact/payment
+  info (e-Transfer address, site URL) are stored in the database and edited
+  in-app (Players → Menu), so they live with the deployment rather than in
+  source. The vest UI picks readable text colors automatically.
 - **Bilingual + installable** — every screen is PT/EN, and the app is a PWA you
   can install to a phone home screen (see the in-app install guide).
 
@@ -52,8 +54,9 @@ a full bilingual (Português / English) rulebook.
 
 ## Auth & security model
 
-Authentication is **on whenever `RACHA_TOKEN` is set** (leave it unset only for
-local/dev — the server logs a warning and leaves the API open).
+Authentication is **on whenever `RACHA_TOKEN` is set**. It may be left unset only
+for local/dev (the server logs a warning and leaves the API open); in production
+(`NODE_ENV=production`) the server **refuses to start** without it.
 
 - **Reads are public** — except sensitive ones (emergency PII, the emergency
   export, and the audit log), which require an admin.
@@ -68,9 +71,14 @@ local/dev — the server logs a warning and leaves the API open).
   first admins with it. The token is compared in constant time.
 - **Abuse protection** — a per-IP rate limit (keyed on Cloudflare's
   `CF-Connecting-IP`, which a client can't forge) plus a stricter limit on the
-  login route. Security headers (`nosniff`, `X-Frame-Options: DENY`,
-  `Referrer-Policy: no-referrer`) are set by the API and again by Caddy at the
-  edge.
+  login route.
+- **Hardening** — the API sends `Strict-Transport-Security` (HSTS),
+  `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and
+  `Referrer-Policy: no-referrer`. Login runs in constant time (so a valid admin
+  name can't be found by response timing); admin passwords are 8–200 chars; the
+  public roster hides the `is_admin` flag (only admins see it); avatar uploads
+  are validated by magic bytes, not just the declared content type; all SQL is
+  parameterized; and the container runs as an unprivileged user.
 
 `GET /api/auth/check` reports whether auth is required and who the presented
 token resolves to; `GET /api/health` is a liveness probe.
@@ -79,7 +87,7 @@ token resolves to; `GET /api/health` is a liveness probe.
 
 | Env var | Default | Purpose |
 | --- | --- | --- |
-| `RACHA_TOKEN` | *(unset)* | Master admin token; also switches auth on. **Set this for any public deploy.** |
+| `RACHA_TOKEN` | *(unset)* | Master admin token; also switches auth on. **Required in production** — with `NODE_ENV=production` the server refuses to start without it. |
 | `DB_PATH` | `./data/racha.db` | SQLite file location. |
 | `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW_MS` | `300` / `10000` | General per-IP API limit (`0` disables). |
 | `LOGIN_RATE_MAX` / `LOGIN_RATE_WINDOW_MS` | `10` / `60000` | Stricter login throttle. |
@@ -110,6 +118,10 @@ Encrypt). Keep the SQLite file on the `./data` volume, and set `RACHA_TOKEN` in
 the environment (e.g. an `.env` file next to `docker-compose.yml`) so writes are
 locked down. In production the origin sits behind Cloudflare and does not publish
 port 8080 — Caddy on 80/443 is the only public surface.
+
+The container runs as an unprivileged user (`node`, uid 1000), so the `./data`
+bind-mount must be writable by that uid — run `chown -R 1000:1000 data` before
+the first start, or the app can't write the database.
 
 ## Backups
 
@@ -156,4 +168,5 @@ npm test          # all workspaces: the balanceTeams unit tests + API smoke test
 ```
 
 The API smoke tests spin up the built server and cover the auth gate,
-login/session/logout, the emergency self-service flow, and that PII never leaks.
+login/session/logout, the public roster hiding `is_admin`, the emergency
+self-service flow, that PII never leaks, and that bad input returns 400.
