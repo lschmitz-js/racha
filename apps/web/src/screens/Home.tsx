@@ -9,7 +9,6 @@ import {
   SEASON_START,
   SEASON_END,
   isNoGameDate,
-  isGameMonday,
   upcomingMondayISO,
   NO_GAME_DATES,
 } from '../lib/schedule.js';
@@ -74,11 +73,14 @@ export function Home() {
   const nextLabel = fmtLong(nextIso);
   const active = activeQ.data;
 
-  // Banner state for the coming Monday.
+  // Banner state for the coming Monday. "Off" = an in-season Monday that's a
+  // holiday or a cancellation. Otherwise the game is on: worded as "this Monday"
+  // when the next racha IS the coming Monday, else it points ahead (e.g. before
+  // the opener, or the week of a skip).
   const upcomingMon = upcomingMondayISO();
   const upcomingInSeason = upcomingMon >= SEASON_START && upcomingMon <= SEASON_END;
   const upcomingOff = upcomingInSeason && (isNoGameDate(upcomingMon) || cancelledSet.has(upcomingMon));
-  const upcomingOn = isGameMonday(upcomingMon) && !cancelledSet.has(upcomingMon);
+  const nextIsThisMonday = !!nextIso && nextIso === upcomingMon;
 
   return (
     <div className="p-4 pb-28 space-y-5">
@@ -133,10 +135,12 @@ export function Home() {
           </div>
         </div>
       ) : null}
-      {!active && nextIso && upcomingOn ? (
+      {!active && nextIso && !upcomingOff ? (
         <div className="rounded-2xl border border-accent/40 bg-accent/10 text-accent p-3 flex items-center gap-2.5">
           <span className="text-lg leading-none">✓</span>
-          <div className="text-sm font-semibold">{t('home.gameOnMonday')}</div>
+          <div className="text-sm font-semibold">
+            {nextIsThisMonday ? t('home.gameOnMonday') : t('home.nextRachaShort', { date: nextLabel })}
+          </div>
         </div>
       ) : null}
 
