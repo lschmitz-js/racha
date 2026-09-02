@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import { VENUE } from './venue.js';
 
 export type Lang = 'en' | 'pt';
 
@@ -87,7 +88,7 @@ const dict = {
     'home.seasonOver': 'Season complete',
     'home.checkIn': 'Check in',
     'home.time': '6:00 – 8:00 PM',
-    'home.location': 'Elsie Roy Elementary School (Gym), Vancouver, BC',
+    'home.location': VENUE,
     'home.openSession': 'Open session',
     'home.welcome': 'Welcome to Racha!',
     'home.startRacha': 'Start Racha',
@@ -97,6 +98,7 @@ const dict = {
     'home.selected': '{n} selected',
     'home.seasonPlayers': 'Season players',
     'home.dropins': 'Drop-ins',
+    'home.guests': 'Guests',
     'home.selectMore': 'Select {n} more',
     'home.startSession': 'Start session →',
     'home.pastSessions': 'Past sessions',
@@ -479,7 +481,7 @@ const dict = {
     'home.seasonOver': 'Temporada encerrada',
     'home.checkIn': 'Confirmar presença',
     'home.time': '18:00 – 20:00',
-    'home.location': 'Elsie Roy Elementary School (Gym), Vancouver, BC',
+    'home.location': VENUE,
     'home.openSession': 'Abrir sessão',
     'home.welcome': 'Bem-vindo ao Racha!',
     'home.startRacha': 'Começar Racha',
@@ -489,6 +491,7 @@ const dict = {
     'home.selected': '{n} selecionado(s)',
     'home.seasonPlayers': 'Jogadores fixos',
     'home.dropins': 'Avulsos',
+    'home.guests': 'Convidados',
     'home.selectMore': 'Selecione mais {n}',
     'home.startSession': 'Iniciar sessão →',
     'home.pastSessions': 'Sessões anteriores',

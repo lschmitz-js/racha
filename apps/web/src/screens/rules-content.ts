@@ -6,6 +6,8 @@
 // which is what the "Next racha" card actually computes from. When a season
 // changes, update BOTH this file and lib/schedule.ts.
 
+import { VENUE, VENUE_ADDRESS } from '../lib/venue.js';
+
 export type Block =
   | { t: 'p'; text: string }
   | { t: 'list'; items: string[]; ordered?: boolean }
@@ -31,12 +33,12 @@ export type RulesDoc = Section[];
 // here guarantees the copied message matches what the Rules screen documents.
 export function reminderTemplate(lang: 'en' | 'pt', date: string): string {
   if (lang === 'pt') {
-    return `⚽ Racha de Segunda — ${date}, 18h–20h @ Elsie Roy (150 Drake St)
+    return `⚽ Racha de Segunda — ${date}, 18h–20h @ ${VENUE}
 
 👉 Confirme presença no app — abra a aba Presença e toque em "Eu vou" ou "Não vou".
 Confirme até sexta 15h. As vagas são preenchidas por ordem de confirmação, não deixe para depois!`;
   }
-  return `⚽ Racha de Segunda — ${date}, 6PM–8PM @ Elsie Roy (150 Drake St)
+  return `⚽ Racha de Segunda — ${date}, 6PM–8PM @ ${VENUE}
 
 👉 Check in on the app — open the Check-in tab and tap "I'm in" or "Can't make it".
 Confirm by Friday 3PM. Spots fill by check-in time, so don't leave it late!`;
@@ -52,8 +54,8 @@ const en: RulesDoc = [
         rows: [
           { k: 'Season', v: 'Sep 14, 2026 → Jun 21, 2027' },
           { k: 'Day & Time', v: 'Every Monday, 6:00 PM – 8:00 PM' },
-          { k: 'Location', v: 'Elsie Roy Elementary School (Gym), Vancouver, BC' },
-          { k: 'Address', v: '150 Drake St, Vancouver, BC V6Z 2X1' },
+          { k: 'Location', v: VENUE },
+          { k: 'Address', v: VENUE_ADDRESS },
         ],
       },
     ],
@@ -408,8 +410,8 @@ const pt: RulesDoc = [
         rows: [
           { k: 'Temporada', v: '14/set/2026 → 21/jun/2027' },
           { k: 'Dia & Horário', v: 'Toda segunda, 18h00 – 20h00' },
-          { k: 'Local', v: 'Elsie Roy Elementary School (Gym), Vancouver, BC' },
-          { k: 'Endereço', v: '150 Drake St, Vancouver, BC V6Z 2X1' },
+          { k: 'Local', v: VENUE },
+          { k: 'Endereço', v: VENUE_ADDRESS },
         ],
       },
     ],

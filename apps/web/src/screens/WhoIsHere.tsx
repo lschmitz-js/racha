@@ -44,6 +44,7 @@ export function WhoIsHere() {
   const players = playersQ.data ?? [];
   const sessionPlayers = useMemo(() => players.filter((p) => p.type === 'season' && p.active), [players]);
   const dropinPlayers = useMemo(() => players.filter((p) => p.type === 'dropin' && p.active), [players]);
+  const guestPlayers = useMemo(() => players.filter((p) => p.type === 'guest' && p.active), [players]);
 
   function toggle(id: string) {
     setSelected((s) => {
@@ -126,6 +127,15 @@ export function WhoIsHere() {
             {t('home.dropins')}
           </div>
           <PlayerGrid players={dropinPlayers} selected={selected} late={late} onToggle={toggle} onToggleLate={toggleLate} />
+        </section>
+      ) : null}
+
+      {guestPlayers.length > 0 ? (
+        <section>
+          <div className="text-xs uppercase tracking-wide text-amber-500 mb-2">
+            {t('home.guests')}
+          </div>
+          <PlayerGrid players={guestPlayers} selected={selected} late={late} onToggle={toggle} onToggleLate={toggleLate} />
         </section>
       ) : null}
 
