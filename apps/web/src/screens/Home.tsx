@@ -49,12 +49,15 @@ export function Home() {
   const nextIso = nextGameDateISO(new Date(), Array.from(cancelledSet));
   const confirmedCount = checkinQ.data?.confirmed.length ?? 0;
 
-  // The next Monday we skip (holiday or cancellation) after the next game — used
-  // for the "heads-up" line so people see a coming gap in advance.
+  // A "heads-up" only for a skip (holiday or cancellation) later THIS month — if
+  // every remaining Monday of the month has a game, we just show the count.
   const offDates = [...NO_GAME_DATES.map((d) => d.date), ...Array.from(cancelledSet)]
     .filter((d) => d >= SEASON_START && d <= SEASON_END)
     .sort();
-  const nextSkip = nextIso ? offDates.find((d) => d > nextIso) : undefined;
+  const nextMonthPrefix = nextIso ? nextIso.slice(0, 7) : '';
+  const nextSkip = nextIso
+    ? offDates.find((d) => d > nextIso && d.slice(0, 7) === nextMonthPrefix)
+    : undefined;
   const fmtSkip = (iso: string) =>
     new Date(iso + 'T12:00:00').toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 
