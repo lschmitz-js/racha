@@ -151,6 +151,14 @@ test('check-in: public, season ranks above drop-ins, toggle to clear', async () 
 
   // Unknown player is rejected.
   assert.equal((await api('/api/checkin', { method: 'POST', body: JSON.stringify({ player_id: 'nope', status: 'in' }) })).status, 404);
+
+  // Clear-all is admin-only: no token -> 401, unchanged board.
+  assert.equal((await api('/api/checkin/all', { method: 'DELETE' })).status, 401);
+  // With the master token it wipes every check-in for the game.
+  const wiped = await (await api('/api/checkin/all', { method: 'DELETE', headers: M })).json();
+  assert.equal(wiped.confirmed.length, 0);
+  assert.equal(wiped.waitlist.length, 0);
+  assert.equal(wiped.out.length, 0);
 });
 
 test('check-in cap: drop-ins stop at 15, season players can stretch it to 18', async () => {

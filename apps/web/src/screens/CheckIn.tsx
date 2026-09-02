@@ -5,6 +5,7 @@ import { useI18n, useT } from '../lib/i18n.js';
 import { useCanEdit } from '../lib/auth.js';
 import { useContact } from '../lib/contact.js';
 import { Avatar } from '../lib/avatar.js';
+import { reminderTemplate } from './rules-content.js';
 
 const ME_KEY = 'racha.me';
 const readMe = () => {
@@ -41,6 +42,12 @@ export function CheckIn() {
   const set = useMutation({
     mutationFn: ({ id, status }: { id: string; status: 'in' | 'out' | 'none' }) =>
       api.checkin.set(id, status),
+    onSuccess: (board) => qc.setQueryData(['checkin'], board),
+    onError: (e: any) => alert(String(e?.message ?? e)),
+  });
+
+  const clearAll = useMutation({
+    mutationFn: () => api.checkin.clearAll(),
     onSuccess: (board) => qc.setQueryData(['checkin'], board),
     onError: (e: any) => alert(String(e?.message ?? e)),
   });
@@ -175,7 +182,7 @@ export function CheckIn() {
         </div>
       )}
 
-      {canEdit ? <ReminderButton board={board} dateLabel={dateLabel ?? ''} /> : null}
+      <ReminderButton board={board} dateLabel={dateLabel ?? ''} />
 
       {/* Confirmed */}
       <section>
@@ -269,6 +276,8 @@ export function CheckIn() {
           roster={roster.map((p) => ({ id: p.id, name: p.name, type: p.type }))}
           board={board}
           onSet={set.mutate}
+          onClearAll={() => clearAll.mutate()}
+          clearing={clearAll.isPending}
         />
       ) : null}
     </div>
@@ -365,16 +374,21 @@ function AdminManage({
   roster,
   board,
   onSet,
+  onClearAll,
+  clearing,
 }: {
   roster: Array<{ id: string; name: string; type: 'season' | 'dropin' }>;
   board: CheckinBoard;
   onSet: (v: { id: string; status: 'in' | 'out' | 'none' }) => void;
+  onClearAll: () => void;
+  clearing: boolean;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<'all' | 'season' | 'dropin'>('all');
   const inIds = new Set([...board.confirmed, ...board.waitlist].map((e) => e.id));
   const outIds = new Set(board.out.map((e) => e.id));
+  const anyResponses = board.confirmed.length + board.waitlist.length + board.out.length > 0;
 
   const seasonCount = roster.filter((p) => p.type === 'season').length;
   const filters: Array<{ key: 'all' | 'season' | 'dropin'; label: string; n: number }> = [
@@ -395,19 +409,30 @@ function AdminManage({
       </button>
       {open ? (
         <div className="mt-2 space-y-2">
-          {/* Filter by season vs drop-in so it's clear who's who. */}
-          <div className="inline-flex rounded-lg border border-border overflow-hidden text-xs">
-            {filters.map((f) => (
-              <button
-                key={f.key}
-                className={`px-3 py-1.5 border-r border-border last:border-r-0 ${
-                  filter === f.key ? 'bg-accent text-white' : 'text-muted hover:text-fg'
-                }`}
-                onClick={() => setFilter(f.key)}
-              >
-                {f.label} <span className="tabular-nums opacity-80">{f.n}</span>
-              </button>
-            ))}
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            {/* Filter by season vs drop-in so it's clear who's who. */}
+            <div className="inline-flex rounded-lg border border-border overflow-hidden text-xs">
+              {filters.map((f) => (
+                <button
+                  key={f.key}
+                  className={`px-3 py-1.5 border-r border-border last:border-r-0 ${
+                    filter === f.key ? 'bg-accent text-white' : 'text-muted hover:text-fg'
+                  }`}
+                  onClick={() => setFilter(f.key)}
+                >
+                  {f.label} <span className="tabular-nums opacity-80">{f.n}</span>
+                </button>
+              ))}
+            </div>
+            <button
+              className="text-xs px-3 py-1.5 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10 disabled:opacity-30"
+              disabled={!anyResponses || clearing}
+              onClick={() => {
+                if (window.confirm(t('checkin.clearAllConfirm'))) onClearAll();
+              }}
+            >
+              🧹 {t('checkin.clearAll')}
+            </button>
           </div>
           <div className="space-y-1.5">
           {shown.map((p) => {
@@ -460,16 +485,16 @@ function AdminManage({
 
 function ReminderButton({ board, dateLabel }: { board: CheckinBoard; dateLabel: string }) {
   const t = useT();
+  const { lang } = useI18n();
   const contact = useContact();
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     const url = contact.siteUrl.trim();
-    const msg = t('checkin.reminderMsg', {
-      date: dateLabel,
-      n: board.confirmed.length,
-      cap: board.cap,
-    });
-    const full = url ? `${msg}\n${url}` : msg;
+    // Same template the Rules screen shows, with the real date filled in, plus a
+    // live count line and the site link.
+    const body = reminderTemplate(lang, dateLabel);
+    const count = t('checkin.reminderCount', { n: board.confirmed.length, cap: board.cap });
+    const full = [body, count, url].filter(Boolean).join('\n');
     try {
       await navigator.clipboard.writeText(full);
       setCopied(true);

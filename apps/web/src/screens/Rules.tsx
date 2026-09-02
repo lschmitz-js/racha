@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useI18n, useT } from '../lib/i18n.js';
 import { api } from '../lib/api.js';
@@ -11,15 +12,17 @@ function BlockView({
   block,
   roster,
   sub,
+  renderP,
 }: {
   block: Block;
   roster: string[];
   sub: (s: string) => string;
+  renderP: (s: string) => ReactNode;
 }) {
   const rosterEmpty = useT()('rules.rosterEmpty');
   switch (block.t) {
     case 'p':
-      return <p className="text-sm text-fg/90 leading-relaxed">{sub(block.text)}</p>;
+      return <p className="text-sm text-fg/90 leading-relaxed">{renderP(block.text)}</p>;
 
     case 'list':
       return block.ordered ? (
@@ -44,7 +47,7 @@ function BlockView({
         <div className="space-y-2 border-l-2 border-border pl-3">
           <h4 className="text-sm font-semibold text-fg">{sub(block.title)}</h4>
           {block.blocks.map((b, i) => (
-            <BlockView key={i} block={b} roster={roster} sub={sub} />
+            <BlockView key={i} block={b} roster={roster} sub={sub} renderP={renderP} />
           ))}
         </div>
       );
@@ -131,6 +134,34 @@ export function Rules() {
   const sub = (s: string) =>
     s.replace(/\{(siteUrl|etransfer)\}/g, (_, k) => vars[k] ?? `{${k}}`);
 
+  // Rich paragraph renderer: turns the {siteUrl} token into a highlighted,
+  // clickable link (the URL itself stays in settings, not in source). Other
+  // tokens fall back to the plain `sub` substitution.
+  const rawSite = contact.siteUrl.trim();
+  const siteHref = rawSite && /^https?:\/\//i.test(rawSite) ? rawSite : `https://${rawSite}`;
+  const renderP = (s: string): ReactNode => {
+    if (!s.includes('{siteUrl}')) return sub(s);
+    const segments = s.split('{siteUrl}');
+    return segments.map((seg, i) => (
+      <span key={i}>
+        {sub(seg)}
+        {i < segments.length - 1 &&
+          (rawSite ? (
+            <a
+              href={siteHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-accent underline underline-offset-2 hover:text-accent/80 break-words"
+            >
+              {rawSite}
+            </a>
+          ) : (
+            <span className="font-semibold text-accent">{t('rules.thisApp')}</span>
+          ))}
+      </span>
+    ));
+  };
+
   return (
     <div className="p-4 pb-32 space-y-4 max-w-2xl mx-auto">
       <header className="pt-6 pb-1 text-center">
@@ -148,7 +179,7 @@ export function Rules() {
           </summary>
           <div className="mt-3 space-y-3">
             {section.blocks.map((b, j) => (
-              <BlockView key={j} block={b} roster={roster} sub={sub} />
+              <BlockView key={j} block={b} roster={roster} sub={sub} renderP={renderP} />
             ))}
           </div>
         </details>

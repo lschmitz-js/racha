@@ -25,10 +25,22 @@ export interface Section {
 
 export type RulesDoc = Section[];
 
-const REMINDER = `⚽ Racha de Segunda — Monday, [Insert Date], 6PM-8PM @ Elsie Roy (150 Drake St)
+// The weekly WhatsApp reminder. Single source of truth shared by the Rules
+// screen (shown as a template with a "[date]" placeholder) and the Check-in
+// screen's "Copy reminder" button (which fills in the real date). Keeping both
+// here guarantees the copied message matches what the Rules screen documents.
+export function reminderTemplate(lang: 'en' | 'pt', date: string): string {
+  if (lang === 'pt') {
+    return `⚽ Racha de Segunda — ${date}, 18h–20h @ Elsie Roy (150 Drake St)
+
+👉 Confirme presença no app — abra a aba Presença e toque em "Eu vou" ou "Não vou".
+Confirme até sexta 15h. As vagas são preenchidas por ordem de confirmação, não deixe para depois!`;
+  }
+  return `⚽ Racha de Segunda — ${date}, 6PM–8PM @ Elsie Roy (150 Drake St)
 
 👉 Check in on the app — open the Check-in tab and tap "I'm in" or "Can't make it".
 Confirm by Friday 3PM. Spots fill by check-in time, so don't leave it late!`;
+}
 
 const en: RulesDoc = [
   {
@@ -57,7 +69,7 @@ const en: RulesDoc = [
       {
         t: 'callout',
         tone: 'info',
-        text: 'The organizer sends you a private link to fill in your details right here in the app — no more Google Sheets. Open it once and it stays saved for the season.',
+        text: 'Fill in your details right here in the app. Open it once and it stays saved for the season. Don’t have the link yet? Ask the organizer to send you your private link.',
       },
       { t: 'callout', tone: 'warn', text: 'Please fill it out before your first game.' },
     ],
@@ -144,7 +156,7 @@ const en: RulesDoc = [
         blocks: [
           {
             t: 'p',
-            text: 'If fewer than 15 season players confirm, the remaining spots go to the drop-ins who checked in, by check-in time — the sooner you check in, the better your chance. The app shows the confirmed list and how many spots are open.',
+            text: 'Season players are always confirmed (up to the 18-player ceiling). The confirmed list is normally capped at 15, so any spots still open under that cap go to the drop-ins who checked in, in check-in order — the sooner you check in, the better your chance. On a full-season night the fixos can fill the game on their own, so drop-ins may land on the Waitlist. The app shows the confirmed list and how many spots are open.',
           },
         ],
       },
@@ -175,7 +187,7 @@ const en: RulesDoc = [
         blocks: [
           {
             t: 'p',
-            text: 'New drop-in players can be added to the WhatsApp group on an ad-hoc basis throughout the season so they can access the weekly poll and sign up for available spots.',
+            text: 'New drop-in players can be added to the WhatsApp group on an ad-hoc basis throughout the season. Once in the group they check in on the app like everyone else and can take any spots the season players leave open (season always has priority). Checking in is optional for drop-ins — only if they want to play.',
           },
         ],
       },
@@ -370,7 +382,7 @@ const en: RulesDoc = [
       {
         t: 'sub',
         title: 'Weekly reminder',
-        blocks: [{ t: 'code', text: REMINDER }],
+        blocks: [{ t: 'code', text: reminderTemplate('en', '[date]') }],
       },
     ],
   },
@@ -403,7 +415,7 @@ const pt: RulesDoc = [
       {
         t: 'callout',
         tone: 'info',
-        text: 'O organizador te envia um link privado para preencher seus dados aqui no app — sem mais Google Sheets. Abra uma vez e fica salvo pela temporada.',
+        text: 'Preencha seus dados aqui no app. Abra uma vez e fica salvo pela temporada. Ainda não tem o link? Peça para o organizador te enviar o seu link privado.',
       },
       { t: 'callout', tone: 'warn', text: 'Preencha antes do seu primeiro jogo.' },
     ],
@@ -490,7 +502,7 @@ const pt: RulesDoc = [
         blocks: [
           {
             t: 'p',
-            text: 'Se menos de 15 fixos confirmarem, as vagas restantes vão para os avulsos que confirmaram, por horário de confirmação — quanto antes confirmar, maior a chance. O app mostra a lista de confirmados e quantas vagas estão abertas.',
+            text: 'Os fixos têm presença garantida (até o teto de 18 jogadores). A lista de confirmados normalmente é limitada a 15, então as vagas que sobrarem abaixo desse limite vão para os avulsos que confirmaram, por ordem de confirmação — quanto antes confirmar, maior a chance. Numa noite cheia de fixos, eles podem preencher o jogo sozinhos, e os avulsos podem ficar na lista de Espera. O app mostra a lista de confirmados e quantas vagas estão abertas.',
           },
         ],
       },
@@ -521,7 +533,7 @@ const pt: RulesDoc = [
         blocks: [
           {
             t: 'p',
-            text: 'Novos avulsos podem ser adicionados ao grupo do WhatsApp de forma pontual ao longo da temporada, para acessar a enquete semanal e pegar vagas disponíveis.',
+            text: 'Novos avulsos podem ser adicionados ao grupo do WhatsApp de forma pontual ao longo da temporada. Uma vez no grupo, confirmam presença no app como todo mundo e podem pegar as vagas que os fixos deixarem abertas (os fixos sempre têm prioridade). Confirmar é opcional para os avulsos — só se quiserem jogar.',
           },
         ],
       },
@@ -716,7 +728,7 @@ const pt: RulesDoc = [
       {
         t: 'sub',
         title: 'Lembrete semanal',
-        blocks: [{ t: 'code', text: REMINDER }],
+        blocks: [{ t: 'code', text: reminderTemplate('pt', '[data]') }],
       },
     ],
   },

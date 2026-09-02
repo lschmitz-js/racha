@@ -78,6 +78,16 @@ function readBoard(gameDate: string | null) {
 
 checkin.get('/', (c) => c.json(readBoard(nextGameDateISO())));
 
+// Admin-only reset: wipe every check-in for the upcoming game. This lives on a
+// sub-path (not the public `/api/checkin`), so the fail-closed write gate
+// requires an authenticated admin and the action is audited.
+checkin.delete('/all', (c) => {
+  const gameDate = nextGameDateISO();
+  if (!gameDate) return c.json({ error: 'no upcoming game' }, 400);
+  getDb().prepare('DELETE FROM checkins WHERE game_date = ?').run(gameDate);
+  return c.json(readBoard(gameDate));
+});
+
 checkin.post('/', async (c) => {
   const { player_id, status } = CheckinInput.parse(await c.req.json());
   const gameDate = nextGameDateISO();

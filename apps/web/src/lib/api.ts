@@ -291,5 +291,6 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ player_id, status }),
       }),
+    clearAll: () => request<CheckinBoard>(`/api/checkin/all`, { method: 'DELETE' }),
   },
 };

@@ -57,9 +57,11 @@ const dict = {
     'checkin.all': 'All',
     'checkin.season': 'Season',
     'checkin.dropins': 'Drop-ins',
+    'checkin.clearAll': 'Clear all',
+    'checkin.clearAllConfirm': "Clear everyone's check-in for this game? This can't be undone.",
     'checkin.copyReminder': 'Copy WhatsApp reminder',
     'checkin.copied': 'Copied!',
-    'checkin.reminderMsg': '⚽ Racha {date} — check in on the app! {n}/{cap} in so far.',
+    'checkin.reminderCount': '{n}/{cap} confirmed so far.',
 
     // status
     'status.draft': 'draft',
@@ -430,9 +432,11 @@ const dict = {
     'checkin.all': 'Todos',
     'checkin.season': 'Fixos',
     'checkin.dropins': 'Avulsos',
+    'checkin.clearAll': 'Limpar tudo',
+    'checkin.clearAllConfirm': 'Limpar a presença de todos para este jogo? Isso não pode ser desfeito.',
     'checkin.copyReminder': 'Copiar lembrete do WhatsApp',
     'checkin.copied': 'Copiado!',
-    'checkin.reminderMsg': '⚽ Racha {date} — confirme presença no app! {n}/{cap} confirmados.',
+    'checkin.reminderCount': '{n}/{cap} confirmados até agora.',
 
     // status
     'status.draft': 'rascunho',
