@@ -182,7 +182,8 @@ function resolveUser(c: any): AuthUser | null {
 const isPublicSelfService = (path: string) =>
   path.startsWith('/api/emergency/') ||
   path === '/api/checkin' ||
-  path === '/api/checkin/guest';
+  path === '/api/checkin/guest' ||
+  path.startsWith('/api/checkin/guest/'); // a guest removing themselves
 
 // Running an OPEN (live) session — draw/adjust teams, run the clock, log stats.
 // These accept the day's session code (operator) OR an admin, and each route

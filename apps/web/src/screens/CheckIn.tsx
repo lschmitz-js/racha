@@ -58,6 +58,12 @@ export function CheckIn() {
     onError: (e: any) => alert(String(e?.message ?? e)),
   });
 
+  const removeGuest = useMutation({
+    mutationFn: (id: string) => api.checkin.removeGuest(id),
+    onSuccess: (board) => qc.setQueryData(['checkin'], board),
+    onError: (e: any) => alert(String(e?.message ?? e)),
+  });
+
   const board = (boardQ.data ?? {
     game_date: null,
     cap: 15,
@@ -223,7 +229,7 @@ export function CheckIn() {
                     {t('checkin.fullTeamsLine')}
                   </div>
                 ) : null}
-                <Entry entry={e} rank={i + 1} canEdit={canEdit} onSet={set.mutate} />
+                <Entry entry={e} rank={i + 1} canEdit={canEdit} onSet={set.mutate} onRemoveGuest={removeGuest.mutate} />
               </li>
             ))}
           </ol>
@@ -241,7 +247,7 @@ export function CheckIn() {
           <ol className="space-y-1.5">
             {board.waitlist.map((e, i) => (
               <li key={e.id}>
-                <Entry entry={e} rank={board.confirmed.length + i + 1} canEdit={canEdit} onSet={set.mutate} />
+                <Entry entry={e} rank={board.confirmed.length + i + 1} canEdit={canEdit} onSet={set.mutate} onRemoveGuest={removeGuest.mutate} />
               </li>
             ))}
           </ol>
@@ -306,13 +312,19 @@ function Entry({
   rank,
   canEdit,
   onSet,
+  onRemoveGuest,
 }: {
   entry: CheckinEntry;
   rank: number;
   canEdit: boolean;
   onSet: (v: { id: string; status: 'in' | 'out' | 'none' }) => void;
+  onRemoveGuest: (id: string) => void;
 }) {
   const t = useT();
+  const isGuest = entry.type === 'guest';
+  // A guest can remove themselves (no login needed) — guest add is public, so is
+  // leaving. Real players are only removable by an admin/operator.
+  const showRemove = isGuest || canEdit;
   return (
     <div className="card flex items-center gap-3 py-2">
       <span className="w-5 text-center text-sm font-semibold text-muted tabular-nums shrink-0">{rank}</span>
@@ -320,7 +332,7 @@ function Entry({
       <div className="flex-1 min-w-0">
         <div className="font-medium truncate">{entry.name}</div>
       </div>
-      {entry.type === 'guest' ? (
+      {isGuest ? (
         <span className="text-[10px] text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/50">
           {t('checkin.guest')}
         </span>
@@ -329,11 +341,13 @@ function Entry({
           {t('checkin.dropin')}
         </span>
       ) : null}
-      {canEdit ? (
+      {showRemove ? (
         <button
           className="text-xs text-muted hover:text-red-400 px-1"
-          title={t('checkin.clear')}
-          onClick={() => onSet({ id: entry.id, status: 'none' })}
+          title={isGuest ? t('checkin.guestRemove') : t('checkin.clear')}
+          onClick={() =>
+            isGuest ? onRemoveGuest(entry.id) : onSet({ id: entry.id, status: 'none' })
+          }
         >
           ✕
         </button>

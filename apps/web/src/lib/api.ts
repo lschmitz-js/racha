@@ -326,6 +326,8 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ name }),
       }),
+    removeGuest: (id: string) =>
+      request<CheckinBoard>(`/api/checkin/guest/${id}`, { method: 'DELETE' }),
   },
   cancellations: {
     list: () => request<Cancellation[]>(`/api/cancellations`),

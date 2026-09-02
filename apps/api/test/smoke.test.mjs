@@ -226,6 +226,18 @@ test('guests: public self-add, dedupe, validation, lowest priority, cap, kill-sw
   await api('/api/settings', { method: 'PUT', headers: M, body: JSON.stringify({ guests: { selfAdd: false } }) });
   assert.equal((await api('/api/checkin/guest', { method: 'POST', body: JSON.stringify({ name: 'GuestBlocked' }) })).status, 403);
   await api('/api/settings', { method: 'PUT', headers: M, body: JSON.stringify({ guests: { selfAdd: true } }) });
+
+  // A guest can remove themselves (public, no auth) -> the guest is gone and the
+  // name frees up. A real player can't be deleted through this path.
+  const guestId = b1.confirmed.find((e) => e.name === 'Guest One').id;
+  const removed = await api('/api/checkin/guest/' + guestId, { method: 'DELETE' });
+  assert.equal(removed.status, 200, 'guest self-removal is public');
+  const b3 = await removed.json();
+  assert.ok(!b3.confirmed.some((e) => e.name === 'Guest One'), 'guest left the board');
+  // Name is free again (the guest player was deleted, not just un-checked-in).
+  assert.equal((await api('/api/checkin/guest', { method: 'POST', body: JSON.stringify({ name: 'Guest One' }) })).status, 200);
+  // The same endpoint refuses a real (non-guest) player.
+  assert.equal((await api('/api/checkin/guest/' + sea.id, { method: 'DELETE' })).status, 403, 'real players are protected');
 });
 
 test('short team tops up from the losers; the winner keeps its side (nothing returns)', async () => {

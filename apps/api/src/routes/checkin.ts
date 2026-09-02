@@ -184,6 +184,22 @@ checkin.post('/guest', async (c) => {
   return c.json(readBoard(gameDate));
 });
 
+// Public: remove a guest (a guest changed their mind, or someone tidies up).
+// Guests are throwaway players with no login, so — like adding one — this is
+// public. Restricted to type='guest' so it can never delete a real player;
+// deleting the player cascades their check-in row away.
+checkin.delete('/guest/:id', (c) => {
+  const id = c.req.param('id');
+  const db = getDb();
+  const p = db.prepare('SELECT id, type FROM players WHERE id = ? AND active = 1').get(id) as
+    | { id: string; type: string }
+    | undefined;
+  if (!p) return c.json({ error: 'unknown player' }, 404);
+  if (p.type !== 'guest') return c.json({ error: 'only guests can be removed here' }, 403);
+  db.prepare('DELETE FROM players WHERE id = ?').run(id); // cascades checkins
+  return c.json(readBoard(upcomingGameDate()));
+});
+
 checkin.post('/', async (c) => {
   const { player_id, status } = CheckinInput.parse(await c.req.json());
   const gameDate = upcomingGameDate();

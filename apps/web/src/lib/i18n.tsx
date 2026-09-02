@@ -59,6 +59,7 @@ const dict = {
     'checkin.season': 'Season',
     'checkin.dropins': 'Drop-ins',
     'checkin.guest': 'Guest',
+    'checkin.guestRemove': "Remove — I'm not going",
     'checkin.guests': 'Guests',
     'checkin.guestTitle': 'Bringing a guest?',
     'checkin.guestHint':
@@ -506,6 +507,7 @@ const dict = {
     'checkin.season': 'Fixos',
     'checkin.dropins': 'Avulsos',
     'checkin.guest': 'Convidado',
+    'checkin.guestRemove': 'Remover — não vou mais',
     'checkin.guests': 'Convidados',
     'checkin.guestTitle': 'Trazendo um convidado?',
     'checkin.guestHint':
