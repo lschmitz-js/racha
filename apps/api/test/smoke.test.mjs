@@ -265,6 +265,57 @@ test('team loans: borrow tops up a short team, return-on-loss sends them home', 
   assert.equal(sizeOf(full, 'green'), 2, 'green back to its originals');
 });
 
+test('finished games are frozen: teams/draw/matches locked, admin stat fixes still allowed', async () => {
+  // A prior test may have left an active session; only one can exist at a time.
+  const active = await (await api('/api/sessions/active')).json();
+  if (active && active.id) await api('/api/sessions/' + active.id + '/end', { method: 'POST', headers: M });
+
+  const ids = [];
+  for (let i = 0; i < 12; i++) {
+    const p = await (
+      await api('/api/players', { method: 'POST', headers: M, body: JSON.stringify(newPlayer({ name: 'Frz' + i, type: 'season' })) })
+    ).json();
+    ids.push(p.id);
+  }
+  const s = await (await api('/api/sessions', { method: 'POST', headers: M, body: JSON.stringify({ player_ids: ids }) })).json();
+  const drawn = await (await api('/api/sessions/' + s.id + '/draw', { method: 'POST', headers: M, body: JSON.stringify({}) })).json();
+  const team = (v) => drawn.teams.find((t) => t.vest === v);
+  const white = team('white'), black = team('black'), green = team('green');
+  const match = await (
+    await api('/api/matches', {
+      method: 'POST', headers: M,
+      body: JSON.stringify({ session_id: s.id, team_a_id: white.id, team_b_id: black.id, bench_team_id: green.id }),
+    })
+  ).json();
+
+  // End the game -> it is now frozen.
+  assert.equal((await api('/api/sessions/' + s.id + '/end', { method: 'POST', headers: M })).status, 200);
+
+  // Structural changes are locked, even for an admin (master token).
+  const P = (path, opts) => api(path, { headers: M, ...opts });
+  assert.equal((await P('/api/sessions/' + s.id + '/draw', { method: 'POST', body: '{}' })).status, 409, 'draw locked');
+  assert.equal(
+    (await P('/api/sessions/' + s.id + '/teams/' + white.id + '/players', { method: 'POST', body: JSON.stringify({ player_id: ids[0] }) })).status,
+    409, 'assign locked'
+  );
+  assert.equal(
+    (await P('/api/sessions/' + s.id + '/teams/' + white.id + '/players/' + ids[0], { method: 'DELETE' })).status,
+    409, 'remove locked'
+  );
+  assert.equal(
+    (await P('/api/matches', { method: 'POST', body: JSON.stringify({ session_id: s.id, team_a_id: white.id, team_b_id: green.id, bench_team_id: black.id }) })).status,
+    409, 'new match locked'
+  );
+  assert.equal((await P('/api/matches/' + match.id + '/start', { method: 'POST' })).status, 409, 'clock locked');
+
+  // Stat corrections stay open to admins (events are not frozen).
+  const ev = await P('/api/events', {
+    method: 'POST',
+    body: JSON.stringify({ id: 'frzev' + Date.now(), match_id: match.id, type: 'goal', player_id: ids[0], team_id: white.id }),
+  });
+  assert.equal(ev.status, 201, 'admin can still fix stats on a finished game');
+});
+
 test('invalid input -> 400 (not 500)', async () => {
   assert.equal(
     (await api('/api/players', { method: 'POST', headers: M, body: JSON.stringify({ name: '' }) })).status,

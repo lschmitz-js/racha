@@ -8,8 +8,12 @@ import {
   VESTS,
   type Vest,
   MIN_PLAYERS,
+  todayISO,
 } from '@racha/shared';
 import { getDb } from '../db/index.js';
+import { isFrozen, sessionState } from '../session-guard.js';
+
+const FROZEN = { error: 'this game is finished — teams and lineup are locked' } as const;
 
 type SessionRow = {
   id: string;
@@ -39,9 +43,6 @@ function loadPlayer(row: PlayerRow): Player {
   };
 }
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 export const sessions = new Hono();
 
@@ -121,7 +122,7 @@ sessions.post('/', async (c) => {
   }
 
   const id = uid();
-  const date = body.date ?? todayIso();
+  const date = body.date ?? todayISO();
   const tx = db.transaction(() => {
     db.prepare(
       `INSERT INTO sessions (id, date, status, created_at) VALUES (?, ?, 'draft', ?)`
@@ -147,6 +148,7 @@ sessions.post('/:id/draw', async (c) => {
   const db = getDb();
   const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(id) as SessionRow | undefined;
   if (!session) return c.json({ error: 'not found' }, 404);
+  if (isFrozen(session.status, session.date)) return c.json(FROZEN, 409);
 
   // Late players (arrived=0) stay out of the draw; they get assigned to a
   // team by hand once they show up.
@@ -209,6 +211,8 @@ sessions.post('/:id/draw', async (c) => {
 sessions.post('/:id/start', (c) => {
   const id = c.req.param('id');
   const db = getDb();
+  const st = sessionState(id);
+  if (st && isFrozen(st.status, st.date)) return c.json(FROZEN, 409);
   const res = db
     .prepare(`UPDATE sessions SET status='live' WHERE id = ? AND status='draft'`)
     .run(id);
@@ -241,6 +245,8 @@ sessions.post('/:id/players/:playerId/arrival', async (c) => {
   const playerId = c.req.param('playerId');
   const body = ArrivalInput.parse(await c.req.json().catch(() => ({})));
   const db = getDb();
+  const st = sessionState(id);
+  if (st && isFrozen(st.status, st.date)) return c.json(FROZEN, 409);
   const res = db
     .prepare('UPDATE session_players SET arrived = ? WHERE session_id = ? AND player_id = ?')
     .run(body.arrived ? 1 : 0, id, playerId);
@@ -259,6 +265,9 @@ sessions.post('/:id/teams/:teamId/players', async (c) => {
   const teamId = c.req.param('teamId');
   const body = AssignToTeamInput.parse(await c.req.json());
   const db = getDb();
+
+  const st = sessionState(id);
+  if (st && isFrozen(st.status, st.date)) return c.json(FROZEN, 409);
 
   const team = db
     .prepare('SELECT id FROM session_teams WHERE id = ? AND session_id = ?')
@@ -314,6 +323,9 @@ sessions.delete('/:id/teams/:teamId/players/:playerId', (c) => {
   const teamId = c.req.param('teamId');
   const playerId = c.req.param('playerId');
   const db = getDb();
+
+  const st = sessionState(id);
+  if (st && isFrozen(st.status, st.date)) return c.json(FROZEN, 409);
 
   const team = db
     .prepare('SELECT id FROM session_teams WHERE id = ? AND session_id = ?')

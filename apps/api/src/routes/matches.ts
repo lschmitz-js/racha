@@ -2,6 +2,14 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { uid } from '@racha/shared';
 import { getDb } from '../db/index.js';
+import { isFrozen, sessionStateByMatch } from '../session-guard.js';
+
+// Match-clock changes are locked once the game day is over (see session-guard).
+const FROZEN = { error: 'this game is finished — the clock is locked' } as const;
+const matchFrozen = (matchId: string) => {
+  const st = sessionStateByMatch(matchId);
+  return st ? isFrozen(st.status, st.date) : false;
+};
 
 type MatchRow = {
   id: string;
@@ -36,11 +44,11 @@ matches.post('/', async (c) => {
   const db = getDb();
 
   const session = db
-    .prepare('SELECT status FROM sessions WHERE id = ?')
-    .get(body.session_id) as { status: string } | undefined;
+    .prepare('SELECT status, date FROM sessions WHERE id = ?')
+    .get(body.session_id) as { status: string; date: string } | undefined;
   if (!session) return c.json({ error: 'session not found' }, 404);
-  if (session.status === 'done') {
-    return c.json({ error: 'session is ended' }, 409);
+  if (isFrozen(session.status, session.date)) {
+    return c.json({ error: 'this game is finished — no new matches' }, 409);
   }
 
   const id = uid();
@@ -156,6 +164,7 @@ matches.post('/:id/start', (c) => {
   const id = c.req.param('id');
   const m = db.prepare('SELECT * FROM matches WHERE id = ?').get(id) as MatchRow | undefined;
   if (!m) return c.json({ error: 'not found' }, 404);
+  if (matchFrozen(id)) return c.json(FROZEN, 409);
   if (m.status === 'running') return c.json({ ok: true });
 
   const now = Date.now();
@@ -174,6 +183,7 @@ matches.post('/:id/pause', (c) => {
   const id = c.req.param('id');
   const m = db.prepare('SELECT * FROM matches WHERE id = ?').get(id) as MatchRow | undefined;
   if (!m) return c.json({ error: 'not found' }, 404);
+  if (matchFrozen(id)) return c.json(FROZEN, 409);
   if (m.status !== 'running') return c.json({ error: 'not running' }, 409);
 
   const now = Date.now();
@@ -191,6 +201,7 @@ matches.post('/:id/resume', (c) => {
   const id = c.req.param('id');
   const m = db.prepare('SELECT * FROM matches WHERE id = ?').get(id) as MatchRow | undefined;
   if (!m) return c.json({ error: 'not found' }, 404);
+  if (matchFrozen(id)) return c.json(FROZEN, 409);
   if (m.status !== 'paused') return c.json({ error: 'not paused' }, 409);
 
   db.prepare(

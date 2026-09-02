@@ -8,7 +8,7 @@ import { Avatar } from '../lib/avatar.js';
 import { Leaderboard } from '../components/Leaderboard.js';
 import { BestShowcase } from '../components/BestShowcase.js';
 import { bestOfEachCategory, calcPoints, type StatRow } from '../lib/points.js';
-import { calcScore, type Player, type Vest } from '@racha/shared';
+import { calcScore, todayISO, type Player, type Vest } from '@racha/shared';
 import { useVests, pillStyle, panelStyle, VestDot } from '../lib/vests.js';
 
 function fmtSessionDate(date: string, locale: string): string {
@@ -55,7 +55,9 @@ export function Session({ params }: { params: { id: string } }) {
   const recapQ = useQuery({
     queryKey: ['session', sessionId, 'recap'],
     queryFn: () => api.sessions.recap(sessionId) as Promise<StatRow[]>,
-    enabled: sessionQ.data?.session?.status === 'done',
+    enabled:
+      !!sessionQ.data?.session &&
+      (sessionQ.data.session.status === 'done' || sessionQ.data.session.date < todayISO()),
   });
 
   const draw = useMutation({
@@ -126,6 +128,11 @@ export function Session({ params }: { params: { id: string } }) {
   const data = sessionQ.data;
   if (!data) return <div className="p-4">{t('common.notFound')}</div>;
 
+  // A game is frozen once its day is over (ended, or its date has passed) — its
+  // teams/lineup are read-only from then on, matching the server. Stat fixes
+  // stay available to admins on the individual match screens.
+  const frozen = data.session.status === 'done' || data.session.date < todayISO();
+
   const teams = (data.teams ?? []) as { id: string; vest: Vest; player_ids: string[] }[];
   const latePlayerIds = (data.late_player_ids ?? []) as string[];
   const latePlayers = latePlayerIds
@@ -171,7 +178,7 @@ export function Session({ params }: { params: { id: string } }) {
         ) : null}
       </header>
 
-      {canEdit && data.session.status === 'done' ? (
+      {canEdit && frozen ? (
         <GuestPromote
           guests={
             (data.player_ids as string[])
@@ -183,7 +190,7 @@ export function Session({ params }: { params: { id: string } }) {
         />
       ) : null}
 
-      {data.session.status !== 'done' && latePlayers.length > 0 ? (
+      {!frozen && canEdit && latePlayers.length > 0 ? (
         <LateSection
           players={latePlayers}
           teams={hasDraw ? teams : []}
@@ -194,21 +201,7 @@ export function Session({ params }: { params: { id: string } }) {
         />
       ) : null}
 
-      {!hasDraw ? (
-        <section className="card space-y-2">
-          <p className="text-sm text-muted">
-            {t('session.drawPrompt', { n: presentCount })}
-          </p>
-          <div className="flex gap-2">
-            <button className="btn-primary flex-1" onClick={() => draw.mutate('normal')}>
-              {t('session.balanced')}
-            </button>
-            <button className="btn flex-1" onClick={() => draw.mutate('dropin-split')}>
-              {t('session.dropinSplit')}
-            </button>
-          </div>
-        </section>
-      ) : data.session.status === 'done' ? (
+      {frozen ? (
         <DoneSessionLayout
           session={data.session}
           teams={teams}
@@ -222,35 +215,61 @@ export function Session({ params }: { params: { id: string } }) {
           }}
           deletePending={deleteSession.isPending}
         />
+      ) : !hasDraw ? (
+        <section className="card space-y-2">
+          <p className="text-sm text-muted">
+            {t('session.drawPrompt', { n: presentCount })}
+          </p>
+          {canEdit ? (
+            <div className="flex gap-2">
+              <button className="btn-primary flex-1" onClick={() => draw.mutate('normal')}>
+                {t('session.balanced')}
+              </button>
+              <button className="btn flex-1" onClick={() => draw.mutate('dropin-split')}>
+                {t('session.dropinSplit')}
+              </button>
+            </div>
+          ) : (
+            <p className="text-xs text-muted">{t('auth.adminOnly')}</p>
+          )}
+        </section>
       ) : (
         <>
           <section className="space-y-2">
             <h2 className="text-lg font-semibold">{t('session.teams')}</h2>
-            <p className="text-xs text-muted">{t('session.tapToPick')}</p>
+            {canEdit ? <p className="text-xs text-muted">{t('session.tapToPick')}</p> : null}
             <div className="grid grid-cols-3 gap-2 items-start">
-              {teams.map((t) => (
-                <TeamCard
-                  key={t.id}
-                  team={t}
-                  players={t.player_ids.map((id) => playerById.get(id)!).filter(Boolean)}
-                  selectedSide={
-                    pickedTeams.a === t.id ? 'A' : pickedTeams.b === t.id ? 'B' : null
-                  }
-                  onPick={() =>
-                    setPickedTeams((s) => {
-                      if (s.a === t.id) return { ...s, a: undefined };
-                      if (s.b === t.id) return { ...s, b: undefined };
-                      if (!s.a) return { ...s, a: t.id };
-                      if (!s.b) return { ...s, b: t.id };
-                      return { a: t.id, b: undefined };
-                    })
-                  }
-                  onRemovePlayer={(playerId) =>
-                    removeFromTeam.mutate({ teamId: t.id, playerId })
-                  }
-                  onAddPlayer={() => setAddToTeamId(t.id)}
-                />
-              ))}
+              {teams.map((t) =>
+                canEdit ? (
+                  <TeamCard
+                    key={t.id}
+                    team={t}
+                    players={t.player_ids.map((id) => playerById.get(id)!).filter(Boolean)}
+                    selectedSide={
+                      pickedTeams.a === t.id ? 'A' : pickedTeams.b === t.id ? 'B' : null
+                    }
+                    onPick={() =>
+                      setPickedTeams((s) => {
+                        if (s.a === t.id) return { ...s, a: undefined };
+                        if (s.b === t.id) return { ...s, b: undefined };
+                        if (!s.a) return { ...s, a: t.id };
+                        if (!s.b) return { ...s, b: t.id };
+                        return { a: t.id, b: undefined };
+                      })
+                    }
+                    onRemovePlayer={(playerId) =>
+                      removeFromTeam.mutate({ teamId: t.id, playerId })
+                    }
+                    onAddPlayer={() => setAddToTeamId(t.id)}
+                  />
+                ) : (
+                  <ReadOnlyTeamCard
+                    key={t.id}
+                    team={t}
+                    players={t.player_ids.map((id) => playerById.get(id)!).filter(Boolean)}
+                  />
+                )
+              )}
             </div>
           </section>
 
@@ -293,8 +312,9 @@ export function Session({ params }: { params: { id: string } }) {
             ) : null}
           </section>
 
-          {/* Single always-visible action bar: resume the live match, or pick
-              two teams above and start the next one. */}
+          {/* Admin-only action bar: resume the live match, or pick two teams
+              above and start the next one. Hidden for non-admins (read-only). */}
+          {canEdit ? (
           <div className="fixed bottom-16 inset-x-0 px-4 safe-bottom pointer-events-none z-30">
             <div className="pointer-events-auto bg-bg2/95 backdrop-blur border border-border rounded-xl p-3 shadow-lg space-y-2">
               {liveMatch ? (
@@ -355,6 +375,7 @@ export function Session({ params }: { params: { id: string } }) {
               )}
             </div>
           </div>
+          ) : null}
         </>
       )}
 

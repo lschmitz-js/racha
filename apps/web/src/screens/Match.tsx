@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { calcScore, uid, type EventType, type Player, type Vest } from '@racha/shared';
+import { calcScore, todayISO, uid, type EventType, type Player, type Vest } from '@racha/shared';
 import { api } from '../lib/api.js';
 import { LanguageToggle, useT } from '../lib/i18n.js';
 import { useCanEdit } from '../lib/auth.js';
@@ -160,6 +160,12 @@ export function Match({ params }: { params: { id: string } }) {
   const isRunning = m.status === 'running';
   const isPaused = m.status === 'paused';
   const isPending = m.status === 'pending';
+  // Once the game day is over, the clock and the "who stays / next match" setup
+  // are locked (matches the server). Stat fixes stay open to admins via the
+  // events editor.
+  const frozen =
+    !!sessionData &&
+    (sessionData.session.status === 'done' || sessionData.session.date < todayISO());
 
   function logEvent(type: EventType, playerId: string, teamId: string) {
     const id = uid();
@@ -272,17 +278,17 @@ export function Match({ params }: { params: { id: string } }) {
           </span>
         </div>
         <div className="flex gap-1 shrink-0">
-          {isPending && (
+          {canEdit && !frozen && isPending && (
             <button className="btn-primary px-3" onClick={() => start.mutate()}>
               {t('match.start')}
             </button>
           )}
-          {isRunning && (
+          {canEdit && !frozen && isRunning && (
             <button className="btn px-3" onClick={() => pause.mutate()}>
               {t('match.pause')}
             </button>
           )}
-          {isPaused && (
+          {canEdit && !frozen && isPaused && (
             <button className="btn-primary px-3" onClick={() => resume.mutate()}>
               {t('match.resume')}
             </button>
@@ -373,7 +379,7 @@ export function Match({ params }: { params: { id: string } }) {
         </div>
       ) : null}
 
-      {isOver ? (
+      {isOver && canEdit && !frozen ? (
         <PostMatchPanel
           matchId={matchId}
           teamA={teamA!}
