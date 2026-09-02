@@ -18,7 +18,8 @@ a full bilingual (Português / English) rulebook.
 - **Guests** — a one-off external player anyone can add by name on the Check-in
   screen (no login). Guests are a distinct `type`, rank lowest for a spot, are
   capped per game and rate-limited, and play at their own risk (no emergency
-  contact). Admins can toggle self-add off (`settings.guests.selfAdd`). After a
+  contact). Admins can toggle self-add off (`settings.guests.selfAdd`). A guest
+  can also remove themselves from the board (public, like adding one). After a
   session, an admin can promote a guest to a regular drop-in (keeps their stats).
 - **Team draws & match play** — a racha needs at least 10 present to start
   (`MIN_PLAYERS`, shared). Starting pre-selects whoever confirmed on the check-in
@@ -38,9 +39,14 @@ a full bilingual (Português / English) rulebook.
   best-of-category / MVP cards. A **Season / All-time toggle** scopes everything;
   the Season view is bounded by the dates in `packages/shared/src/schedule.ts` and
   shows the season's start/end range.
-- **Season schedule** — the home "Next racha" card computes the next *playable*
-  Monday from the season window and the list of no-game holidays, both defined in
-  `packages/shared/src/schedule.ts` (mirrored in the Rules screen).
+- **Season schedule & calendar** — the home "Next racha" card computes the next
+  *playable* Monday from the season window and the list of no-game holidays, both
+  defined in `packages/shared/src/schedule.ts` (mirrored in the Rules screen). Home
+  also shows a **month calendar** (green ✓ game / red ✗ no-game) and a **weekly
+  status banner** with the confirmed count and a heads-up for any skip later that
+  month. Holidays are automatic; an admin can **cancel a one-off game** (a Monday
+  not already a holiday) with a reason everyone sees — check-in and "Next racha"
+  roll past it like a holiday (`game_cancellations` table, `/api/cancellations`).
 - **Editable roster** — the season roster is managed on the Players tab (no names
   hardcoded). Players can be imported/exported as JSON.
 - **Emergency contacts** — each player gets a private, unguessable self-service
