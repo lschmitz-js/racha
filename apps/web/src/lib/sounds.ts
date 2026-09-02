@@ -156,6 +156,37 @@ export function playEventSound(type: EventType) {
   }
 }
 
+// Loud end-of-match alarm: five alternating blasts at near-full volume (square
+// + sawtooth an octave down) so it cuts through pitchside noise. Louder and
+// longer than the per-event sounds.
+export function playTimeUp() {
+  if (!isSoundEnabled()) return;
+  const c = getCtx();
+  if (!c) return;
+  const t0 = c.currentTime;
+  const pattern = [880, 587, 880, 587, 880];
+  const layers: Array<{ mul: number; type: OscillatorType; peak: number }> = [
+    { mul: 1, type: 'square', peak: 0.85 },
+    { mul: 0.5, type: 'sawtooth', peak: 0.6 },
+  ];
+  pattern.forEach((freq, i) => {
+    const start = t0 + i * 0.42;
+    for (const { mul, type, peak } of layers) {
+      const osc = c.createOscillator();
+      const gain = c.createGain();
+      osc.type = type;
+      osc.frequency.value = freq * mul;
+      osc.connect(gain).connect(c.destination);
+      gain.gain.setValueAtTime(0.001, start);
+      gain.gain.exponentialRampToValueAtTime(peak, start + 0.01);
+      gain.gain.setValueAtTime(peak, start + 0.3);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.4);
+      osc.start(start);
+      osc.stop(start + 0.45);
+    }
+  });
+}
+
 // Match-clock buzzer at the 5-minute mark: three harsh full-volume blasts
 // (square + sawtooth an octave apart) so it cuts through pitchside noise.
 export function playBuzzer() {

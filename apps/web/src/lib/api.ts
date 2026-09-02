@@ -251,6 +251,7 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(body),
       }),
+    remove: (id: string) => request<{ ok: true }>(`/api/matches/${id}`, { method: 'DELETE' }),
   },
 
   events: {

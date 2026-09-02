@@ -264,6 +264,33 @@ matches.post('/:id/result', async (c) => {
   return c.json(row);
 });
 
+// Delete a single match (admin tidy-up: a mis-created or test match). Its events
+// and player snapshots cascade away; the remaining matches are renumbered so the
+// "Match N" titles stay contiguous. Locked once the game day is over.
+matches.delete('/:id', (c) => {
+  const db = getDb();
+  const id = c.req.param('id');
+  const m = db.prepare('SELECT session_id FROM matches WHERE id = ?').get(id) as
+    | { session_id: string }
+    | undefined;
+  if (!m) return c.json({ error: 'not found' }, 404);
+  if (matchFrozen(id)) return c.json(FROZEN, 409);
+
+  const tx = db.transaction(() => {
+    db.prepare('DELETE FROM matches WHERE id = ?').run(id); // cascades events + match_players
+    // Renumber remaining matches 1..n. Bump to a temporary high range first so
+    // the UNIQUE(session_id, ordinal) constraint can't collide mid-update.
+    db.prepare('UPDATE matches SET ordinal = ordinal + 100000 WHERE session_id = ?').run(m.session_id);
+    const rest = db
+      .prepare('SELECT id FROM matches WHERE session_id = ? ORDER BY ordinal')
+      .all(m.session_id) as Array<{ id: string }>;
+    const upd = db.prepare('UPDATE matches SET ordinal = ? WHERE id = ?');
+    rest.forEach((r, i) => upd.run(i + 1, r.id));
+  });
+  tx();
+  return c.json({ ok: true });
+});
+
 export function computeClockMs(m: MatchRow, now: number = Date.now()): number {
   if (m.status === 'running' && m.started_at) {
     return m.elapsed_ms + (now - m.started_at);

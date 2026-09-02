@@ -12,12 +12,17 @@ import { formatClock, useClock, computeClockMs } from '../lib/clock.js';
 import {
   isSoundEnabled,
   setSoundEnabled,
-  playBuzzer,
+  playTimeUp,
   playEventSound,
 } from '../lib/sounds.js';
 
 
-const TARGET_MS = 5 * 60 * 1000;
+// Match duration: 5 min normally, 6 min for a full house (16–18 players on the
+// three teams), per the rules.
+function targetMsFor(teams: { player_ids: string[] }[] | undefined): number {
+  const n = (teams ?? []).reduce((s, t) => s + (t.player_ids?.length ?? 0), 0);
+  return (n >= 16 ? 6 : 5) * 60 * 1000;
+}
 
 const EVENT_BUTTONS: Array<{ type: EventType; icon: string }> = [
   { type: 'goal', icon: '⚽' },
@@ -77,6 +82,15 @@ export function Match({ params }: { params: { id: string } }) {
       api.matches.end(matchId, result ? { result } : undefined),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['match', matchId] }),
   });
+  const removeMatch = useMutation({
+    mutationFn: () => api.matches.remove(matchId),
+    onSuccess: (_r, _v, _ctx) => {
+      const sid = matchQ.data!.match.session_id;
+      qc.invalidateQueries({ queryKey: ['session', sid] });
+      setLocation(`/sessions/${sid}`);
+    },
+    onError: (e: any) => alert(String(e?.message ?? e)),
+  });
 
   const submitEvent = useMutation({
     mutationFn: api.events.create,
@@ -99,6 +113,7 @@ export function Match({ params }: { params: { id: string } }) {
   const [toast, setToast] = useState<Toast | null>(null);
   const [benchOpen, setBenchOpen] = useState(false);
   const [soundOn, setSoundOn] = useState(isSoundEnabled);
+  const [alarmDismissed, setAlarmDismissed] = useState(false);
   const buzzedRef = useRef(false);
 
   const players: Player[] = playersQ.data ?? [];
@@ -111,15 +126,16 @@ export function Match({ params }: { params: { id: string } }) {
     const m = matchQ.data.match;
     if (m.status !== 'running') {
       buzzedRef.current = false;
+      setAlarmDismissed(false);
       return;
     }
-    if (!buzzedRef.current && liveClock >= TARGET_MS) {
+    if (!buzzedRef.current && liveClock >= targetMsFor(sessionQ.data?.teams)) {
       buzzedRef.current = true;
       try {
-        // Long triple pulse — a single 200ms buzz is easy to miss pitchside.
-        navigator.vibrate?.([500, 250, 500, 250, 900]);
+        // Long insistent pattern — a single 200ms buzz is easy to miss pitchside.
+        navigator.vibrate?.([500, 250, 500, 250, 900, 250, 900]);
       } catch {}
-      playBuzzer();
+      playTimeUp();
     }
   }, [liveClock, matchQ.data?.match?.status]);
 
@@ -166,6 +182,29 @@ export function Match({ params }: { params: { id: string } }) {
   const frozen =
     !!sessionData &&
     (sessionData.session.status === 'done' || sessionData.session.date < todayISO());
+
+  // Countdown from 5:00 → 0:00, then count how far into overtime we are.
+  const targetMs = targetMsFor(teams);
+  const remainingMs = Math.max(0, targetMs - liveClock);
+  const overtimeMs = Math.max(0, liveClock - targetMs);
+  const isOvertime = overtimeMs > 0;
+  const showTimeUp = isRunning && liveClock >= targetMs && !alarmDismissed;
+
+  // Match navigation + "Match N" title within the session.
+  const sessionMatches = ((sessionData?.matches ?? []) as any[])
+    .slice()
+    .sort((a, b) => a.ordinal - b.ordinal);
+  const matchIdx = sessionMatches.findIndex((x) => x.id === m.id);
+  const prevMatch = matchIdx > 0 ? sessionMatches[matchIdx - 1] : null;
+  const nextMatch =
+    matchIdx >= 0 && matchIdx < sessionMatches.length - 1 ? sessionMatches[matchIdx + 1] : null;
+  // The team that came on this match (last match's bench) is the "challenger":
+  // on a tie it stays, per the rules. Undefined for the first match.
+  const prevBenchId = matchIdx > 0 ? sessionMatches[matchIdx - 1]?.bench_team_id : undefined;
+  const challengerTeamId =
+    prevBenchId && (prevBenchId === m.team_a_id || prevBenchId === m.team_b_id)
+      ? prevBenchId
+      : undefined;
 
   function logEvent(type: EventType, playerId: string, teamId: string) {
     const id = uid();
@@ -242,6 +281,34 @@ export function Match({ params }: { params: { id: string } }) {
 
   return (
     <div className="min-h-screen flex flex-col">
+      {showTimeUp ? (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-red-600/90 motion-safe:animate-pulse text-white text-center p-6">
+          <div className="text-6xl">⏱</div>
+          <div className="text-4xl sm:text-5xl font-extrabold tracking-widest uppercase">
+            {t('match.timesUp')}
+          </div>
+          <div className="text-2xl font-mono tabular-nums">+{formatClock(overtimeMs)}</div>
+          <div className="flex gap-3 mt-3">
+            {canEdit && !frozen ? (
+              <button
+                className="px-5 py-3 rounded-xl bg-white text-red-700 font-bold text-lg"
+                onClick={() => {
+                  setAlarmDismissed(true);
+                  end.mutate(undefined);
+                }}
+              >
+                {t('match.end')}
+              </button>
+            ) : null}
+            <button
+              className="px-5 py-3 rounded-xl border-2 border-white font-bold text-lg"
+              onClick={() => setAlarmDismissed(true)}
+            >
+              {t('match.dismiss')}
+            </button>
+          </div>
+        </div>
+      ) : null}
       {!canEdit ? <RecordSignInBanner /> : null}
       <header className="px-2 py-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-border bg-bg2 sticky top-0 z-10">
         <div className="flex items-center gap-1 shrink-0">
@@ -271,11 +338,19 @@ export function Match({ params }: { params: { id: string } }) {
             {soundOn ? '🔊' : '🔇'}
           </button>
         </div>
-        <div className="text-xl sm:text-2xl font-mono tabular-nums">
-          {formatClock(liveClock)}
-          <span className="hidden sm:inline text-xs text-muted ml-1">
-            / {formatClock(TARGET_MS)}
-          </span>
+        <div
+          className={`text-xl sm:text-2xl font-mono tabular-nums font-semibold ${
+            isOvertime ? 'text-red-500' : remainingMs <= 30_000 && isRunning ? 'text-amber-400' : ''
+          }`}
+        >
+          {isOvertime ? (
+            <span>
+              +{formatClock(overtimeMs)}
+              <span className="hidden sm:inline text-xs ml-1">{t('match.overtime')}</span>
+            </span>
+          ) : (
+            formatClock(remainingMs)
+          )}
         </div>
         <div className="flex gap-1 shrink-0">
           {canEdit && !frozen && isPending && (
@@ -300,6 +375,48 @@ export function Match({ params }: { params: { id: string } }) {
           )}
         </div>
       </header>
+
+      {/* Match number + navigation between the session's matches. */}
+      <div className="flex items-center justify-between px-2 py-1.5 border-b border-border bg-bg2/60">
+        <button
+          className="text-sm px-2 py-1 rounded-md text-muted enabled:hover:text-fg disabled:opacity-30"
+          disabled={!prevMatch}
+          onClick={() => prevMatch && setLocation(`/matches/${prevMatch.id}`)}
+          aria-label={t('match.prev')}
+        >
+          ◀
+        </button>
+        <div className="font-semibold text-sm tracking-wide">
+          {t('session.matchN', { n: m.ordinal })}
+          {sessionMatches.length ? (
+            <span className="text-muted font-normal"> · {matchIdx + 1}/{sessionMatches.length}</span>
+          ) : null}
+        </div>
+        <div className="flex items-center gap-1">
+          {canEdit && !frozen ? (
+            <button
+              className="text-sm px-2 py-1 rounded-md text-muted hover:text-red-400"
+              title={t('match.deleteMatch')}
+              aria-label={t('match.deleteMatch')}
+              disabled={removeMatch.isPending}
+              onClick={() => {
+                if (window.confirm(t('match.confirmDelete', { n: m.ordinal, e: events.length })))
+                  removeMatch.mutate();
+              }}
+            >
+              🗑
+            </button>
+          ) : null}
+          <button
+            className="text-sm px-2 py-1 rounded-md text-muted enabled:hover:text-fg disabled:opacity-30"
+            disabled={!nextMatch}
+            onClick={() => nextMatch && setLocation(`/matches/${nextMatch.id}`)}
+            aria-label={t('match.next')}
+          >
+            ▶
+          </button>
+        </div>
+      </div>
 
       <div className="grid grid-cols-2 px-2 py-2 border-b border-border bg-bg">
         <ScoreSide team={teamA} goals={goalsA} />
@@ -390,6 +507,7 @@ export function Match({ params }: { params: { id: string } }) {
           currentResult={m.result}
           goalsA={goalsA}
           goalsB={goalsB}
+          challengerTeamId={challengerTeamId}
         />
       ) : null}
 
@@ -753,6 +871,7 @@ function PostMatchPanel({
   currentResult,
   goalsA,
   goalsB,
+  challengerTeamId,
 }: {
   matchId: string;
   teamA: SessionTeam;
@@ -763,6 +882,7 @@ function PostMatchPanel({
   currentResult: 'a' | 'b' | 'draw' | 'pending';
   goalsA: number;
   goalsB: number;
+  challengerTeamId?: string;
 }) {
   const qc = useQueryClient();
   const [, setLocation] = useLocation();
@@ -776,6 +896,23 @@ function PostMatchPanel({
     currentResult !== 'pending' ? currentResult : null
   );
   const [benchSwap, setBenchSwap] = useState<string | null>(null);
+
+  // Auto-pick the outcome once from the score, so the organizer usually just
+  // confirms: the winner comes from the goals; on a tie the challenger (last
+  // match's bench) stays and the other playing team benches. A first-match tie
+  // (no challenger) is left for the manual odds-or-evens call.
+  const preRef = useRef(false);
+  useEffect(() => {
+    if (preRef.current) return;
+    preRef.current = true;
+    if (currentResult !== 'pending') return;
+    const pick: 'a' | 'b' | 'draw' = goalsA > goalsB ? 'a' : goalsB > goalsA ? 'b' : 'draw';
+    setStayPicked(pick);
+    if (pick === 'draw' && challengerTeamId) {
+      setBenchSwap(challengerTeamId === teamA.id ? teamB.id : teamA.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const winnerTeam = stayPicked === 'a' ? teamA : stayPicked === 'b' ? teamB : null;
   const loserTeam = stayPicked === 'a' ? teamB : stayPicked === 'b' ? teamA : null;
@@ -819,6 +956,9 @@ function PostMatchPanel({
       dropOut = loserTeam?.id;
     }
     if (!stayId || !dropOut) return;
+    // Persist the auto-picked result if it wasn't tapped manually, so standings
+    // reflect the outcome.
+    if (currentResult === 'pending' && stayPicked) setResult.mutate(stayPicked);
     // The server returns the benched team's borrowed players home, then tops up
     // the incoming team from the losers by whatever it still needs — all atomic.
     createMatch.mutate({

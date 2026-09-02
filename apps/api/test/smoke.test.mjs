@@ -316,6 +316,40 @@ test('finished games are frozen: teams/draw/matches locked, admin stat fixes sti
   assert.equal(ev.status, 201, 'admin can still fix stats on a finished game');
 });
 
+test('delete match: tidy-up removes it and renumbers the rest; frozen locks it', async () => {
+  const active = await (await api('/api/sessions/active')).json();
+  if (active && active.id) await api('/api/sessions/' + active.id + '/end', { method: 'POST', headers: M });
+
+  const ids = [];
+  for (let i = 0; i < 12; i++) {
+    const p = await (
+      await api('/api/players', { method: 'POST', headers: M, body: JSON.stringify(newPlayer({ name: 'Del' + i, type: 'season' })) })
+    ).json();
+    ids.push(p.id);
+  }
+  const s = await (await api('/api/sessions', { method: 'POST', headers: M, body: JSON.stringify({ player_ids: ids }) })).json();
+  const drawn = await (await api('/api/sessions/' + s.id + '/draw', { method: 'POST', headers: M, body: JSON.stringify({}) })).json();
+  const team = (v) => drawn.teams.find((t) => t.vest === v);
+  const white = team('white'), black = team('black'), green = team('green');
+  const mk = (a, b, bench) =>
+    api('/api/matches', { method: 'POST', headers: M, body: JSON.stringify({ session_id: s.id, team_a_id: a, team_b_id: b, bench_team_id: bench }) });
+  const m1 = await (await mk(white.id, black.id, green.id)).json();
+  const m2 = await (await mk(white.id, green.id, black.id)).json();
+  assert.equal(m1.ordinal, 1);
+  assert.equal(m2.ordinal, 2);
+
+  // Delete match 1 -> match 2 renumbers to ordinal 1.
+  assert.equal((await api('/api/matches/' + m1.id, { method: 'DELETE', headers: M })).status, 200);
+  const full = await (await api('/api/sessions/' + s.id)).json();
+  assert.equal(full.matches.length, 1, 'one match remains');
+  assert.equal(full.matches[0].id, m2.id);
+  assert.equal(full.matches[0].ordinal, 1, 'remaining match renumbered to 1');
+
+  // Freeze the session -> deleting a match is locked.
+  await api('/api/sessions/' + s.id + '/end', { method: 'POST', headers: M });
+  assert.equal((await api('/api/matches/' + m2.id, { method: 'DELETE', headers: M })).status, 409);
+});
+
 test('invalid input -> 400 (not 500)', async () => {
   assert.equal(
     (await api('/api/players', { method: 'POST', headers: M, body: JSON.stringify({ name: '' }) })).status,
