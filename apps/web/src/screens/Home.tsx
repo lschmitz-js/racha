@@ -40,12 +40,23 @@ export function Home() {
   const activeQ = useQuery({ queryKey: ['session', 'active'], queryFn: api.sessions.active });
   const sessionsQ = useQuery({ queryKey: ['sessions'], queryFn: api.sessions.list });
   const cancellationsQ = useQuery({ queryKey: ['cancellations'], queryFn: api.cancellations.list });
+  const checkinQ = useQuery({ queryKey: ['checkin'], queryFn: api.checkin.get });
 
   const locale = lang === 'pt' ? 'pt-BR' : 'en-US';
   const cancels = cancellationsQ.data ?? [];
   const cancelledSet = new Set(cancels.map((c) => c.date));
   const cancelReasons = new Map(cancels.map((c) => [c.date, c.reason]));
   const nextIso = nextGameDateISO(new Date(), Array.from(cancelledSet));
+  const confirmedCount = checkinQ.data?.confirmed.length ?? 0;
+
+  // The next Monday we skip (holiday or cancellation) after the next game — used
+  // for the "heads-up" line so people see a coming gap in advance.
+  const offDates = [...NO_GAME_DATES.map((d) => d.date), ...Array.from(cancelledSet)]
+    .filter((d) => d >= SEASON_START && d <= SEASON_END)
+    .sort();
+  const nextSkip = nextIso ? offDates.find((d) => d > nextIso) : undefined;
+  const fmtSkip = (iso: string) =>
+    new Date(iso + 'T12:00:00').toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 
   const holidayName = (iso: string) => {
     const h = NO_GAME_DATES.find((d) => d.date === iso);
@@ -131,10 +142,18 @@ export function Home() {
         </div>
       ) : null}
       {!active && nextIso && !upcomingOff ? (
-        <div className="rounded-2xl border border-accent/40 bg-accent/10 text-accent p-3 flex items-center gap-2.5">
+        <div className="rounded-2xl border border-accent/40 bg-accent/10 text-accent p-3 flex items-start gap-2.5">
           <span className="text-lg leading-none">✓</span>
-          <div className="text-sm font-semibold">
-            {nextIsThisMonday ? t('home.gameOnMonday') : t('home.nextRachaShort', { date: nextLabel })}
+          <div className="text-sm">
+            <div className="font-semibold">
+              {nextIsThisMonday ? t('home.gameOnMonday') : t('home.nextRachaShort', { date: nextLabel })}
+            </div>
+            <div className="opacity-90 text-xs mt-0.5">
+              {confirmedCount > 0
+                ? t('home.confirmedSoFar', { n: confirmedCount })
+                : t('home.noCheckinsYet')}
+              {nextSkip ? ` · ${t('home.headsUp', { date: fmtSkip(nextSkip), reason: offReason(nextSkip) })}` : ''}
+            </div>
           </div>
         </div>
       ) : null}
