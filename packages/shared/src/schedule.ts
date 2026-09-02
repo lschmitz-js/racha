@@ -16,6 +16,7 @@ export const SEASON_END = '2027-06-21'; // Monday — last game
 export const CONFIRMED_CAP = 15; // normal confirmed cap; drop-ins never exceed this
 export const SEASON_CAP = 18; // hard ceiling, reached only if that many season players check in
 export const CHECKIN_CAP = SEASON_CAP; // back-compat alias (hard ceiling)
+export const GUEST_CAP = 5; // max self-added guests per game (spam guard)
 export const MIN_PLAYERS = 10; // minimum present players needed to start a racha
 
 export interface NoGameDate {

@@ -57,6 +57,15 @@ const dict = {
     'checkin.all': 'All',
     'checkin.season': 'Season',
     'checkin.dropins': 'Drop-ins',
+    'checkin.guest': 'Guest',
+    'checkin.guests': 'Guests',
+    'checkin.guestTitle': 'Bringing a guest?',
+    'checkin.guestHint':
+      'Add an external player by name. Guests are the lowest priority for a spot and play at their own risk.',
+    'checkin.guestName': 'Guest name',
+    'checkin.guestAdd': 'Add',
+    'checkin.guestFull': 'Guest spots are full for this game — ask the organizer.',
+    'checkin.guestWaiver': '{n} guest spots left · plays at own risk',
     'checkin.clearAll': 'Clear all',
     'checkin.clearAllConfirm': "Clear everyone's check-in for this game? This can't be undone.",
     'checkin.copyReminder': 'Copy WhatsApp reminder',
@@ -120,6 +129,10 @@ const dict = {
     'session.pickTwo': 'Pick two teams above',
     'session.matchesTonight': 'Matches tonight',
     'session.matchesPlayed': '{n} matches played',
+    'session.promoteTitle': 'Guests played this session',
+    'session.promoteHint':
+      'Promote a guest to a regular drop-in to keep their stats. Add their skill, photo and emergency contact afterward from the Players tab.',
+    'session.promoteBtn': 'Promote to drop-in',
     'session.matchesTotal': '{n} total',
     'session.matchN': 'Match {n}',
     'session.endedNotice': 'This session has ended. No more matches can be started.',
@@ -240,6 +253,7 @@ const dict = {
     'players.namePlaceholder': 'Name',
     'players.season': 'Season',
     'players.dropin': 'Drop-in',
+    'players.guest': 'Guest',
     'players.avg': 'avg {n}',
     'players.changePhoto': 'Change photo',
     'players.removePhoto': 'Remove photo',
@@ -258,6 +272,9 @@ const dict = {
     'settings.contactHint': 'Shown on the Rules screen. Stored in the app, not the source code.',
     'settings.etransfer': 'e-Transfer email',
     'settings.siteUrl': 'Site URL',
+    'settings.guestSelfAdd': 'Allow guest self-add',
+    'settings.guestSelfAddHint':
+      'Let anyone add a one-off guest by name on the check-in screen. Turn off if it gets abused.',
     'settings.vestSlot': 'Team {n}',
 
     // emergency contacts
@@ -432,6 +449,15 @@ const dict = {
     'checkin.all': 'Todos',
     'checkin.season': 'Fixos',
     'checkin.dropins': 'Avulsos',
+    'checkin.guest': 'Convidado',
+    'checkin.guests': 'Convidados',
+    'checkin.guestTitle': 'Trazendo um convidado?',
+    'checkin.guestHint':
+      'Adicione um jogador externo pelo nome. Convidados têm a menor prioridade e jogam por conta e risco.',
+    'checkin.guestName': 'Nome do convidado',
+    'checkin.guestAdd': 'Adicionar',
+    'checkin.guestFull': 'As vagas de convidado acabaram para este jogo — fale com o organizador.',
+    'checkin.guestWaiver': '{n} vagas de convidado · joga por conta e risco',
     'checkin.clearAll': 'Limpar tudo',
     'checkin.clearAllConfirm': 'Limpar a presença de todos para este jogo? Isso não pode ser desfeito.',
     'checkin.copyReminder': 'Copiar lembrete do WhatsApp',
@@ -496,6 +522,10 @@ const dict = {
     'session.pickTwo': 'Escolha dois times acima',
     'session.matchesTonight': 'Jogos de hoje',
     'session.matchesPlayed': '{n} jogos disputados',
+    'session.promoteTitle': 'Convidados jogaram nesta sessão',
+    'session.promoteHint':
+      'Torne um convidado em avulso para manter as estatísticas dele. Depois adicione skill, foto e contato de emergência na aba Jogadores.',
+    'session.promoteBtn': 'Tornar avulso',
     'session.matchesTotal': '{n} no total',
     'session.matchN': 'Jogo {n}',
     'session.endedNotice': 'Esta sessão foi encerrada. Não é possível iniciar mais jogos.',
@@ -616,6 +646,7 @@ const dict = {
     'players.namePlaceholder': 'Nome',
     'players.season': 'Fixo',
     'players.dropin': 'Avulso',
+    'players.guest': 'Convidado',
     'players.avg': 'média {n}',
     'players.changePhoto': 'Mudar foto',
     'players.removePhoto': 'Remover foto',
@@ -634,6 +665,9 @@ const dict = {
     'settings.contactHint': 'Mostrado na tela de Regras. Guardado no app, não no código-fonte.',
     'settings.etransfer': 'E-mail do e-Transfer',
     'settings.siteUrl': 'URL do site',
+    'settings.guestSelfAdd': 'Permitir autoadição de convidados',
+    'settings.guestSelfAddHint':
+      'Deixa qualquer um adicionar um convidado pontual pelo nome na tela de presença. Desligue se houver abuso.',
     'settings.vestSlot': 'Time {n}',
 
     // emergency contacts

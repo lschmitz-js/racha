@@ -17,6 +17,8 @@ const DEFAULT_VESTS = {
   green: { color: '#16a34a', label: 'Green' },
 };
 const DEFAULT_CONTACT = { etransfer: '', siteUrl: '' };
+// Whether anyone (no login) can self-add a guest on the check-in screen.
+const DEFAULT_GUESTS = { selfAdd: true };
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const VestSlot = z.object({
@@ -32,6 +34,7 @@ const ContactInput = z.object({
   etransfer: z.string().trim().max(120),
   siteUrl: z.string().trim().max(200),
 });
+const GuestsInput = z.object({ selfAdd: z.boolean() });
 
 function readJson<T>(key: string, fallback: T): T {
   const row = getDb().prepare('SELECT value FROM settings WHERE key = ?').get(key) as
@@ -58,18 +61,25 @@ settings.get('/', (c) => {
   return c.json({
     vests: readJson('vests', DEFAULT_VESTS),
     contact: readJson('contact', DEFAULT_CONTACT),
+    guests: readJson('guests', DEFAULT_GUESTS),
   });
 });
 
 // Accepts either or both of { vests, contact }; updates whichever is present.
 settings.put('/', async (c) => {
   const body = z
-    .object({ vests: VestsInput.optional(), contact: ContactInput.optional() })
+    .object({
+      vests: VestsInput.optional(),
+      contact: ContactInput.optional(),
+      guests: GuestsInput.optional(),
+    })
     .parse(await c.req.json());
   if (body.vests) writeJson('vests', body.vests);
   if (body.contact) writeJson('contact', body.contact);
+  if (body.guests) writeJson('guests', body.guests);
   return c.json({
     vests: readJson('vests', DEFAULT_VESTS),
     contact: readJson('contact', DEFAULT_CONTACT),
+    guests: readJson('guests', DEFAULT_GUESTS),
   });
 });

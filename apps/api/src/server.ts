@@ -152,7 +152,9 @@ function resolveUser(c: any): AuthUser | null {
 // admin (and that the audit middleware skips): the emergency self-service form
 // and the weekly game check-in.
 const isPublicSelfService = (path: string) =>
-  path.startsWith('/api/emergency/') || path === '/api/checkin';
+  path.startsWith('/api/emergency/') ||
+  path === '/api/checkin' ||
+  path === '/api/checkin/guest';
 const isReadMethod = (m: string) => m === 'GET' || m === 'HEAD' || m === 'OPTIONS';
 const redactPath = (p: string) => p.replace(/(\/api\/emergency\/)[^/?]+/, '$1<token>');
 
@@ -203,6 +205,31 @@ if (authRequired && LOGIN_MAX > 0) {
     if (b.count > LOGIN_MAX) {
       c.header('Retry-After', String(Math.ceil((b.resetAt - now) / 1000)));
       return c.json({ error: 'too many attempts' }, 429);
+    }
+    return next();
+  });
+}
+
+// Stricter throttle on the public guest self-add: creating records without a
+// login is a spam surface, so cap it per client independently of the general
+// limit (the per-game guest cap in the route is the hard ceiling on top).
+const GUEST_MAX = Number(process.env.GUEST_RATE_MAX || 6);
+const GUEST_WINDOW_MS = Number(process.env.GUEST_RATE_WINDOW_MS || 3_600_000);
+const guestBuckets = new Map<string, Bucket>();
+if (GUEST_MAX > 0) {
+  app.use('/api/checkin/guest', async (c, next) => {
+    if (c.req.method !== 'POST') return next();
+    const key = clientKey(c);
+    const now = Date.now();
+    let b = guestBuckets.get(key);
+    if (!b || b.resetAt <= now) {
+      b = { count: 0, resetAt: now + GUEST_WINDOW_MS };
+      guestBuckets.set(key, b);
+    }
+    b.count++;
+    if (b.count > GUEST_MAX) {
+      c.header('Retry-After', String(Math.ceil((b.resetAt - now) / 1000)));
+      return c.json({ error: 'too many guest adds, try later' }, 429);
     }
     return next();
   });

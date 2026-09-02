@@ -39,6 +39,7 @@ export function getDb(): DB {
   migrateSessionPlayersArrived(db);
   migratePlayerEmergency(db);
   migrateAuth(db);
+  migratePlayerTypeCheck(db); // after the column-adding migrations above
 
   // Exit cleanly on both signals. SIGTERM is what `docker stop` and most
   // process managers send — previously we only closed the DB without exiting,
@@ -90,6 +91,46 @@ function migrateMatchEventsCheck(db: DB) {
     ALTER TABLE match_events_new RENAME TO match_events;
     CREATE INDEX IF NOT EXISTS idx_events_match  ON match_events(match_id, clock_ms);
     CREATE INDEX IF NOT EXISTS idx_events_player ON match_events(player_id, type);
+    COMMIT;
+    PRAGMA foreign_keys = ON;
+  `);
+}
+
+// Existing prod DBs created the players table with a CHECK that only allowed
+// ('season','dropin'). Guests need a third type, and SQLite can't ALTER a CHECK
+// in place, so rebuild the table with the widened CHECK when 'guest' isn't in
+// its CREATE statement. Columns are copied by name (not SELECT *) because older
+// DBs appended is_admin/emergency_token via ALTER, so physical order can differ.
+// Runs after the column-adding migrations so every listed column exists.
+function migratePlayerTypeCheck(db: DB) {
+  const row = db
+    .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='players'")
+    .get() as { sql: string } | undefined;
+  if (!row || row.sql.includes("'guest'")) return;
+
+  db.exec(`
+    PRAGMA foreign_keys = OFF;
+    BEGIN;
+    CREATE TABLE players_new (
+      id              TEXT PRIMARY KEY,
+      name            TEXT NOT NULL,
+      type            TEXT NOT NULL CHECK(type IN ('season','dropin','guest')),
+      role            TEXT NOT NULL CHECK(role IN ('player','gk')),
+      skills_json     TEXT NOT NULL,
+      active          INTEGER NOT NULL DEFAULT 1,
+      emergency_token TEXT,
+      is_admin        INTEGER NOT NULL DEFAULT 0,
+      password_hash   TEXT,
+      created_at      INTEGER NOT NULL
+    );
+    INSERT INTO players_new
+      (id, name, type, role, skills_json, active, emergency_token, is_admin, password_hash, created_at)
+      SELECT id, name, type, role, skills_json, active, emergency_token, is_admin, password_hash, created_at
+        FROM players;
+    DROP TABLE players;
+    ALTER TABLE players_new RENAME TO players;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_players_emergency_token
+      ON players(emergency_token) WHERE emergency_token IS NOT NULL;
     COMMIT;
     PRAGMA foreign_keys = ON;
   `);

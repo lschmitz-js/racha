@@ -143,7 +143,7 @@ const en: RulesDoc = [
     blocks: [
       {
         t: 'p',
-        text: 'The absolute priority for game spots follows this strict order: Season Players ➔ Drop-In (Group) ➔ Drop-In (External).',
+        text: 'The absolute priority for game spots follows this strict order: Season Players ➔ Drop-Ins ➔ Guests (one-off externals).',
       },
       {
         t: 'sub',
@@ -157,6 +157,16 @@ const en: RulesDoc = [
           {
             t: 'p',
             text: 'Season players are always confirmed (up to the 18-player ceiling). The confirmed list is normally capped at 15, so any spots still open under that cap go to the drop-ins who checked in, in check-in order — the sooner you check in, the better your chance. On a full-season night the fixos can fill the game on their own, so drop-ins may land on the Waitlist. The app shows the confirmed list and how many spots are open.',
+          },
+        ],
+      },
+      {
+        t: 'sub',
+        title: 'Guests (one-off)',
+        blocks: [
+          {
+            t: 'p',
+            text: 'Anyone can add a one-off guest by name on the Check-in screen — no login needed. Guests are the lowest priority (after season and drop-ins), so they only get a confirmed spot if one is still open, and there is a small cap per game. Guests play at their own risk — no emergency contact is required while they are a guest. After the game, an admin can promote a guest to a regular drop-in to keep their stats, and then add their skill, photo and emergency contact.',
           },
         ],
       },
@@ -489,7 +499,7 @@ const pt: RulesDoc = [
     blocks: [
       {
         t: 'p',
-        text: 'A prioridade absoluta das vagas segue esta ordem estrita: Jogadores Fixos ➔ Avulsos (Grupo) ➔ Avulsos (Externos).',
+        text: 'A prioridade absoluta das vagas segue esta ordem estrita: Jogadores Fixos ➔ Avulsos ➔ Convidados (externos pontuais).',
       },
       {
         t: 'sub',
@@ -503,6 +513,16 @@ const pt: RulesDoc = [
           {
             t: 'p',
             text: 'Os fixos têm presença garantida (até o teto de 18 jogadores). A lista de confirmados normalmente é limitada a 15, então as vagas que sobrarem abaixo desse limite vão para os avulsos que confirmaram, por ordem de confirmação — quanto antes confirmar, maior a chance. Numa noite cheia de fixos, eles podem preencher o jogo sozinhos, e os avulsos podem ficar na lista de Espera. O app mostra a lista de confirmados e quantas vagas estão abertas.',
+          },
+        ],
+      },
+      {
+        t: 'sub',
+        title: 'Convidados (pontual)',
+        blocks: [
+          {
+            t: 'p',
+            text: 'Qualquer um pode adicionar um convidado pontual pelo nome na tela de Presença — sem login. Convidados têm a menor prioridade (depois de fixos e avulsos), então só ganham vaga se ainda houver uma aberta, e há um limite pequeno por jogo. Convidados jogam por conta e risco — não precisam de contato de emergência enquanto forem convidados. Depois do jogo, um admin pode tornar o convidado um avulso para manter as estatísticas, e então adicionar skill, foto e contato de emergência.',
           },
         ],
       },

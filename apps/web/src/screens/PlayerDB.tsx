@@ -13,7 +13,7 @@ import { Avatar, resizeImageToBlob } from '../lib/avatar.js';
 type Editing = {
   id?: string;
   name: string;
-  type: 'season' | 'dropin';
+  type: 'season' | 'dropin' | 'guest';
   skills: number[];
   is_admin: boolean;
   password: string; // blank = unchanged (edit) / no login (new)
@@ -37,7 +37,7 @@ export function PlayerDB() {
   const [editing, setEditing] = useState<Editing | null>(null);
   const [emergencyFor, setEmergencyFor] = useState<Player | null>(null);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<'all' | 'season' | 'dropin'>('all');
+  const [filter, setFilter] = useState<'all' | 'season' | 'dropin' | 'guest'>('all');
   const [menuOpen, setMenuOpen] = useState(false);
   const [vestsOpen, setVestsOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
@@ -113,8 +113,7 @@ export function PlayerDB() {
   const q = search.trim().toLowerCase();
   const players = all.filter((p) => {
     if (q && !p.name.toLowerCase().includes(q)) return false;
-    if (filter === 'season') return p.type === 'season';
-    if (filter === 'dropin') return p.type === 'dropin';
+    if (filter !== 'all') return p.type === filter;
     return true;
   });
 
@@ -122,6 +121,7 @@ export function PlayerDB() {
     ['all', t('players.filterAll')],
     ['season', t('players.season')],
     ['dropin', t('players.dropin')],
+    ['guest', t('players.guest')],
   ];
 
   return (
@@ -229,7 +229,11 @@ export function PlayerDB() {
                   ) : null}
                 </div>
                 <div className="text-xs text-muted truncate">
-                  {p.type === 'season' ? t('players.season') : t('players.dropin')}
+                  {p.type === 'season'
+                    ? t('players.season')
+                    : p.type === 'guest'
+                      ? t('players.guest')
+                      : t('players.dropin')}
                 </div>
                 {missing ? (
                   <div className="text-[11px] text-red-400 mt-0.5">⚠️ {t('players.noContact')}</div>
@@ -563,11 +567,12 @@ function Modal({
             className="w-full bg-bg3 border border-border rounded-lg px-3 py-2"
             value={editing.type}
             onChange={(e) =>
-              onChange({ ...editing, type: e.target.value as 'season' | 'dropin' })
+              onChange({ ...editing, type: e.target.value as 'season' | 'dropin' | 'guest' })
             }
           >
             <option value="season">{t('players.season')}</option>
             <option value="dropin">{t('players.dropin')}</option>
+            <option value="guest">{t('players.guest')}</option>
           </select>
           <div className="space-y-2">
             {SKILLS.map((label, i) => (

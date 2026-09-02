@@ -15,6 +15,11 @@ a full bilingual (Português / English) rulebook.
   check-in time up to the normal cap of 15 — anyone past that waits. Admins can
   set, toggle, or clear anyone's check-in from the Manage list. WhatsApp is only a
   reminder — there's a "copy reminder" button.
+- **Guests** — a one-off external player anyone can add by name on the Check-in
+  screen (no login). Guests are a distinct `type`, rank lowest for a spot, are
+  capped per game and rate-limited, and play at their own risk (no emergency
+  contact). Admins can toggle self-add off (`settings.guests.selfAdd`). After a
+  session, an admin can promote a guest to a regular drop-in (keeps their stats).
 - **Team draws & match play** — a racha needs at least 10 present to start
   (`MIN_PLAYERS`, shared). Starting pre-selects whoever confirmed on the check-in
   board. `balanceTeams` splits players by skill: **standard (10–15)** gives

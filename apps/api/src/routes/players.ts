@@ -56,7 +56,7 @@ function findAvatarFile(playerId: string): { path: string; mime: string } | null
 type PlayerRow = {
   id: string;
   name: string;
-  type: 'season' | 'dropin';
+  type: 'season' | 'dropin' | 'guest';
   role: 'player' | 'gk';
   skills_json: string;
   active: number;
@@ -223,7 +223,7 @@ players.post('/:id/emergency/rotate', (c) => {
 
 const PlayerInput = z.object({
   name: z.string().min(1),
-  type: z.enum(['season', 'dropin']),
+  type: z.enum(['season', 'dropin', 'guest']),
   skills: z.array(z.number().int().min(1).max(5)).length(8),
   active: z.boolean().optional().default(true),
   // Admin management (optional). `password` is write-only and, when present,

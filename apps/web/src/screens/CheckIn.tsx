@@ -52,7 +52,22 @@ export function CheckIn() {
     onError: (e: any) => alert(String(e?.message ?? e)),
   });
 
-  const board = (boardQ.data ?? { game_date: null, cap: 15, confirmed: [], waitlist: [], out: [] }) as CheckinBoard;
+  const addGuest = useMutation({
+    mutationFn: (name: string) => api.checkin.addGuest(name),
+    onSuccess: (board) => qc.setQueryData(['checkin'], board),
+    onError: (e: any) => alert(String(e?.message ?? e)),
+  });
+
+  const board = (boardQ.data ?? {
+    game_date: null,
+    cap: 15,
+    confirmed: [],
+    waitlist: [],
+    out: [],
+    guest_cap: 5,
+    guest_count: 0,
+    guests_allowed: true,
+  }) as CheckinBoard;
   // Season players must confirm; drop-ins may check in if they want to play.
   const roster = (playersQ.data ?? []).filter((p) => p.active);
   const me = meId ? roster.find((p) => p.id === meId) : undefined;
@@ -184,6 +199,8 @@ export function CheckIn() {
 
       <ReminderButton board={board} dateLabel={dateLabel ?? ''} />
 
+      <GuestAdd board={board} onAdd={(n) => addGuest.mutate(n)} pending={addGuest.isPending} />
+
       {/* Confirmed */}
       <section>
         <div className="section-head flex items-center justify-between">
@@ -303,7 +320,11 @@ function Entry({
       <div className="flex-1 min-w-0">
         <div className="font-medium truncate">{entry.name}</div>
       </div>
-      {entry.type === 'dropin' ? (
+      {entry.type === 'guest' ? (
+        <span className="text-[10px] text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/50">
+          {t('checkin.guest')}
+        </span>
+      ) : entry.type === 'dropin' ? (
         <span className="text-[10px] text-muted px-1.5 py-0.5 rounded border border-border">
           {t('checkin.dropin')}
         </span>
@@ -377,7 +398,7 @@ function AdminManage({
   onClearAll,
   clearing,
 }: {
-  roster: Array<{ id: string; name: string; type: 'season' | 'dropin' }>;
+  roster: Array<{ id: string; name: string; type: 'season' | 'dropin' | 'guest' }>;
   board: CheckinBoard;
   onSet: (v: { id: string; status: 'in' | 'out' | 'none' }) => void;
   onClearAll: () => void;
@@ -385,16 +406,17 @@ function AdminManage({
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'season' | 'dropin'>('all');
+  const [filter, setFilter] = useState<'all' | 'season' | 'dropin' | 'guest'>('all');
   const inIds = new Set([...board.confirmed, ...board.waitlist].map((e) => e.id));
   const outIds = new Set(board.out.map((e) => e.id));
   const anyResponses = board.confirmed.length + board.waitlist.length + board.out.length > 0;
 
-  const seasonCount = roster.filter((p) => p.type === 'season').length;
-  const filters: Array<{ key: 'all' | 'season' | 'dropin'; label: string; n: number }> = [
+  const count = (ty: 'season' | 'dropin' | 'guest') => roster.filter((p) => p.type === ty).length;
+  const filters: Array<{ key: 'all' | 'season' | 'dropin' | 'guest'; label: string; n: number }> = [
     { key: 'all', label: t('checkin.all'), n: roster.length },
-    { key: 'season', label: t('checkin.season'), n: seasonCount },
-    { key: 'dropin', label: t('checkin.dropins'), n: roster.length - seasonCount },
+    { key: 'season', label: t('checkin.season'), n: count('season') },
+    { key: 'dropin', label: t('checkin.dropins'), n: count('dropin') },
+    { key: 'guest', label: t('checkin.guests'), n: count('guest') },
   ];
   const shown = roster.filter((p) => filter === 'all' || p.type === filter);
 
@@ -444,10 +466,16 @@ function AdminManage({
                   className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 ${
                     p.type === 'season'
                       ? 'border-accent/40 text-accent'
-                      : 'border-border text-muted'
+                      : p.type === 'guest'
+                        ? 'border-amber-500/50 text-amber-500'
+                        : 'border-border text-muted'
                   }`}
                 >
-                  {p.type === 'season' ? t('checkin.season') : t('checkin.dropin')}
+                  {p.type === 'season'
+                    ? t('checkin.season')
+                    : p.type === 'guest'
+                      ? t('checkin.guest')
+                      : t('checkin.dropin')}
                 </span>
                 {/* Tapping the active choice again clears it (back to no response). */}
                 <button
@@ -480,6 +508,56 @@ function AdminManage({
         </div>
       ) : null}
     </section>
+  );
+}
+
+// Public (no login) one-off external drop-in. Anyone can add a guest by name;
+// they're checked in immediately, at the lowest priority. Hidden when an admin
+// has turned self-add off; disabled once the per-game guest cap is reached.
+function GuestAdd({
+  board,
+  onAdd,
+  pending,
+}: {
+  board: CheckinBoard;
+  onAdd: (name: string) => void;
+  pending: boolean;
+}) {
+  const t = useT();
+  const [name, setName] = useState('');
+  if (!board.guests_allowed) return null;
+  const full = board.guest_count >= board.guest_cap;
+  const left = Math.max(0, board.guest_cap - board.guest_count);
+  const submit = () => {
+    const n = name.trim();
+    if (n.length < 2 || full || pending) return;
+    onAdd(n);
+    setName('');
+  };
+  return (
+    <div className="rounded-2xl border border-border bg-bg2 p-4 space-y-2">
+      <div className="text-sm font-semibold">{t('checkin.guestTitle')}</div>
+      <p className="text-xs text-muted">{t('checkin.guestHint')}</p>
+      <div className="flex gap-2">
+        <input
+          className="input flex-1"
+          placeholder={t('checkin.guestName')}
+          value={name}
+          maxLength={40}
+          disabled={full || pending}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') submit();
+          }}
+        />
+        <button className="btn shrink-0" disabled={full || pending || name.trim().length < 2} onClick={submit}>
+          {t('checkin.guestAdd')}
+        </button>
+      </div>
+      <p className="text-[11px] text-muted">
+        {full ? t('checkin.guestFull') : t('checkin.guestWaiver', { n: left })}
+      </p>
+    </div>
   );
 }
 

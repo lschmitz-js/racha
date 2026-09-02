@@ -83,6 +83,16 @@ export function Session({ params }: { params: { id: string } }) {
     },
   });
 
+  // Promote a guest who played into a regular drop-in (admin-approved), keeping
+  // their id/stats. Skill, photo and emergency contact are added afterward in
+  // the Players tab. Once promoted they drop off the prompt below.
+  const promote = useMutation({
+    mutationFn: (p: Player) =>
+      api.players.update(p.id, { name: p.name, type: 'dropin', skills: p.skills }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['players'] }),
+    onError: (err: Error) => alert(err.message),
+  });
+
   const deleteSession = useMutation({
     mutationFn: () => api.sessions.remove(sessionId),
     onSuccess: () => {
@@ -160,6 +170,18 @@ export function Session({ params }: { params: { id: string } }) {
           <p className="text-sm text-muted">{t('session.matchesPlayed', { n: matches.length })}</p>
         ) : null}
       </header>
+
+      {canEdit && data.session.status === 'done' ? (
+        <GuestPromote
+          guests={
+            (data.player_ids as string[])
+              .map((id) => playerById.get(id))
+              .filter((p: Player | undefined): p is Player => !!p && p.type === 'guest')
+          }
+          onPromote={(p) => promote.mutate(p)}
+          pending={promote.isPending}
+        />
+      ) : null}
 
       {data.session.status !== 'done' && latePlayers.length > 0 ? (
         <LateSection
@@ -348,6 +370,42 @@ export function Session({ params }: { params: { id: string } }) {
         />
       ) : null}
     </div>
+  );
+}
+
+// Shown after a session ends when guests played: promote them to regular
+// drop-ins (admin-approved) to keep their stats. Empties itself as guests are
+// promoted (playersQ re-fetches and they no longer count as guests).
+function GuestPromote({
+  guests,
+  onPromote,
+  pending,
+}: {
+  guests: Player[];
+  onPromote: (p: Player) => void;
+  pending: boolean;
+}) {
+  const t = useT();
+  if (guests.length === 0) return null;
+  return (
+    <section className="card space-y-2 border-amber-500/40">
+      <h2 className="font-semibold text-sm">{t('session.promoteTitle')}</h2>
+      <p className="text-xs text-muted">{t('session.promoteHint')}</p>
+      <div className="space-y-1.5">
+        {guests.map((g) => (
+          <div key={g.id} className="flex items-center gap-2">
+            <Avatar playerId={g.id} name={g.name} size={28} />
+            <span className="flex-1 min-w-0 truncate text-sm">{g.name}</span>
+            <span className="text-[10px] text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/50">
+              {t('checkin.guest')}
+            </span>
+            <button className="btn text-xs shrink-0" disabled={pending} onClick={() => onPromote(g)}>
+              {t('session.promoteBtn')}
+            </button>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

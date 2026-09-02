@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS players (
   id              TEXT PRIMARY KEY,
   name            TEXT NOT NULL,
-  type            TEXT NOT NULL CHECK(type IN ('season','dropin')),
+  type            TEXT NOT NULL CHECK(type IN ('season','dropin','guest')),
   role            TEXT NOT NULL CHECK(role IN ('player','gk')),
   skills_json     TEXT NOT NULL,
   active          INTEGER NOT NULL DEFAULT 1,

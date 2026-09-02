@@ -28,7 +28,7 @@ export interface AuditEntry {
 export interface CheckinEntry {
   id: string;
   name: string;
-  type: 'season' | 'dropin';
+  type: 'season' | 'dropin' | 'guest';
   checked_in_at: number | null;
 }
 export interface CheckinBoard {
@@ -37,6 +37,9 @@ export interface CheckinBoard {
   confirmed: CheckinEntry[];
   waitlist: CheckinEntry[];
   out: CheckinEntry[];
+  guest_cap: number;
+  guest_count: number;
+  guests_allowed: boolean;
 }
 
 // Fields accepted when creating/updating a player. is_admin + password are
@@ -97,6 +100,7 @@ export const api = {
       request<{
         vests: Record<string, { color: string; label: string }>;
         contact: { etransfer: string; siteUrl: string };
+        guests: { selfAdd: boolean };
       }>(`/api/settings`),
     updateVests: (vests: Record<string, { color: string; label: string }>) =>
       request<{ vests: Record<string, { color: string; label: string }> }>(`/api/settings`, {
@@ -107,6 +111,11 @@ export const api = {
       request<{ contact: { etransfer: string; siteUrl: string } }>(`/api/settings`, {
         method: 'PUT',
         body: JSON.stringify({ contact }),
+      }),
+    updateGuests: (guests: { selfAdd: boolean }) =>
+      request<{ guests: { selfAdd: boolean } }>(`/api/settings`, {
+        method: 'PUT',
+        body: JSON.stringify({ guests }),
       }),
   },
 
@@ -292,5 +301,10 @@ export const api = {
         body: JSON.stringify({ player_id, status }),
       }),
     clearAll: () => request<CheckinBoard>(`/api/checkin/all`, { method: 'DELETE' }),
+    addGuest: (name: string) =>
+      request<CheckinBoard>(`/api/checkin/guest`, {
+        method: 'POST',
+        body: JSON.stringify({ name }),
+      }),
   },
 };

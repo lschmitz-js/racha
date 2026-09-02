@@ -14,7 +14,11 @@ export const SKILLS = [
 export const VESTS = ['white', 'black', 'green'] as const;
 export type Vest = (typeof VESTS)[number];
 
-export const PlayerType = z.enum(['season', 'dropin']);
+// 'guest' is a one-off external drop-in that anyone can add by name on the
+// check-in screen (no login). Guests are the lowest priority for a spot and
+// play at their own risk; an admin can later promote a guest to a regular
+// 'dropin' to keep their stats.
+export const PlayerType = z.enum(['season', 'dropin', 'guest']);
 
 export const Skills = z
   .array(z.number().int().min(1).max(5))

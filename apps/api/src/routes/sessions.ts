@@ -23,7 +23,7 @@ type SessionRow = {
 type PlayerRow = {
   id: string;
   name: string;
-  type: 'season' | 'dropin';
+  type: 'season' | 'dropin' | 'guest';
   role: 'player' | 'gk';
   skills_json: string;
 };

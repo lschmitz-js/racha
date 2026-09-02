@@ -33,6 +33,7 @@ before(async () => {
       DB_PATH: join(dbDir, 'test.db'),
       PORT: String(PORT),
       RATE_LIMIT_MAX: '0', // disable rate limiting for tests
+      GUEST_RATE_MAX: '0', // disable the guest add rate limiter; test the per-game cap instead
     },
     stdio: 'ignore',
   });
@@ -183,6 +184,48 @@ test('check-in cap: drop-ins stop at 15, season players can stretch it to 18', a
   for (const id of seasonIds) assert.ok(confirmedIds.has(id), 'every season player is confirmed');
   assert.ok(!confirmedIds.has(drop.id), 'the drop-in is waitlisted — season already fills past 15');
   assert.ok(board.waitlist.some((e) => e.id === drop.id), 'the drop-in shows on the waitlist');
+});
+
+test('guests: public self-add, dedupe, validation, lowest priority, cap, kill-switch', async () => {
+  await api('/api/checkin/all', { method: 'DELETE', headers: M }); // start clean
+
+  // Public add (no auth) creates a guest and checks them in.
+  const first = await api('/api/checkin/guest', { method: 'POST', body: JSON.stringify({ name: 'Guest One' }) });
+  assert.equal(first.status, 200);
+  const b1 = await first.json();
+  assert.ok(b1.confirmed.some((e) => e.name === 'Guest One' && e.type === 'guest'), 'guest is on the board');
+  assert.equal(b1.guest_count, 1);
+
+  // Dedupe (case-insensitive, any active player) -> 409; too-short name -> 400.
+  assert.equal((await api('/api/checkin/guest', { method: 'POST', body: JSON.stringify({ name: 'guest one' }) })).status, 409);
+  assert.equal((await api('/api/checkin/guest', { method: 'POST', body: JSON.stringify({ name: 'x' }) })).status, 400);
+
+  // Priority: season > drop-in > guest in the confirmed order.
+  const sea = await (
+    await api('/api/players', { method: 'POST', headers: M, body: JSON.stringify(newPlayer({ name: 'GPSeason', type: 'season' })) })
+  ).json();
+  const drop = await (
+    await api('/api/players', { method: 'POST', headers: M, body: JSON.stringify(newPlayer({ name: 'GPDrop', type: 'dropin' })) })
+  ).json();
+  await api('/api/checkin', { method: 'POST', body: JSON.stringify({ player_id: sea.id, status: 'in' }) });
+  const b2 = await (await api('/api/checkin', { method: 'POST', body: JSON.stringify({ player_id: drop.id, status: 'in' }) })).json();
+  const order = b2.confirmed.map((e) => e.name);
+  assert.ok(order.indexOf('GPSeason') < order.indexOf('GPDrop'), 'season ranks above drop-in');
+  assert.ok(order.indexOf('GPDrop') < order.indexOf('Guest One'), 'drop-in ranks above guest');
+
+  // Per-game cap (5): we have 1 guest; add 4 more, the 6th is refused.
+  for (let i = 0; i < 4; i++) {
+    assert.equal(
+      (await api('/api/checkin/guest', { method: 'POST', body: JSON.stringify({ name: 'GuestFill' + i }) })).status,
+      200
+    );
+  }
+  assert.equal((await api('/api/checkin/guest', { method: 'POST', body: JSON.stringify({ name: 'GuestOver' }) })).status, 429);
+
+  // Kill-switch: admin turns self-add off -> 403 (checked before the cap).
+  await api('/api/settings', { method: 'PUT', headers: M, body: JSON.stringify({ guests: { selfAdd: false } }) });
+  assert.equal((await api('/api/checkin/guest', { method: 'POST', body: JSON.stringify({ name: 'GuestBlocked' }) })).status, 403);
+  await api('/api/settings', { method: 'PUT', headers: M, body: JSON.stringify({ guests: { selfAdd: true } }) });
 });
 
 test('team loans: borrow tops up a short team, return-on-loss sends them home', async () => {
