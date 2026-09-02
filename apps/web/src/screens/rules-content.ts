@@ -6,7 +6,7 @@
 // which is what the "Next racha" card actually computes from. When a season
 // changes, update BOTH this file and lib/schedule.ts.
 
-import { VENUE, VENUE_ADDRESS } from '../lib/venue.js';
+import { VENUE, VENUE_ADDRESS, RESENHA_SPOT, RESENHA_ADDRESS } from '../lib/venue.js';
 
 export type Block =
   | { t: 'p'; text: string }
@@ -398,6 +398,28 @@ const en: RulesDoc = [
       },
     ],
   },
+  {
+    icon: '🍺',
+    title: 'After the Game — The Resenha',
+    blocks: [
+      {
+        t: 'p',
+        text: `Win or lose, the night isn’t over at 8. Most of us head to ${RESENHA_SPOT} to grab a beer — or a water, no pressure — talk about the game, and hang out. In Portuguese we call it the resenha: getting the group together to talk shit and enjoy the night. Everyone’s welcome, and it’s honestly the best part of the week.`,
+      },
+      {
+        t: 'kv',
+        rows: [
+          { k: 'Spot', v: RESENHA_SPOT },
+          { k: 'Address', v: RESENHA_ADDRESS },
+        ],
+      },
+      {
+        t: 'callout',
+        tone: 'info',
+        text: 'Not a rule — just tradition. No jersey, no skill rating, no minimum games. Just show up. 🍻',
+      },
+    ],
+  },
 ];
 
 const pt: RulesDoc = [
@@ -751,6 +773,28 @@ const pt: RulesDoc = [
         t: 'sub',
         title: 'Lembrete semanal',
         blocks: [{ t: 'code', text: reminderTemplate('pt', '[data]') }],
+      },
+    ],
+  },
+  {
+    icon: '🍺',
+    title: 'Depois do Jogo — A Resenha',
+    blocks: [
+      {
+        t: 'p',
+        text: `Ganhando ou perdendo, a noite não acaba às 20h. A maioria vai pro ${RESENHA_SPOT} tomar uma cerveja — ou água, sem pressão — comentar o jogo e ficar de boa. É a famosa resenha: juntar a galera pra zoar e curtir a noite. Todo mundo é bem-vindo, e sinceramente é a melhor parte da semana.`,
+      },
+      {
+        t: 'kv',
+        rows: [
+          { k: 'Lugar', v: RESENHA_SPOT },
+          { k: 'Endereço', v: RESENHA_ADDRESS },
+        ],
+      },
+      {
+        t: 'callout',
+        tone: 'info',
+        text: 'Não é regra — é tradição. Sem colete, sem skill, sem mínimo de jogos. É só aparecer. 🍻',
       },
     ],
   },
