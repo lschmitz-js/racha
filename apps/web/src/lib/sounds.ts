@@ -156,29 +156,6 @@ export function playEventSound(type: EventType) {
   }
 }
 
-// Mid-match rotation cue (full house, 3-min mark): two short high beeps —
-// distinct from the end-of-match blast so the bench knows it's "swap the sub",
-// not "time".
-export function playRotate() {
-  if (!isSoundEnabled()) return;
-  const c = getCtx();
-  if (!c) return;
-  const t0 = c.currentTime;
-  for (const off of [0, 0.2]) {
-    const osc = c.createOscillator();
-    const g = c.createGain();
-    osc.type = 'square';
-    osc.frequency.value = 1046;
-    osc.connect(g).connect(c.destination);
-    const st = t0 + off;
-    g.gain.setValueAtTime(0.001, st);
-    g.gain.exponentialRampToValueAtTime(0.5, st + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.001, st + 0.15);
-    osc.start(st);
-    osc.stop(st + 0.18);
-  }
-}
-
 // Loud end-of-match alarm: five alternating blasts at near-full volume (square
 // + sawtooth an octave down) so it cuts through pitchside noise. Louder and
 // longer than the per-event sounds.

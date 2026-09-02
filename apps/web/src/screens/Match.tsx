@@ -13,7 +13,6 @@ import {
   isSoundEnabled,
   setSoundEnabled,
   playTimeUp,
-  playRotate,
   playEventSound,
 } from '../lib/sounds.js';
 
@@ -152,9 +151,9 @@ export function Match({ params }: { params: { id: string } }) {
     if (hasSix && !rotatedRef.current && liveClock >= tgt / 2 && liveClock < tgt) {
       rotatedRef.current = true;
       try {
-        navigator.vibrate?.([300, 150, 300]);
+        navigator.vibrate?.([500, 250, 500, 250, 900, 250, 900]);
       } catch {}
-      playRotate();
+      playTimeUp();
       setRotateAlert(true);
     }
     if (!buzzedRef.current && liveClock >= tgt) {
@@ -325,10 +324,15 @@ export function Match({ params }: { params: { id: string } }) {
   return (
     <div className="min-h-screen flex flex-col">
       {rotateAlert && isRunning && !showTimeUp ? (
-        <div className="fixed inset-x-0 top-0 z-40 bg-amber-500/95 text-black flex items-center justify-center gap-3 py-3 px-4 shadow-lg motion-safe:animate-pulse">
-          <span className="text-2xl">🔄</span>
-          <span className="text-lg font-extrabold uppercase tracking-wide">{t('match.rotateNow')}</span>
-          <button className="ml-2 text-sm underline font-semibold" onClick={() => setRotateAlert(false)}>
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-amber-500/95 motion-safe:animate-pulse text-black text-center p-6">
+          <div className="text-6xl">🔄</div>
+          <div className="text-4xl sm:text-5xl font-extrabold tracking-widest uppercase">
+            {t('match.rotateNow')}
+          </div>
+          <button
+            className="mt-3 px-6 py-3 rounded-xl bg-black text-white font-bold text-lg"
+            onClick={() => setRotateAlert(false)}
+          >
             {t('match.dismiss')}
           </button>
         </div>
