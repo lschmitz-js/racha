@@ -1039,6 +1039,7 @@ function PostMatchPanel({
   const [, setLocation] = useLocation();
   const t = useT();
   const vests = useVests();
+  const isAdmin = useIsAdmin();
   const setResult = useMutation({
     mutationFn: (r: 'a' | 'b' | 'draw') => api.matches.setResult(matchId, { result: r }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['match', matchId] }),
@@ -1046,6 +1047,18 @@ function PostMatchPanel({
   const createMatch = useMutation({
     mutationFn: api.matches.create,
     onSuccess: (m: any) => setLocation(`/matches/${m.id}`),
+  });
+  // Admin-only: end the night straight from here, so there's no trip back to the
+  // session's danger zone after the last game.
+  const endSession = useMutation({
+    mutationFn: () => api.sessions.end(sessionId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['session', sessionId] });
+      qc.invalidateQueries({ queryKey: ['session', 'active'] });
+      qc.invalidateQueries({ queryKey: ['sessions'] });
+      setLocation(`/sessions/${sessionId}`);
+    },
+    onError: (e: any) => alert(e?.message ?? 'Could not finish the session'),
   });
 
   // The result comes from the score (or a result already recorded); the rules
@@ -1199,6 +1212,20 @@ function PostMatchPanel({
       <button className="btn w-full" onClick={() => setLocation(`/sessions/${sessionId}`)}>
         {t('match.backToSession')}
       </button>
+
+      {isAdmin ? (
+        <div className="pt-4 mt-2 border-t border-border">
+          <button
+            className="w-full text-sm text-muted hover:text-red-400 py-2 rounded-lg border border-border disabled:opacity-50"
+            disabled={endSession.isPending}
+            onClick={() => {
+              if (window.confirm(t('match.finishConfirm'))) endSession.mutate();
+            }}
+          >
+            🏁 {t('match.finishSession')}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
