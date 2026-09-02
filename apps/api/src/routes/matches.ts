@@ -264,6 +264,26 @@ matches.post('/:id/result', async (c) => {
   return c.json(row);
 });
 
+// Undo an accidental "end": reopen a finished match (back to paused, result
+// cleared) so the clock and stats can be edited again. Only the last match can
+// be reopened — if a later match already exists, there'd be two open matches.
+matches.post('/:id/reopen', (c) => {
+  const db = getDb();
+  const id = c.req.param('id');
+  const m = db.prepare('SELECT * FROM matches WHERE id = ?').get(id) as MatchRow | undefined;
+  if (!m) return c.json({ error: 'not found' }, 404);
+  if (matchFrozen(id)) return c.json(FROZEN, 409);
+  const later = db
+    .prepare('SELECT 1 FROM matches WHERE session_id = ? AND ordinal > ?')
+    .get(m.session_id, m.ordinal);
+  if (later) return c.json({ error: 'a later match already exists' }, 409);
+  db.prepare(
+    "UPDATE matches SET status='paused', result='pending', winner_team_id=NULL, ended_at=NULL WHERE id = ?"
+  ).run(id);
+  const row = db.prepare('SELECT * FROM matches WHERE id = ?').get(id) as MatchRow;
+  return c.json(row);
+});
+
 // Delete a single match (admin tidy-up: a mis-created or test match). Its events
 // and player snapshots cascade away; the remaining matches are renumbered so the
 // "Match N" titles stay contiguous. Locked once the game day is over.

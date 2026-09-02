@@ -269,6 +269,7 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(body),
       }),
+    reopen: (id: string) => request<any>(`/api/matches/${id}/reopen`, { method: 'POST' }),
     remove: (id: string) => request<{ ok: true }>(`/api/matches/${id}`, { method: 'DELETE' }),
   },
 

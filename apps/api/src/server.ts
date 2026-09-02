@@ -191,7 +191,7 @@ const isPublicSelfService = (path: string) =>
 const OPEN_SESSION_WRITES: RegExp[] = [
   /^\/api\/events(\/|$)/, // log / undo / (admin) edit stats
   /^\/api\/matches$/, // create the next match
-  /^\/api\/matches\/[^/]+\/(start|pause|resume|end|result)$/, // clock + result
+  /^\/api\/matches\/[^/]+\/(start|pause|resume|end|result|reopen)$/, // clock + result + undo end
   /^\/api\/sessions\/[^/]+\/draw$/, // draw teams
   /^\/api\/sessions\/[^/]+\/teams\//, // assign / move / remove a player
   /^\/api\/sessions\/[^/]+\/players\/[^/]+\/arrival$/, // late-arrival flag

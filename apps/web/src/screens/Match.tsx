@@ -91,6 +91,11 @@ export function Match({ params }: { params: { id: string } }) {
       api.matches.end(matchId, result ? { result } : undefined),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['match', matchId] }),
   });
+  const reopen = useMutation({
+    mutationFn: () => api.matches.reopen(matchId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['match', matchId] }),
+    onError: (e: any) => alert(String(e?.message ?? e)),
+  });
   const removeMatch = useMutation({
     mutationFn: () => api.matches.remove(matchId),
     onSuccess: (_r, _v, _ctx) => {
@@ -490,6 +495,11 @@ export function Match({ params }: { params: { id: string } }) {
           {canEdit && (isRunning || isPaused) && (
             <button className="btn-danger px-3" onClick={() => end.mutate(undefined)}>
               {t('match.end')}
+            </button>
+          )}
+          {canEdit && !frozen && isOver && !nextMatch && (
+            <button className="btn px-3" disabled={reopen.isPending} onClick={() => reopen.mutate()}>
+              ↩ {t('match.reopen')}
             </button>
           )}
         </div>

@@ -435,6 +435,40 @@ test("the day's code runs the live game; opening/closing/deleting stays admin", 
   await api('/api/sessions/' + created2.id, { method: 'DELETE', headers: M }); // cleanup
 });
 
+test('reopen undoes an accidental end (last match only; blocked once frozen)', async () => {
+  const active = await (await api('/api/sessions/active')).json();
+  if (active && active.id) await api('/api/sessions/' + active.id + '/end', { method: 'POST', headers: M });
+  const ids = [];
+  for (let i = 0; i < 12; i++) {
+    const p = await (
+      await api('/api/players', { method: 'POST', headers: M, body: JSON.stringify(newPlayer({ name: 'Reo' + i, type: 'season' })) })
+    ).json();
+    ids.push(p.id);
+  }
+  const s = await (await api('/api/sessions', { method: 'POST', headers: M, body: JSON.stringify({ player_ids: ids }) })).json();
+  const drawn = await (await api('/api/sessions/' + s.id + '/draw', { method: 'POST', headers: M, body: '{}' })).json();
+  const team = (v) => drawn.teams.find((t) => t.vest === v);
+  const white = team('white'), black = team('black'), green = team('green');
+  const mk = (a, b, ben) =>
+    api('/api/matches', { method: 'POST', headers: M, body: JSON.stringify({ session_id: s.id, team_a_id: a, team_b_id: b, bench_team_id: ben }) });
+  const m1 = await (await mk(white.id, black.id, green.id)).json();
+  const m2 = await (await mk(white.id, green.id, black.id)).json();
+
+  // Can't reopen an earlier match — a later one exists.
+  assert.equal((await api('/api/matches/' + m1.id + '/reopen', { method: 'POST', headers: M })).status, 409, 'later match exists');
+
+  // End the last match, then undo it: back to paused, result cleared.
+  await api('/api/matches/' + m2.id + '/end', { method: 'POST', headers: M, body: '{}' });
+  assert.equal((await api('/api/matches/' + m2.id + '/reopen', { method: 'POST', headers: M })).status, 200);
+  const got = await (await api('/api/matches/' + m2.id)).json();
+  assert.equal(got.match.status, 'paused', 'reopened to paused');
+  assert.equal(got.match.result, 'pending', 'result cleared');
+
+  // Once the game is frozen, reopen is locked.
+  await api('/api/sessions/' + s.id + '/end', { method: 'POST', headers: M });
+  assert.equal((await api('/api/matches/' + m2.id + '/reopen', { method: 'POST', headers: M })).status, 409, 'frozen -> no reopen');
+});
+
 test('invalid input -> 400 (not 500)', async () => {
   assert.equal(
     (await api('/api/players', { method: 'POST', headers: M, body: JSON.stringify({ name: '' }) })).status,
