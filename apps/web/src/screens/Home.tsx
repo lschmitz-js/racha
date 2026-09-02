@@ -55,7 +55,7 @@ export function Home() {
     const d = new Date(s + 'T12:00:00');
     return isNaN(d.getTime())
       ? s
-      : d.toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+      : d.toLocaleDateString(locale, { month: 'long', day: 'numeric', year: 'numeric' });
   };
   const active = activeQ.data;
 

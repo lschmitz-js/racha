@@ -156,10 +156,9 @@ function WeekCard({ week }: { week: WeekRow }) {
   const [y, m, d] = week.date.split('-').map(Number);
   const fullDate = Number.isFinite(y)
     ? new Date(y ?? 2026, (m ?? 1) - 1, d ?? 1).toLocaleDateString(lang === 'pt' ? 'pt-BR' : 'en-US', {
-        weekday: 'long',
-        year: 'numeric',
         month: 'long',
         day: 'numeric',
+        year: 'numeric',
       })
     : week.date;
   return (
