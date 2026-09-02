@@ -379,24 +379,9 @@ const en: RulesDoc = [
     ],
   },
   {
-    icon: '🧑‍🤝‍🧑',
+    icon: '📋',
     title: 'Official Season Roster',
     blocks: [{ t: 'chips' }],
-  },
-  {
-    icon: '📝',
-    title: 'WhatsApp Reminder',
-    blocks: [
-      {
-        t: 'p',
-        text: 'No more poll to open or tally. Once a week, drop a reminder in the group so people check in on the app. The Check-in screen has a “Copy WhatsApp reminder” button that fills in the date and current count for you.',
-      },
-      {
-        t: 'sub',
-        title: 'Weekly reminder',
-        blocks: [{ t: 'code', text: reminderTemplate('en', '[date]') }],
-      },
-    ],
   },
   {
     icon: '🍺',
@@ -757,24 +742,9 @@ const pt: RulesDoc = [
     ],
   },
   {
-    icon: '🧑‍🤝‍🧑',
+    icon: '📋',
     title: 'Elenco Oficial da Temporada',
     blocks: [{ t: 'chips' }],
-  },
-  {
-    icon: '📝',
-    title: 'Lembrete do WhatsApp',
-    blocks: [
-      {
-        t: 'p',
-        text: 'Sem enquete para abrir ou contar. Uma vez por semana, mande um lembrete no grupo para o pessoal confirmar no app. A tela de Presença tem um botão “Copiar lembrete do WhatsApp” que já preenche a data e o total de confirmados.',
-      },
-      {
-        t: 'sub',
-        title: 'Lembrete semanal',
-        blocks: [{ t: 'code', text: reminderTemplate('pt', '[data]') }],
-      },
-    ],
   },
   {
     icon: '🍺',

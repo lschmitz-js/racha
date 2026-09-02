@@ -668,29 +668,27 @@ function ReadOnlyTeamCard({
   team: { id: string; vest: Vest };
   players: Player[];
 }) {
-  const t = useT();
   const vests = useVests();
   const totalScore = players.reduce((s, p) => s + calcScore(p.skills), 0);
   const avg = players.length ? Math.round((totalScore / players.length) * 10) / 10 : 0;
   return (
-    <div className="p-3 rounded-xl border-2" style={panelStyle(vests[team.vest].color)}>
-      <div className="flex items-center justify-between mb-2">
-        <div className="px-2 py-1 rounded-md inline-block font-semibold" style={pillStyle(vests[team.vest].color)}>
-          {vests[team.vest].label} (⚡{totalScore} · {avg})
-        </div>
-        <span className="text-xs text-muted">
-          {t('team.playersCount', { n: players.length })}
+    <div className="p-2 rounded-xl border-2" style={panelStyle(vests[team.vest].color)}>
+      <div className="flex items-center justify-between gap-1 mb-1">
+        <span className="px-1.5 py-0.5 rounded text-xs font-semibold" style={pillStyle(vests[team.vest].color)}>
+          {vests[team.vest].label}
         </span>
+      </div>
+      <div className="text-[11px] tabular-nums mb-1 text-muted">
+        ⚡{totalScore} · {avg} · {players.length}
       </div>
       <div className="flex flex-col gap-1">
         {players.map((p) => (
           <div
             key={p.id}
-            className="flex items-center gap-2 px-2 py-1 rounded-lg bg-bg3 border border-border"
+            className="flex items-center gap-1 px-1 py-0.5 rounded-md bg-bg3 border border-border min-w-0"
           >
-            <Avatar playerId={p.id} name={p.name} size={32} />
-            <span className="text-sm font-medium truncate text-fg">
-              {p.name}            </span>
+            <Avatar playerId={p.id} name={p.name} size={20} />
+            <span className="flex-1 text-[11px] font-medium truncate text-fg">{p.name}</span>
           </div>
         ))}
       </div>
