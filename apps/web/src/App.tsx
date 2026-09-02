@@ -93,9 +93,14 @@ function AppShell() {
   return (
     <div className={`min-h-full ${hideNav ? '' : 'pb-24'}`}>
       {hideNav ? null : (
-        <div className="flex items-center justify-end gap-2 px-4 pt-3 pb-1">
-          <SignInButton />
-          <LanguageToggle />
+        <div className="flex items-center justify-between gap-2 px-4 pt-3 pb-1">
+          <Link href="/" className="font-bold text-lg tracking-tight truncate">
+            {t('home.title')}
+          </Link>
+          <div className="flex items-center gap-2 shrink-0">
+            <SignInButton />
+            <LanguageToggle />
+          </div>
         </div>
       )}
       <Switch>

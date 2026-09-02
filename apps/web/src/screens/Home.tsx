@@ -83,12 +83,7 @@ export function Home() {
   const nextIsThisMonday = !!nextIso && nextIso === upcomingMon;
 
   return (
-    <div className="p-4 pb-28 space-y-5">
-      <header>
-        <h1 className="title-lg">{t('home.title')}</h1>
-        <p className="text-sm text-muted">{t('home.subtitle')}</p>
-      </header>
-
+    <div className="p-4 pt-1 pb-28 space-y-5">
       {/* Next racha / resume-active card */}
       <div className="rounded-2xl border border-accent/30 bg-accent/[0.06] p-4 space-y-3">
         <div className="tile-label text-accent">
