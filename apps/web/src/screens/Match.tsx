@@ -59,6 +59,7 @@ export function Match({ params }: { params: { id: string } }) {
   const t = useT();
   const canEdit = useCanEdit();
   const isAdmin = useIsAdmin();
+  const vests = useVests();
   const testClock = testClockSeconds();
 
   const matchQ = useQuery({
@@ -221,7 +222,19 @@ export function Match({ params }: { params: { id: string } }) {
   // team of six plays two 3-minute halves (6 min total), so the clock counts
   // each half down to zero with a rotation cue at the break; otherwise it's a
   // single 5-minute countdown.
-  const matchHasSix = (teamA?.player_ids.length ?? 0) > 5 || (teamB?.player_ids.length ?? 0) > 5;
+  // The playing team(s) carrying a +1 (six players) — they're the ones that need
+  // to rotate their sub at the break.
+  const sixTeams = [teamA, teamB].filter(
+    (tm): tm is SessionTeam => !!tm && tm.player_ids.length > 5
+  );
+  const matchHasSix = sixTeams.length > 0;
+  const rotateColors = sixTeams.map((tm) => vests[tm.vest].color);
+  const rotateBg =
+    rotateColors.length === 1
+      ? rotateColors[0]
+      : rotateColors.length >= 2
+        ? `linear-gradient(90deg, ${rotateColors[0]} 0 50%, ${rotateColors[1]} 50% 100%)`
+        : '#f0b64d';
   const targetMs = testClock ? testClock * 1000 : (matchHasSix ? 6 : 5) * 60 * 1000;
   const fullHouse = matchHasSix;
   const halfMs = targetMs / 2;
@@ -324,13 +337,34 @@ export function Match({ params }: { params: { id: string } }) {
   return (
     <div className="min-h-screen flex flex-col">
       {rotateAlert && isRunning && !showTimeUp ? (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-amber-500/95 motion-safe:animate-pulse text-black text-center p-6">
-          <div className="text-6xl">🔄</div>
-          <div className="text-4xl sm:text-5xl font-extrabold tracking-widest uppercase">
+        <div
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 motion-safe:animate-pulse text-center p-6"
+          style={{ background: rotateBg }}
+        >
+          <div className="text-6xl" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,.45))' }}>
+            🔄
+          </div>
+          <div
+            className="text-4xl sm:text-5xl font-extrabold tracking-widest uppercase text-white"
+            style={{ textShadow: '0 2px 10px rgba(0,0,0,.55)' }}
+          >
             {t('match.rotateNow')}
           </div>
+          {sixTeams.length ? (
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              {sixTeams.map((tm) => (
+                <span
+                  key={tm.id}
+                  className="px-4 py-1.5 rounded-lg font-bold text-xl ring-2 ring-white/50"
+                  style={pillStyle(vests[tm.vest].color)}
+                >
+                  {vests[tm.vest].label}
+                </span>
+              ))}
+            </div>
+          ) : null}
           <button
-            className="mt-3 px-6 py-3 rounded-xl bg-black text-white font-bold text-lg"
+            className="mt-3 px-6 py-3 rounded-xl bg-black/70 text-white font-bold text-lg"
             onClick={() => setRotateAlert(false)}
           >
             {t('match.dismiss')}
