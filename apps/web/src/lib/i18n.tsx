@@ -321,6 +321,9 @@ const dict = {
     'emergency.shareHint': 'Send this private link to {name} so they fill in their own details.',
     'emergency.copyLink': 'Copy link',
     'emergency.copied': 'Copied!',
+    'emergency.copyMessage': 'Copy WhatsApp message',
+    'emergency.waMsg':
+      'Hi {name}! 🚨 Please fill in your emergency contact for Racha de Segunda — it takes a minute and keeps everyone safe:\n{link}',
     'emergency.openForm': 'Open form',
     'emergency.submitted': 'Submitted',
     'emergency.notSubmitted': 'Not submitted yet',
@@ -747,6 +750,9 @@ const dict = {
       'Envie este link privado para {name} preencher os próprios dados.',
     'emergency.copyLink': 'Copiar link',
     'emergency.copied': 'Copiado!',
+    'emergency.copyMessage': 'Copiar mensagem WhatsApp',
+    'emergency.waMsg':
+      'Oi {name}! 🚨 Por favor preencha seu contato de emergência do Racha de Segunda — leva um minuto e ajuda a manter todos seguros:\n{link}',
     'emergency.openForm': 'Abrir formulário',
     'emergency.submitted': 'Preenchido',
     'emergency.notSubmitted': 'Ainda não preenchido',

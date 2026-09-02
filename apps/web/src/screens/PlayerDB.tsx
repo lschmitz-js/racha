@@ -315,10 +315,13 @@ function EmergencyPanel({ player, onClose }: { player: Player; onClose: () => vo
     onError: (e: any) => alert(t('emergency.rotateFailed', { msg: e?.message ?? '' })),
   });
   const [copied, setCopied] = useState(false);
+  const [msgCopied, setMsgCopied] = useState(false);
 
   const link = q.data
     ? `${window.location.origin}/e/${q.data.token}`
     : '';
+  // A ready-to-forward WhatsApp message: context + the personal link.
+  const waMessage = link ? t('emergency.waMsg', { name: player.name, link }) : '';
 
   async function copy() {
     if (!link) return;
@@ -329,6 +332,17 @@ function EmergencyPanel({ player, onClose }: { player: Player; onClose: () => vo
     } catch {
       // Clipboard blocked (e.g. insecure context) — select-to-copy fallback.
       window.prompt(t('emergency.copyLink'), link);
+    }
+  }
+
+  async function copyMsg() {
+    if (!waMessage) return;
+    try {
+      await navigator.clipboard.writeText(waMessage);
+      setMsgCopied(true);
+      setTimeout(() => setMsgCopied(false), 1500);
+    } catch {
+      window.prompt(t('emergency.copyMessage'), waMessage);
     }
   }
 
@@ -369,6 +383,9 @@ function EmergencyPanel({ player, onClose }: { player: Player; onClose: () => vo
                   {copied ? t('emergency.copied') : t('emergency.copyLink')}
                 </button>
               </div>
+              <button className="btn-primary w-full flex items-center justify-center gap-2" onClick={copyMsg}>
+                💬 {msgCopied ? t('emergency.copied') : t('emergency.copyMessage')}
+              </button>
               <div className="flex items-center justify-between gap-2">
                 <a
                   href={link}
