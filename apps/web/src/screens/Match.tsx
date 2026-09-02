@@ -13,16 +13,10 @@ import {
   isSoundEnabled,
   setSoundEnabled,
   playTimeUp,
+  playRotate,
   playEventSound,
 } from '../lib/sounds.js';
 
-
-// Match duration: 5 min normally, 6 min for a full house (16–18 players on the
-// three teams), per the rules.
-function targetMsFor(teams: { player_ids: string[] }[] | undefined): number {
-  const n = (teams ?? []).reduce((s, t) => s + (t.player_ids?.length ?? 0), 0);
-  return (n >= 16 ? 6 : 5) * 60 * 1000;
-}
 
 const EVENT_BUTTONS: Array<{ type: EventType; icon: string }> = [
   { type: 'goal', icon: '⚽' },
@@ -129,7 +123,9 @@ export function Match({ params }: { params: { id: string } }) {
   const [benchOpen, setBenchOpen] = useState(false);
   const [soundOn, setSoundOn] = useState(isSoundEnabled);
   const [alarmDismissed, setAlarmDismissed] = useState(false);
+  const [rotateAlert, setRotateAlert] = useState(false);
   const buzzedRef = useRef(false);
+  const rotatedRef = useRef(false);
 
   const players: Player[] = playersQ.data ?? [];
   const playerById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
@@ -141,10 +137,26 @@ export function Match({ params }: { params: { id: string } }) {
     const m = matchQ.data.match;
     if (m.status !== 'running') {
       buzzedRef.current = false;
+      rotatedRef.current = false;
       setAlarmDismissed(false);
+      setRotateAlert(false);
       return;
     }
-    const tgt = testClock ? testClock * 1000 : targetMsFor(sessionQ.data?.teams);
+    const teams = (sessionQ.data?.teams ?? []) as SessionTeam[];
+    const a = teams.find((t) => t.id === m.team_a_id);
+    const b = teams.find((t) => t.id === m.team_b_id);
+    const hasSix = (a?.player_ids.length ?? 0) > 5 || (b?.player_ids.length ?? 0) > 5;
+    const tgt = testClock ? testClock * 1000 : (hasSix ? 6 : 5) * 60 * 1000;
+    // A match with a team of six plays two halves: at the mid-point the +1 sub
+    // rotates once.
+    if (hasSix && !rotatedRef.current && liveClock >= tgt / 2 && liveClock < tgt) {
+      rotatedRef.current = true;
+      try {
+        navigator.vibrate?.([300, 150, 300]);
+      } catch {}
+      playRotate();
+      setRotateAlert(true);
+    }
     if (!buzzedRef.current && liveClock >= tgt) {
       buzzedRef.current = true;
       try {
@@ -154,6 +166,13 @@ export function Match({ params }: { params: { id: string } }) {
       playTimeUp();
     }
   }, [liveClock, matchQ.data?.match?.status]);
+
+  // Auto-hide the rotation cue after a few seconds (the alarm already fired).
+  useEffect(() => {
+    if (!rotateAlert) return;
+    const id = setTimeout(() => setRotateAlert(false), 6000);
+    return () => clearTimeout(id);
+  }, [rotateAlert]);
 
   useEffect(() => {
     if (!toast) return;
@@ -199,9 +218,17 @@ export function Match({ params }: { params: { id: string } }) {
     !!sessionData &&
     (sessionData.session.status === 'done' || sessionData.session.date < todayISO());
 
-  // Countdown from 5:00 → 0:00, then count how far into overtime we are.
-  const targetMs = testClock ? testClock * 1000 : targetMsFor(teams);
-  const remainingMs = Math.max(0, targetMs - liveClock);
+  // Countdown to 0:00, then count how far into overtime we are. A match with a
+  // team of six plays two 3-minute halves (6 min total), so the clock counts
+  // each half down to zero with a rotation cue at the break; otherwise it's a
+  // single 5-minute countdown.
+  const matchHasSix = (teamA?.player_ids.length ?? 0) > 5 || (teamB?.player_ids.length ?? 0) > 5;
+  const targetMs = testClock ? testClock * 1000 : (matchHasSix ? 6 : 5) * 60 * 1000;
+  const fullHouse = matchHasSix;
+  const halfMs = targetMs / 2;
+  const inSecondHalf = fullHouse && liveClock >= halfMs && liveClock < targetMs;
+  const segEnd = fullHouse && liveClock < halfMs ? halfMs : targetMs;
+  const remainingMs = Math.max(0, segEnd - liveClock);
   const overtimeMs = Math.max(0, liveClock - targetMs);
   const isOvertime = overtimeMs > 0;
   const showTimeUp = isRunning && liveClock >= targetMs && !alarmDismissed;
@@ -297,6 +324,15 @@ export function Match({ params }: { params: { id: string } }) {
 
   return (
     <div className="min-h-screen flex flex-col">
+      {rotateAlert && isRunning && !showTimeUp ? (
+        <div className="fixed inset-x-0 top-0 z-40 bg-amber-500/95 text-black flex items-center justify-center gap-3 py-3 px-4 shadow-lg motion-safe:animate-pulse">
+          <span className="text-2xl">🔄</span>
+          <span className="text-lg font-extrabold uppercase tracking-wide">{t('match.rotateNow')}</span>
+          <button className="ml-2 text-sm underline font-semibold" onClick={() => setRotateAlert(false)}>
+            {t('match.dismiss')}
+          </button>
+        </div>
+      ) : null}
       {showTimeUp ? (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-red-600/90 motion-safe:animate-pulse text-white text-center p-6">
           <div className="text-6xl">⏱</div>
@@ -406,6 +442,11 @@ export function Match({ params }: { params: { id: string } }) {
           {t('session.matchN', { n: m.ordinal })}
           {sessionMatches.length ? (
             <span className="text-muted font-normal"> · {matchIdx + 1}/{sessionMatches.length}</span>
+          ) : null}
+          {fullHouse ? (
+            <span className="ml-2 text-[10px] font-bold uppercase text-accent border border-accent/50 rounded px-1.5 py-0.5">
+              {t('match.half', { n: inSecondHalf ? 2 : 1 })}
+            </span>
           ) : null}
           {testClock ? (
             <span className="ml-2 text-[10px] font-bold uppercase text-amber-500 border border-amber-500/50 rounded px-1.5 py-0.5">
