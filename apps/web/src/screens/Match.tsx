@@ -463,7 +463,7 @@ export function Match({ params }: { params: { id: string } }) {
           </button>
         </div>
         <div
-          className={`text-xl sm:text-2xl font-mono tabular-nums font-semibold ${
+          className={`text-3xl sm:text-4xl font-mono tabular-nums font-bold ${
             isOvertime ? 'text-red-500' : remainingMs <= 30_000 && isRunning ? 'text-amber-400' : ''
           }`}
         >
