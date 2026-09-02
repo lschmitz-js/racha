@@ -4,14 +4,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { type Player, MIN_PLAYERS } from '@racha/shared';
 import { api } from '../lib/api.js';
 import { useT } from '../lib/i18n.js';
-import { useCanEdit } from '../lib/auth.js';
+import { useIsAdmin } from '../lib/auth.js';
 import { Avatar } from '../lib/avatar.js';
 
 export function WhoIsHere() {
   const [, setLocation] = useLocation();
   const qc = useQueryClient();
   const t = useT();
-  const canEdit = useCanEdit();
+  const canEdit = useIsAdmin();
 
   const playersQ = useQuery({ queryKey: ['players'], queryFn: api.players.list });
   const activeQ = useQuery({ queryKey: ['session', 'active'], queryFn: api.sessions.active });

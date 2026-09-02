@@ -4,8 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { calcScore, todayISO, uid, type EventType, type Player, type Vest } from '@racha/shared';
 import { api } from '../lib/api.js';
 import { LanguageToggle, useT } from '../lib/i18n.js';
-import { useCanEdit } from '../lib/auth.js';
-import { SignInModal } from '../components/SignInModal.js';
+import { useCanEdit, useIsAdmin } from '../lib/auth.js';
+import { AccessBar } from '../components/AccessBar.js';
 import { useVests, contrastText, VestDot, pillStyle, panelStyle } from '../lib/vests.js';
 import { Avatar } from '../lib/avatar.js';
 import { formatClock, useClock, computeClockMs } from '../lib/clock.js';
@@ -65,6 +65,7 @@ export function Match({ params }: { params: { id: string } }) {
   const qc = useQueryClient();
   const t = useT();
   const canEdit = useCanEdit();
+  const isAdmin = useIsAdmin();
   const testClock = testClockSeconds();
 
   const matchQ = useQuery({
@@ -324,7 +325,7 @@ export function Match({ params }: { params: { id: string } }) {
           </div>
         </div>
       ) : null}
-      {!canEdit ? <RecordSignInBanner /> : null}
+      <AccessBar />
       <header className="px-2 py-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-border bg-bg2 sticky top-0 z-10">
         <div className="flex items-center gap-1 shrink-0">
           <button
@@ -383,7 +384,7 @@ export function Match({ params }: { params: { id: string } }) {
               {t('match.resume')}
             </button>
           )}
-          {(isRunning || isPaused) && (
+          {canEdit && (isRunning || isPaused) && (
             <button className="btn-danger px-3" onClick={() => end.mutate(undefined)}>
               {t('match.end')}
             </button>
@@ -413,7 +414,7 @@ export function Match({ params }: { params: { id: string } }) {
           ) : null}
         </div>
         <div className="flex items-center gap-1">
-          {canEdit && !frozen ? (
+          {isAdmin && !frozen ? (
             <button
               className="text-sm px-2 py-1 rounded-md text-muted hover:text-red-400"
               title={t('match.deleteMatch')}
@@ -462,7 +463,7 @@ export function Match({ params }: { params: { id: string } }) {
         )}
       </div>
 
-      {!isOver ? (
+      {!isOver && canEdit && !frozen ? (
         <div className="px-2 pb-2">
           <button
             className="btn w-full justify-center font-semibold"
@@ -478,10 +479,10 @@ export function Match({ params }: { params: { id: string } }) {
         players={players}
         teamA={teamA}
         teamB={teamB}
-        onEdit={canEdit ? () => setLocation(`/matches/${matchId}/events`) : undefined}
+        onEdit={isAdmin ? () => setLocation(`/matches/${matchId}/events`) : undefined}
       />
 
-      {!isOver ? (
+      {!isOver && canEdit && !frozen ? (
         <div className="border-t border-border bg-bg2 p-2 sticky bottom-0 z-10 safe-bottom">
           {armedEvent ? (
             <div className="text-[11px] text-accent mb-1">{t('match.armedHint')}</div>
@@ -912,191 +913,159 @@ function PostMatchPanel({
     mutationFn: (r: 'a' | 'b' | 'draw') => api.matches.setResult(matchId, { result: r }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['match', matchId] }),
   });
-  const [stayPicked, setStayPicked] = useState<'a' | 'b' | 'draw' | null>(
-    currentResult !== 'pending' ? currentResult : null
-  );
-  const [benchSwap, setBenchSwap] = useState<string | null>(null);
-
-  // Auto-pick the outcome once from the score, so the organizer usually just
-  // confirms: the winner comes from the goals; on a tie the challenger (last
-  // match's bench) stays and the other playing team benches. A first-match tie
-  // (no challenger) is left for the manual odds-or-evens call.
-  const preRef = useRef(false);
-  useEffect(() => {
-    if (preRef.current) return;
-    preRef.current = true;
-    if (currentResult !== 'pending') return;
-    const pick: 'a' | 'b' | 'draw' = goalsA > goalsB ? 'a' : goalsB > goalsA ? 'b' : 'draw';
-    setStayPicked(pick);
-    if (pick === 'draw' && challengerTeamId) {
-      setBenchSwap(challengerTeamId === teamA.id ? teamB.id : teamA.id);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const winnerTeam = stayPicked === 'a' ? teamA : stayPicked === 'b' ? teamB : null;
-  const loserTeam = stayPicked === 'a' ? teamB : stayPicked === 'b' ? teamA : null;
-
   const createMatch = useMutation({
     mutationFn: api.matches.create,
     onSuccess: (m: any) => setLocation(`/matches/${m.id}`),
   });
 
-  // The team about to sit (the "losers"): its players are the pool that can top
-  // up a short incoming bench team, per the winner-stays rules.
-  const outTeam =
-    stayPicked === 'draw'
-      ? benchSwap === teamA.id
-        ? teamA
-        : benchSwap === teamB.id
-          ? teamB
-          : null
-      : loserTeam;
+  // The result comes from the score (or a result already recorded); the rules
+  // then decide who stays automatically — no side-picking. The only manual case
+  // is a first-game tie (no challenger yet), settled by odds-or-evens.
+  const decided: 'a' | 'b' | 'draw' =
+    currentResult !== 'pending'
+      ? currentResult
+      : goalsA > goalsB
+        ? 'a'
+        : goalsB > goalsA
+          ? 'b'
+          : 'draw';
+  const ambiguous = decided === 'draw' && !challengerTeamId;
+  const [firstTieStayId, setFirstTieStayId] = useState<string | null>(null);
+
+  let stayTeam: SessionTeam | null = null;
+  let outTeam: SessionTeam | null = null;
+  if (decided === 'a') {
+    stayTeam = teamA;
+    outTeam = teamB;
+  } else if (decided === 'b') {
+    stayTeam = teamB;
+    outTeam = teamA;
+  } else if (challengerTeamId) {
+    // Tie: the challenger (came on this match) stays; the other team benches.
+    stayTeam = challengerTeamId === teamA.id ? teamA : teamB;
+    outTeam = challengerTeamId === teamA.id ? teamB : teamA;
+  } else if (firstTieStayId) {
+    stayTeam = firstTieStayId === teamA.id ? teamA : teamB;
+    outTeam = firstTieStayId === teamA.id ? teamB : teamA;
+  }
+
   const needed = Math.max(0, 5 - benchTeam.player_ids.length);
   const canFill = needed > 0 && !!outTeam && outTeam.player_ids.length > 0;
-
   const [fillIds, setFillIds] = useState<Set<string>>(new Set());
   const byId = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
-  // Reset the fill picks whenever the who-stays choice changes.
-  useEffect(() => setFillIds(new Set()), [stayPicked, benchSwap]);
+  useEffect(() => setFillIds(new Set()), [stayTeam?.id]);
+
+  const pill = (vest: Vest) => (
+    <span
+      className="px-2 py-0.5 rounded font-semibold text-xs"
+      style={pillStyle(vests[vest].color)}
+    >
+      {vests[vest].label}
+    </span>
+  );
 
   function next() {
-    // On a draw there is no winner: the team you pick benches (benchSwap), the
-    // other one stays, and the current bench team comes on. On a decisive result
-    // the winner stays and the loser sits.
-    let stayId: string | undefined;
-    let dropOut: string | undefined;
-    if (stayPicked === 'draw') {
-      if (!benchSwap) return;
-      dropOut = benchSwap;
-      stayId = benchSwap === teamA.id ? teamB.id : teamA.id;
-    } else {
-      if (!winnerTeam) return;
-      stayId = winnerTeam.id;
-      dropOut = loserTeam?.id;
-    }
-    if (!stayId || !dropOut) return;
-    // Persist the auto-picked result if it wasn't tapped manually, so standings
-    // reflect the outcome.
-    if (currentResult === 'pending' && stayPicked) setResult.mutate(stayPicked);
+    if (!stayTeam || !outTeam) return;
+    // Persist the score-derived result if none was recorded, so standings reflect it.
+    if (currentResult === 'pending') setResult.mutate(decided);
     // The server returns the benched team's borrowed players home, then tops up
     // the incoming team from the losers by whatever it still needs — all atomic.
     createMatch.mutate({
       session_id: sessionId,
-      team_a_id: stayId,
+      team_a_id: stayTeam.id,
       team_b_id: benchTeam.id,
-      bench_team_id: dropOut,
+      bench_team_id: outTeam.id,
       borrow: fillIds.size ? { player_ids: [...fillIds] } : undefined,
     });
   }
 
   return (
     <div className="border-t border-border bg-bg2 p-4 space-y-3">
-      <h3 className="font-semibold">{t('match.over', { a: goalsA, b: goalsB })}</h3>
-      <div className="text-sm text-muted -mt-1">{t('match.whoStays')}</div>
-      <div className="grid grid-cols-3 gap-2">
-        <VestBox
-          color={vests[teamA.vest].color}
-          name={vests[teamA.vest].label}
-          action={t('match.stays')}
-          selected={stayPicked === 'a'}
-          onClick={() => {
-            setStayPicked('a');
-            setResult.mutate('a');
-          }}
-        />
-        <VestBox
-          color={vests[teamB.vest].color}
-          name={vests[teamB.vest].label}
-          action={t('match.stays')}
-          selected={stayPicked === 'b'}
-          onClick={() => {
-            setStayPicked('b');
-            setResult.mutate('b');
-          }}
-        />
-        <button
-          className={`rounded-xl py-4 font-semibold border-2 bg-bg3 text-fg transition ${
-            stayPicked === 'draw' ? 'border-accent ring-2 ring-accent' : 'border-border'
-          }`}
-          onClick={() => {
-            setStayPicked('draw');
-            setResult.mutate('draw');
-          }}
-        >
-          {stayPicked === 'draw' ? '✓ ' : ''}
-          {t('match.draw')}
-        </button>
-      </div>
+      <h3 className="font-semibold text-center">{t('match.over', { a: goalsA, b: goalsB })}</h3>
 
-      {stayPicked === 'draw' ? (
-        <div>
-          <div className="text-sm text-muted mb-1">{t('match.pickBench')}</div>
+      {ambiguous && !firstTieStayId ? (
+        // First game only: a tie with no prior challenger — settle by odds/evens.
+        <div className="space-y-2">
+          <div className="text-sm text-muted text-center">{t('match.firstTie')}</div>
           <div className="grid grid-cols-2 gap-2">
             {[teamA, teamB].map((tm) => (
               <VestBox
                 key={tm.id}
                 color={vests[tm.vest].color}
                 name={vests[tm.vest].label}
-                action={t('match.sits')}
-                selected={benchSwap === tm.id}
-                onClick={() => setBenchSwap(tm.id)}
+                action={t('match.stays')}
+                selected={false}
+                onClick={() => setFirstTieStayId(tm.id)}
               />
             ))}
           </div>
         </div>
+      ) : stayTeam && outTeam ? (
+        <>
+          {/* The rule already decided the rotation. */}
+          <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-sm py-1">
+            {pill(stayTeam.vest)}
+            <span className="text-muted">{t('match.staysL')}</span>
+            <span className="text-muted">·</span>
+            {pill(benchTeam.vest)}
+            <span className="text-muted">{t('match.comesOnL')}</span>
+            <span className="text-muted">·</span>
+            {pill(outTeam.vest)}
+            <span className="text-muted">{t('match.benchesL')}</span>
+          </div>
+
+          {canFill && outTeam ? (
+            <div>
+              <div className="text-sm text-muted mb-1">
+                {t('match.needFill', {
+                  inVest: vests[benchTeam.vest].label,
+                  n: needed,
+                  outVest: vests[outTeam.vest].label,
+                })}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {outTeam.player_ids
+                  .map((pid) => byId.get(pid))
+                  .filter((p): p is Player => !!p)
+                  .map((p) => {
+                    const sel = fillIds.has(p.id);
+                    const atCap = !sel && fillIds.size >= needed;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        disabled={atCap}
+                        onClick={() =>
+                          setFillIds((s) => {
+                            const n = new Set(s);
+                            if (n.has(p.id)) n.delete(p.id);
+                            else n.add(p.id);
+                            return n;
+                          })
+                        }
+                        className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-sm transition ${
+                          sel ? 'border-accent bg-accent/10 ring-2 ring-accent' : 'bg-bg3 border-border'
+                        } ${atCap ? 'opacity-40 pointer-events-none' : ''}`}
+                      >
+                        <Avatar playerId={p.id} name={p.name} size={22} />
+                        <span className="truncate max-w-[7rem]">{p.name}</span>
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+          ) : null}
+
+          <button
+            className="w-full rounded-2xl py-5 text-xl font-extrabold bg-accent text-white flex items-center justify-center gap-2 transition active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none shadow-lg"
+            disabled={createMatch.isPending}
+            onClick={next}
+          >
+            ▶ {t('match.startNextGame')}
+          </button>
+        </>
       ) : null}
 
-      {canFill && outTeam ? (
-        <div>
-          <div className="text-sm text-muted mb-1">
-            {t('match.needFill', {
-              inVest: vests[benchTeam.vest].label,
-              n: needed,
-              outVest: vests[outTeam.vest].label,
-            })}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {outTeam.player_ids
-              .map((pid) => byId.get(pid))
-              .filter((p): p is Player => !!p)
-              .map((p) => {
-                const sel = fillIds.has(p.id);
-                const atCap = !sel && fillIds.size >= needed;
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    disabled={atCap}
-                    onClick={() =>
-                      setFillIds((s) => {
-                        const n = new Set(s);
-                        if (n.has(p.id)) n.delete(p.id);
-                        else n.add(p.id);
-                        return n;
-                      })
-                    }
-                    className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-sm transition ${
-                      sel ? 'border-accent bg-accent/10 ring-2 ring-accent' : 'bg-bg3 border-border'
-                    } ${atCap ? 'opacity-40 pointer-events-none' : ''}`}
-                  >
-                    <Avatar playerId={p.id} name={p.name} size={22} />
-                    <span className="truncate max-w-[7rem]">{p.name}</span>
-                  </button>
-                );
-              })}
-          </div>
-        </div>
-      ) : null}
-
-      <button
-        className="w-full rounded-xl py-3 font-semibold bg-bg3 border-2 border-border text-fg flex items-center justify-center gap-2 transition enabled:hover:border-accent active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
-        disabled={!stayPicked || (stayPicked === 'draw' && !benchSwap) || createMatch.isPending}
-        onClick={next}
-      >
-        <VestDot color={vests[benchTeam.vest].color} />
-        {t('match.startNextComesOn', { vest: vests[benchTeam.vest].label })}
-      </button>
       <button className="btn w-full" onClick={() => setLocation(`/sessions/${sessionId}`)}>
         {t('match.backToSession')}
       </button>
@@ -1138,20 +1107,3 @@ function VestBox({
   );
 }
 
-// Shown on the match screen when admin auth is required but the user is not
-// signed in. Recording writes are gated server-side, so without this the
-// organizer would hit 401s; the top-bar sign-in is hidden on match screens, so
-// we surface a sign-in button that opens the shared name+password dialog.
-function RecordSignInBanner() {
-  const t = useT();
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="px-3 py-2 bg-amber-500/10 border-b border-amber-500/40 flex flex-wrap items-center gap-2 text-sm">
-      <span className="text-amber-200 flex-1">🔒 {t('auth.recordLocked')}</span>
-      <button className="btn-primary py-1.5" onClick={() => setOpen(true)}>
-        {t('auth.signIn')}
-      </button>
-      {open ? <SignInModal onClose={() => setOpen(false)} /> : null}
-    </div>
-  );
-}

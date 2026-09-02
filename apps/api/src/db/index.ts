@@ -37,6 +37,7 @@ export function getDb(): DB {
   db.exec(schema);
   migrateMatchEventsCheck(db);
   migrateSessionPlayersArrived(db);
+  migrateSessionCode(db);
   migratePlayerEmergency(db);
   migrateAuth(db);
   migratePlayerTypeCheck(db); // after the column-adding migrations above
@@ -141,6 +142,14 @@ function migrateSessionPlayersArrived(db: DB) {
   const cols = db.prepare('PRAGMA table_info(session_players)').all() as Array<{ name: string }>;
   if (cols.some((c) => c.name === 'arrived')) return;
   db.exec('ALTER TABLE session_players ADD COLUMN arrived INTEGER NOT NULL DEFAULT 1');
+}
+
+// Per-session operator code (lets non-admins run the live game). Additive.
+function migrateSessionCode(db: DB) {
+  const cols = db.prepare('PRAGMA table_info(sessions)').all() as Array<{ name: string }>;
+  if (!cols.some((c) => c.name === 'code')) {
+    db.exec('ALTER TABLE sessions ADD COLUMN code TEXT');
+  }
 }
 
 // Emergency contacts feature: pre-existing DBs lack players.emergency_token.

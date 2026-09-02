@@ -1,8 +1,22 @@
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import { z } from 'zod';
 import { EventType, NewEventInput, uid } from '@racha/shared';
 import { getDb } from '../db/index.js';
 import { computeClockMs } from './matches.js';
+import { isFrozen, sessionStateByMatch } from '../session-guard.js';
+import { isRealAdmin, type AppVariables } from '../auth.js';
+
+// Live-game stat logging is open to the day's operators (session code) and
+// admins. Once the game is frozen (day over) only a real admin may correct
+// stats — the operator code no longer applies.
+function frozenBlock(c: Context<{ Variables: AppVariables }>, matchId: string) {
+  const st = sessionStateByMatch(matchId);
+  if (st && isFrozen(st.status, st.date) && !isRealAdmin(c.get('user'))) {
+    return c.json({ error: 'this game is finished — only an admin can change stats' }, 403);
+  }
+  return null;
+}
 
 type MatchRow = {
   id: string;
@@ -13,7 +27,7 @@ type MatchRow = {
   team_b_id: string;
 };
 
-export const events = new Hono();
+export const events = new Hono<{ Variables: AppVariables }>();
 
 events.post('/', async (c) => {
   const body = NewEventInput.parse(await c.req.json());
@@ -22,6 +36,8 @@ events.post('/', async (c) => {
     .prepare('SELECT id, started_at, elapsed_ms, status, team_a_id, team_b_id FROM matches WHERE id = ?')
     .get(body.match_id) as MatchRow | undefined;
   if (!m) return c.json({ error: 'match not found' }, 404);
+  const blocked = frozenBlock(c, m.id);
+  if (blocked) return blocked;
 
   // Idempotent insert by client-generated id
   const existing = db.prepare('SELECT * FROM match_events WHERE id = ?').get(body.id);
@@ -65,6 +81,8 @@ events.post('/sub', async (c) => {
   const db = getDb();
   const m = db.prepare('SELECT * FROM matches WHERE id = ?').get(body.match_id) as MatchRow | undefined;
   if (!m) return c.json({ error: 'match not found' }, 404);
+  const blocked = frozenBlock(c, m.id);
+  if (blocked) return blocked;
   const link_id = uid();
   const clock = Math.max(0, computeClockMs(m as any));
   const now = Date.now();
@@ -106,9 +124,11 @@ events.put('/:id', async (c) => {
   const body = UpdateEventInput.parse(await c.req.json());
   const db = getDb();
   const ev = db.prepare('SELECT * FROM match_events WHERE id = ?').get(id) as
-    | { type: string; player_id: string; team_id: string; clock_ms: number }
+    | { match_id: string; type: string; player_id: string; team_id: string; clock_ms: number }
     | undefined;
   if (!ev) return c.json({ error: 'not found' }, 404);
+  const blocked = frozenBlock(c, ev.match_id);
+  if (blocked) return blocked;
 
   db.prepare(
     `UPDATE match_events SET type = ?, player_id = ?, team_id = ?, clock_ms = ? WHERE id = ?`
@@ -128,9 +148,11 @@ events.delete('/:id', (c) => {
   const link = c.req.query('link') === '1';
   const db = getDb();
   const ev = db.prepare('SELECT * FROM match_events WHERE id = ?').get(id) as
-    | { id: string; link_id: string | null }
+    | { id: string; match_id: string; link_id: string | null }
     | undefined;
   if (!ev) return c.json({ error: 'not found' }, 404);
+  const blocked = frozenBlock(c, ev.match_id);
+  if (blocked) return blocked;
 
   if (link && ev.link_id) {
     db.prepare('DELETE FROM match_events WHERE link_id = ?').run(ev.link_id);

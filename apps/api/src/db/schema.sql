@@ -63,7 +63,8 @@ CREATE TABLE IF NOT EXISTS sessions (
   status      TEXT NOT NULL DEFAULT 'draft',
   notes       TEXT,
   created_at  INTEGER NOT NULL,
-  ended_at    INTEGER
+  ended_at    INTEGER,
+  code        TEXT
 );
 
 CREATE TABLE IF NOT EXISTS session_players (

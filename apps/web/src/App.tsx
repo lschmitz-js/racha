@@ -1,5 +1,6 @@
 import { Route, Switch, Link, useLocation } from 'wouter';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { LEAGUE_TZ } from '@racha/shared';
 import { Home } from './screens/Home.js';
 import { CheckIn } from './screens/CheckIn.js';
 import { WhoIsHere } from './screens/WhoIsHere.js';
@@ -93,9 +94,12 @@ function AppShell() {
   return (
     <div className={`min-h-full ${hideNav ? '' : 'pb-24'}`}>
       {hideNav ? null : (
-        <div className="flex items-center justify-end gap-2 px-4 pt-3 pb-1">
-          <SignInButton />
-          <LanguageToggle />
+        <div className="flex items-center justify-between gap-2 px-4 pt-3 pb-1">
+          <VancouverClock />
+          <div className="flex items-center gap-2">
+            <SignInButton />
+            <LanguageToggle />
+          </div>
         </div>
       )}
       <Switch>
@@ -141,6 +145,33 @@ function AppShell() {
         </nav>
       )}
     </div>
+  );
+}
+
+// A live wall clock in the league's timezone (Vancouver), so the displayed time
+// is unambiguous regardless of the device's own timezone. Updates each second.
+function VancouverClock() {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: LEAGUE_TZ,
+    weekday: 'short',
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+    timeZoneName: 'short',
+  });
+  return (
+    <span className="text-[11px] leading-tight text-muted tabular-nums" title="Vancouver time">
+      {fmt.format(now)}
+    </span>
   );
 }
 

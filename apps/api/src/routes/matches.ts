@@ -1,8 +1,10 @@
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import { z } from 'zod';
 import { uid } from '@racha/shared';
 import { getDb } from '../db/index.js';
 import { isFrozen, sessionStateByMatch } from '../session-guard.js';
+import { isRealAdmin, type AppVariables } from '../auth.js';
 
 // Match-clock changes are locked once the game day is over (see session-guard).
 const FROZEN = { error: 'this game is finished — the clock is locked' } as const;
@@ -10,6 +12,14 @@ const matchFrozen = (matchId: string) => {
   const st = sessionStateByMatch(matchId);
   return st ? isFrozen(st.status, st.date) : false;
 };
+// Result/finalize on a finished game: allowed, but only for an admin (a stat
+// correction). Returns a 403 response to send, or null to proceed.
+function frozenAdminOnly(c: Context<{ Variables: AppVariables }>, matchId: string) {
+  if (matchFrozen(matchId) && !isRealAdmin(c.get('user'))) {
+    return c.json({ error: 'this game is finished — only an admin can change it' }, 403);
+  }
+  return null;
+}
 
 type MatchRow = {
   id: string;
@@ -26,7 +36,7 @@ type MatchRow = {
   winner_team_id: string | null;
 };
 
-export const matches = new Hono();
+export const matches = new Hono<{ Variables: AppVariables }>();
 
 const CreateMatchInput = z.object({
   session_id: z.string(),
@@ -222,6 +232,8 @@ matches.post('/:id/end', async (c) => {
   const body = EndInput.parse(await c.req.json().catch(() => ({})));
   const m = db.prepare('SELECT * FROM matches WHERE id = ?').get(id) as MatchRow | undefined;
   if (!m) return c.json({ error: 'not found' }, 404);
+  const blocked = frozenAdminOnly(c, id);
+  if (blocked) return blocked;
 
   const now = Date.now();
   let elapsed = m.elapsed_ms;
@@ -252,6 +264,8 @@ matches.post('/:id/result', async (c) => {
   const body = EndInput.parse(await c.req.json());
   const m = db.prepare('SELECT * FROM matches WHERE id = ?').get(id) as MatchRow | undefined;
   if (!m) return c.json({ error: 'not found' }, 404);
+  const blocked = frozenAdminOnly(c, id);
+  if (blocked) return blocked;
 
   let result = body.result ?? 'pending';
   let winner = body.winner_team_id ?? null;

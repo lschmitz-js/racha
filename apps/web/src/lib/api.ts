@@ -51,6 +51,11 @@ type PlayerWrite = Omit<Player, 'id' | 'active' | 'is_admin'> & {
 };
 
 const ADMIN_TOKEN_KEY = 'racha.adminToken';
+const SESSION_CODE_KEY = 'racha.code';
+
+// The synthetic user id the server returns for a caller authorized by the day's
+// session code (not an admin login).
+export const OPERATOR_USER_ID = '__operator__';
 
 export function getAdminToken(): string | null {
   if (typeof window === 'undefined') return null;
@@ -63,13 +68,26 @@ export function setAdminToken(token: string | null) {
   else window.localStorage.removeItem(ADMIN_TOKEN_KEY);
 }
 
+export function getSessionCode(): string | null {
+  if (typeof window === 'undefined') return null;
+  return window.localStorage.getItem(SESSION_CODE_KEY);
+}
+
+export function setSessionCode(code: string | null) {
+  if (typeof window === 'undefined') return;
+  if (code) window.localStorage.setItem(SESSION_CODE_KEY, code);
+  else window.localStorage.removeItem(SESSION_CODE_KEY);
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getAdminToken();
+  const code = getSessionCode();
   const res = await fetch(path, {
     ...init,
     headers: {
       'content-type': 'application/json',
       ...(token ? { 'x-racha-token': token } : {}),
+      ...(code ? { 'x-racha-code': code } : {}),
       ...(init.headers ?? {}),
     },
   });

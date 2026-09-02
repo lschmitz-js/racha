@@ -12,8 +12,15 @@ import {
 } from '@racha/shared';
 import { getDb } from '../db/index.js';
 import { isFrozen, sessionState } from '../session-guard.js';
+import { isRealAdmin, type AppVariables } from '../auth.js';
 
 const FROZEN = { error: 'this game is finished — teams and lineup are locked' } as const;
+
+// The operator code is admin-only: hide it from everyone else so a viewer can't
+// read the day's code off the API.
+function scrubCode<T extends { code?: string | null }>(session: T, admin: boolean): T {
+  return admin ? session : { ...session, code: null };
+}
 
 type SessionRow = {
   id: string;
@@ -22,6 +29,7 @@ type SessionRow = {
   notes: string | null;
   created_at: number;
   ended_at: number | null;
+  code: string | null;
 };
 
 type PlayerRow = {
@@ -44,12 +52,13 @@ function loadPlayer(row: PlayerRow): Player {
 }
 
 
-export const sessions = new Hono();
+export const sessions = new Hono<{ Variables: AppVariables }>();
 
 sessions.get('/', (c) => {
   const db = getDb();
+  const admin = isRealAdmin(c.get('user'));
   const rows = db.prepare('SELECT * FROM sessions ORDER BY date DESC, created_at DESC').all() as SessionRow[];
-  return c.json(rows);
+  return c.json(rows.map((r) => scrubCode(r, admin)));
 });
 
 sessions.get('/active', (c) => {
@@ -57,7 +66,7 @@ sessions.get('/active', (c) => {
   const row = db
     .prepare(`SELECT * FROM sessions WHERE status IN ('draft','live') ORDER BY created_at DESC LIMIT 1`)
     .get() as SessionRow | undefined;
-  return c.json(row ?? null);
+  return c.json(row ? scrubCode(row, isRealAdmin(c.get('user'))) : null);
 });
 
 function loadFullSession(id: string) {
@@ -95,7 +104,7 @@ sessions.get('/:id', (c) => {
   const id = c.req.param('id');
   const data = loadFullSession(id);
   if (!data) return c.json({ error: 'not found' }, 404);
-  return c.json(data);
+  return c.json({ ...data, session: scrubCode(data.session, isRealAdmin(c.get('user'))) });
 });
 
 const CreateSessionInput = z.object({
@@ -123,10 +132,12 @@ sessions.post('/', async (c) => {
 
   const id = uid();
   const date = body.date ?? todayISO();
+  // 4 random digits: the organizer shares this so people at the game can run it.
+  const code = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
   const tx = db.transaction(() => {
     db.prepare(
-      `INSERT INTO sessions (id, date, status, created_at) VALUES (?, ?, 'draft', ?)`
-    ).run(id, date, Date.now());
+      `INSERT INTO sessions (id, date, status, created_at, code) VALUES (?, ?, 'draft', ?, ?)`
+    ).run(id, date, Date.now(), code);
     const late = new Set(body.late_ids);
     const insSP = db.prepare(
       `INSERT INTO session_players (session_id, player_id, arrived) VALUES (?, ?, ?)`
@@ -134,7 +145,7 @@ sessions.post('/', async (c) => {
     for (const pid of body.player_ids) insSP.run(id, pid, late.has(pid) ? 0 : 1);
   });
   tx();
-  return c.json({ id }, 201);
+  return c.json({ id, code }, 201);
 });
 
 const DrawInput = z.object({

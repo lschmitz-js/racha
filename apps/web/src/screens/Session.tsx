@@ -3,7 +3,8 @@ import { useLocation } from 'wouter';
 import { useMemo, useState } from 'react';
 import { api } from '../lib/api.js';
 import { useI18n, useT } from '../lib/i18n.js';
-import { useCanEdit } from '../lib/auth.js';
+import { useCanEdit, useIsAdmin } from '../lib/auth.js';
+import { AccessBar } from '../components/AccessBar.js';
 import { Avatar } from '../lib/avatar.js';
 import { Leaderboard } from '../components/Leaderboard.js';
 import { BestShowcase } from '../components/BestShowcase.js';
@@ -46,6 +47,7 @@ export function Session({ params }: { params: { id: string } }) {
   const locale = lang === 'pt' ? 'pt-BR' : 'en-US';
   const vests = useVests();
   const canEdit = useCanEdit();
+  const isAdmin = useIsAdmin();
 
   const playersQ = useQuery({ queryKey: ['players'], queryFn: api.players.list });
   const sessionQ = useQuery({
@@ -178,7 +180,13 @@ export function Session({ params }: { params: { id: string } }) {
         ) : null}
       </header>
 
-      {canEdit && frozen ? (
+      {!frozen ? <AccessBar /> : null}
+
+      {isAdmin && !frozen && data.session.code ? (
+        <SessionCodeCard code={data.session.code} />
+      ) : null}
+
+      {isAdmin && frozen ? (
         <GuestPromote
           guests={
             (data.player_ids as string[])
@@ -209,7 +217,7 @@ export function Session({ params }: { params: { id: string } }) {
           playerById={playerById}
           recap={recapQ.data}
           onOpenMatch={(id) => setLocation(`/matches/${id}`)}
-          canEdit={canEdit}
+          canEdit={isAdmin}
           onDelete={() => {
             if (confirm(t('session.confirmDelete'))) deleteSession.mutate();
           }}
@@ -229,9 +237,7 @@ export function Session({ params }: { params: { id: string } }) {
                 {t('session.dropinSplit')}
               </button>
             </div>
-          ) : (
-            <p className="text-xs text-muted">{t('auth.adminOnly')}</p>
-          )}
+          ) : null}
         </section>
       ) : (
         <>
@@ -257,9 +263,7 @@ export function Session({ params }: { params: { id: string } }) {
                         return { a: t.id, b: undefined };
                       })
                     }
-                    onRemovePlayer={(playerId) =>
-                      removeFromTeam.mutate({ teamId: t.id, playerId })
-                    }
+                    onRemovePlayer={(playerId) => removeFromTeam.mutate({ teamId: t.id, playerId })}
                     onAddPlayer={() => setAddToTeamId(t.id)}
                   />
                 ) : (
@@ -291,29 +295,27 @@ export function Session({ params }: { params: { id: string } }) {
             </section>
           ) : null}
 
-          <section className="mt-12 pt-4 border-t border-border space-y-2">
-            <div className="text-xs uppercase tracking-wide text-muted">
-              {t('session.dangerZone')}
-            </div>
-            <button
-              className="btn-danger w-full"
-              disabled={!canEdit || endSession.isPending}
-              title={!canEdit ? t('auth.adminOnly') : undefined}
-              onClick={() => {
-                if (confirm(t('session.confirmEnd'))) {
-                  endSession.mutate();
-                }
-              }}
-            >
-              {t('session.endSession')}
-            </button>
-            {!canEdit ? (
-              <div className="text-xs text-muted">{t('auth.adminOnly')}</div>
-            ) : null}
-          </section>
+          {isAdmin ? (
+            <section className="mt-12 pt-4 border-t border-border space-y-2">
+              <div className="text-xs uppercase tracking-wide text-muted">
+                {t('session.dangerZone')}
+              </div>
+              <button
+                className="btn-danger w-full"
+                disabled={endSession.isPending}
+                onClick={() => {
+                  if (confirm(t('session.confirmEnd'))) {
+                    endSession.mutate();
+                  }
+                }}
+              >
+                {t('session.endSession')}
+              </button>
+            </section>
+          ) : null}
 
-          {/* Admin-only action bar: resume the live match, or pick two teams
-              above and start the next one. Hidden for non-admins (read-only). */}
+          {/* Action bar: resume the live match, or pick two teams above and
+              start the next one. Operators (day code) and admins only. */}
           {canEdit ? (
           <div className="fixed bottom-16 inset-x-0 px-4 safe-bottom pointer-events-none z-30">
             <div className="pointer-events-auto bg-bg2/95 backdrop-blur border border-border rounded-xl p-3 shadow-lg space-y-2">
@@ -390,6 +392,38 @@ export function Session({ params }: { params: { id: string } }) {
           }
         />
       ) : null}
+    </div>
+  );
+}
+
+// Admin-only card showing the day's 4-digit code to share with the group, so
+// people at the game can help run it without an admin login.
+function SessionCodeCard({ code }: { code: string }) {
+  const t = useT();
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="rounded-2xl border border-accent/40 bg-accent/[0.06] p-4 flex items-center gap-3">
+      <div className="shrink-0">
+        <div className="text-[10px] uppercase tracking-wide text-muted">{t('access.codeLabel')}</div>
+        <div className="text-4xl font-mono font-bold tracking-[0.25em] text-accent leading-tight">
+          {code}
+        </div>
+      </div>
+      <div className="flex-1 min-w-0 text-xs text-muted">{t('access.codeShare')}</div>
+      <button
+        className="btn shrink-0"
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(code);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          } catch {
+            /* clipboard blocked — the code is visible anyway */
+          }
+        }}
+      >
+        {copied ? t('access.copied') : '📋'}
+      </button>
     </div>
   );
 }

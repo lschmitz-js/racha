@@ -15,6 +15,14 @@ const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 
 export type AuthUser = { id: string; name: string; master: boolean };
 
+// A caller authenticated by the day's session code (not an admin login). Allowed
+// to run the live game, but never an admin action or a finished-game edit.
+export const OPERATOR_ID = '__operator__';
+export const isOperatorUser = (u: AuthUser | null | undefined): boolean =>
+  !!u && u.id === OPERATOR_ID;
+export const isRealAdmin = (u: AuthUser | null | undefined): boolean =>
+  !!u && u.id !== OPERATOR_ID;
+
 // Per-request context variables shared by the server middleware and routes.
 export type AppVariables = { user: AuthUser | null; auditName?: string };
 

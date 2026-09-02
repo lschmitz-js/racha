@@ -288,8 +288,26 @@ test('finished games are frozen: teams/draw/matches locked, admin stat fixes sti
     })
   ).json();
 
-  // End the game -> it is now frozen.
+  // While the game is live, the day's code lets anyone log stats; no code fails.
+  const codeH = { 'x-racha-code': s.code };
+  assert.equal(
+    (await api('/api/events', { method: 'POST', body: JSON.stringify({ id: 'nocode' + Date.now(), match_id: match.id, type: 'goal', player_id: ids[0], team_id: white.id }) })).status,
+    401,
+    'no code -> cannot log stats'
+  );
+  const liveEv = await api('/api/events', {
+    method: 'POST', headers: codeH,
+    body: JSON.stringify({ id: 'liveev' + Date.now(), match_id: match.id, type: 'goal', player_id: ids[0], team_id: white.id }),
+  });
+  assert.equal(liveEv.status, 201, 'the day code can record stats during a live game');
+
+  // End the game -> it is now frozen and the code stops working.
   assert.equal((await api('/api/sessions/' + s.id + '/end', { method: 'POST', headers: M })).status, 200);
+  assert.equal(
+    (await api('/api/events', { method: 'POST', headers: codeH, body: JSON.stringify({ id: 'frzcode' + Date.now(), match_id: match.id, type: 'goal', player_id: ids[0], team_id: white.id }) })).status,
+    401,
+    'the code no longer works once the game is finished'
+  );
 
   // Structural changes are locked, even for an admin (master token).
   const P = (path, opts) => api(path, { headers: M, ...opts });
@@ -348,6 +366,62 @@ test('delete match: tidy-up removes it and renumbers the rest; frozen locks it',
   // Freeze the session -> deleting a match is locked.
   await api('/api/sessions/' + s.id + '/end', { method: 'POST', headers: M });
   assert.equal((await api('/api/matches/' + m2.id, { method: 'DELETE', headers: M })).status, 409);
+});
+
+test("the day's code runs the live game; opening/closing/deleting stays admin", async () => {
+  const active = await (await api('/api/sessions/active')).json();
+  if (active && active.id) await api('/api/sessions/' + active.id + '/end', { method: 'POST', headers: M });
+
+  const ids = [];
+  for (let i = 0; i < 12; i++) {
+    const p = await (
+      await api('/api/players', { method: 'POST', headers: M, body: JSON.stringify(newPlayer({ name: 'Open' + i, type: 'season' })) })
+    ).json();
+    ids.push(p.id);
+  }
+
+  // Opening a session needs an admin.
+  assert.equal(
+    (await api('/api/sessions', { method: 'POST', body: JSON.stringify({ player_ids: ids }) })).status,
+    401, 'opening a session needs admin'
+  );
+  const created = await (await api('/api/sessions', { method: 'POST', headers: M, body: JSON.stringify({ player_ids: ids }) })).json();
+  const s = created.id;
+  assert.match(created.code, /^\d{4}$/, 'session gets a 4-digit code');
+  const C = { 'x-racha-code': created.code };
+  const wrong = { 'x-racha-code': created.code === '0000' ? '9999' : '0000' };
+
+  // Without the code you can't run the game; a wrong code is refused; the code works.
+  assert.equal((await api('/api/sessions/' + s + '/draw', { method: 'POST', body: '{}' })).status, 401, 'no code -> blocked');
+  assert.equal((await api('/api/sessions/' + s + '/draw', { method: 'POST', headers: wrong, body: '{}' })).status, 401, 'wrong code -> blocked');
+  const drawn = await (await api('/api/sessions/' + s + '/draw', { method: 'POST', headers: C, body: '{}' })).json();
+  assert.ok(Array.isArray(drawn.teams) && drawn.teams.length === 3, 'the code can draw teams');
+  const team = (v) => drawn.teams.find((t) => t.vest === v);
+  const white = team('white'), black = team('black'), green = team('green');
+  const match = await api('/api/matches', {
+    method: 'POST', headers: C, body: JSON.stringify({ session_id: s, team_a_id: white.id, team_b_id: black.id, bench_team_id: green.id }),
+  });
+  assert.equal(match.status, 201, 'the code can create a match');
+  const mj = await match.json();
+  assert.equal((await api('/api/matches/' + mj.id + '/start', { method: 'POST', headers: C })).status, 200, 'the code can start the clock');
+  assert.equal(
+    (await api('/api/sessions/' + s + '/teams/' + green.id + '/players', { method: 'POST', headers: C, body: JSON.stringify({ player_id: ids[0] }) })).status,
+    200, 'the code can move a player'
+  );
+
+  // The code can't delete a match or the session — that stays a real admin.
+  assert.equal((await api('/api/matches/' + mj.id, { method: 'DELETE', headers: C })).status, 401, 'code cannot delete a match');
+  assert.equal((await api('/api/matches/' + mj.id, { method: 'DELETE', headers: M })).status, 200);
+  assert.equal((await api('/api/sessions/' + s, { method: 'DELETE', headers: C })).status, 401, 'code cannot delete the session');
+  await api('/api/sessions/' + s, { method: 'DELETE', headers: M }); // cleanup
+
+  // The code is admin-only to read back: a non-admin GET must not expose it.
+  const created2 = await (await api('/api/sessions', { method: 'POST', headers: M, body: JSON.stringify({ player_ids: ids }) })).json();
+  const pubActive = await (await api('/api/sessions/active')).json();
+  assert.equal(pubActive.code, null, 'the code is hidden from non-admins');
+  const admActive = await (await api('/api/sessions/active', { headers: M })).json();
+  assert.equal(admActive.code, created2.code, 'admins see the code');
+  await api('/api/sessions/' + created2.id, { method: 'DELETE', headers: M }); // cleanup
 });
 
 test('invalid input -> 400 (not 500)', async () => {

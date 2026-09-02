@@ -17,7 +17,15 @@ import { auth as authRoutes } from './routes/auth.js';
 import { audit as auditRoutes } from './routes/audit.js';
 import { settings as settingsRoutes } from './routes/settings.js';
 import { checkin } from './routes/checkin.js';
-import { sessionUser, logAudit, purgeExpiredSessions, type AuthUser, type AppVariables } from './auth.js';
+import {
+  sessionUser,
+  logAudit,
+  purgeExpiredSessions,
+  isRealAdmin,
+  OPERATOR_ID,
+  type AuthUser,
+  type AppVariables,
+} from './auth.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -139,22 +147,56 @@ function masterTokenMatches(provided: string | undefined): boolean {
   return timingSafeEqual(digest(provided ?? ''), digest(TOKEN));
 }
 
-// Resolve the caller: master token → 'master'; otherwise a valid session token
-// → that player; otherwise null.
-function resolveUser(c: any): AuthUser | null {
-  const provided = c.req.header('x-racha-token');
-  if (!provided) return null;
-  if (masterTokenMatches(provided)) return { id: 'master', name: 'master', master: true };
-  return sessionUser(provided);
+// Constant-time compare of two short codes over their SHA-256 digests.
+function codeMatches(a: string, b: string): boolean {
+  const digest = (s: string) => createHash('sha256').update(s).digest();
+  return timingSafeEqual(digest(a), digest(b));
 }
 
-// Public/honor-system writes that the fail-closed gate lets through without an
-// admin (and that the audit middleware skips): the emergency self-service form
-// and the weekly game check-in.
+// Resolve the caller: master token → 'master'; a valid session token → that
+// player; otherwise the day's session code (x-racha-code) grants a synthetic
+// 'operator' — valid only while it matches the one active (draft/live) session,
+// so it expires when the organizer ends that session.
+function resolveUser(c: any): AuthUser | null {
+  const provided = c.req.header('x-racha-token');
+  if (provided) {
+    if (masterTokenMatches(provided)) return { id: 'master', name: 'master', master: true };
+    const u = sessionUser(provided);
+    if (u) return u;
+  }
+  const code = c.req.header('x-racha-code');
+  if (code && /^\d{4}$/.test(code)) {
+    const active = getDb()
+      .prepare("SELECT code FROM sessions WHERE status IN ('draft','live') AND code IS NOT NULL LIMIT 1")
+      .get() as { code: string } | undefined;
+    if (active?.code && codeMatches(code, active.code)) {
+      return { id: OPERATOR_ID, name: 'operator', master: false };
+    }
+  }
+  return null;
+}
+
+// Truly public writes (no login, no code): the emergency self-service form and
+// the weekly check-in / guest add.
 const isPublicSelfService = (path: string) =>
   path.startsWith('/api/emergency/') ||
   path === '/api/checkin' ||
   path === '/api/checkin/guest';
+
+// Running an OPEN (live) session — draw/adjust teams, run the clock, log stats.
+// These accept the day's session code (operator) OR an admin, and each route
+// locks itself once the session is frozen. Opening/closing a session, deleting a
+// session or match, and editing a finished game still need a real admin, so
+// those paths are NOT here.
+const OPEN_SESSION_WRITES: RegExp[] = [
+  /^\/api\/events(\/|$)/, // log / undo / (admin) edit stats
+  /^\/api\/matches$/, // create the next match
+  /^\/api\/matches\/[^/]+\/(start|pause|resume|end|result)$/, // clock + result
+  /^\/api\/sessions\/[^/]+\/draw$/, // draw teams
+  /^\/api\/sessions\/[^/]+\/teams\//, // assign / move / remove a player
+  /^\/api\/sessions\/[^/]+\/players\/[^/]+\/arrival$/, // late-arrival flag
+];
+const isOperationalWrite = (path: string) => OPEN_SESSION_WRITES.some((re) => re.test(path));
 const isReadMethod = (m: string) => m === 'GET' || m === 'HEAD' || m === 'OPTIONS';
 const redactPath = (p: string) => p.replace(/(\/api\/emergency\/)[^/?]+/, '$1<token>');
 
@@ -173,7 +215,7 @@ app.use('/api/*', async (c, next) => {
   await next();
   if (isReadMethod(c.req.method)) return;
   const path = c.req.path;
-  if (isPublicSelfService(path)) return;
+  if (isPublicSelfService(path) || isOperationalWrite(path)) return;
   const user = c.get('user') as AuthUser | undefined;
   const isLogin = path === '/api/auth/login';
   if (!user && !isLogin) return;
@@ -235,27 +277,36 @@ if (GUEST_MAX > 0) {
   });
 }
 
+// Any authenticated caller (a real admin OR the day's operator code).
 const requireUser = async (c: any, next: any) => {
   if (!authRequired) return next();
   if (!c.get('user')) return c.json({ error: 'unauthorized' }, 401);
   return next();
 };
+// A real admin only — the operator code does not pass.
+const requireAdmin = async (c: any, next: any) => {
+  if (!authRequired) return next();
+  if (!isRealAdmin(c.get('user'))) return c.json({ error: 'unauthorized' }, 401);
+  return next();
+};
 
 if (authRequired) {
   // Admin-only GET reads (sensitive PII + the private link token + audit trail),
-  // registered before the global gate so requireUser short-circuits first.
-  app.use('/api/players/emergency-status', requireUser);
-  app.use('/api/players/emergency-export', requireUser);
-  app.use('/api/players/:id/emergency', requireUser);
-  app.use('/api/audit', requireUser);
-  app.use('/api/audit/*', requireUser);
-  // Fail-closed global write gate: everything that changes state requires an
-  // authenticated admin, except the player self-service submit and login itself.
+  // registered before the global gate so they short-circuit first.
+  app.use('/api/players/emergency-status', requireAdmin);
+  app.use('/api/players/emergency-export', requireAdmin);
+  app.use('/api/players/:id/emergency', requireAdmin);
+  app.use('/api/audit', requireAdmin);
+  app.use('/api/audit/*', requireAdmin);
+  // Fail-closed global write gate. Running an open session accepts the operator
+  // code or an admin; everything else (opening/closing sessions, deleting,
+  // roster/settings, finished-game edits) needs a real admin.
   app.use('/api/*', async (c, next) => {
     if (isReadMethod(c.req.method)) return next();
     if (isPublicSelfService(c.req.path)) return next();
     if (c.req.path === '/api/auth/login') return next();
-    return requireUser(c, next);
+    if (isOperationalWrite(c.req.path)) return requireUser(c, next);
+    return requireAdmin(c, next);
   });
 }
 
