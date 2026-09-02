@@ -228,7 +228,7 @@ test('guests: public self-add, dedupe, validation, lowest priority, cap, kill-sw
   await api('/api/settings', { method: 'PUT', headers: M, body: JSON.stringify({ guests: { selfAdd: true } }) });
 });
 
-test('team loans: borrow tops up a short team, return-on-loss sends them home', async () => {
+test('short team tops up from the losers; the winner keeps its side (nothing returns)', async () => {
   // 12 season players -> the draw makes white/black 5 each and green 2.
   const ids = [];
   for (let i = 0; i < 12; i++) {
@@ -244,25 +244,31 @@ test('team loans: borrow tops up a short team, return-on-loss sends them home', 
   assert.equal(green.player_ids.length, 2, 'green starts short (2)');
 
   const sizeOf = (full, v) => full.teams.find((t) => t.vest === v).player_ids.length;
+  const idsOf = (full, v) => new Set(full.teams.find((t) => t.vest === v).player_ids);
   const post = (body) => api('/api/matches', { method: 'POST', headers: M, body: JSON.stringify(body) });
 
   // Match 1: white v black, green benched.
   await post({ session_id: s.id, team_a_id: white.id, team_b_id: black.id, bench_team_id: green.id });
 
-  // Match 2: white stays, green comes on and borrows 3 from black (the losers).
+  // Match 2: white stays, green comes on and tops up with 3 from black (the losers).
+  const borrowed = black.player_ids.slice(0, 3);
   await post({
     session_id: s.id, team_a_id: white.id, team_b_id: green.id, bench_team_id: black.id,
-    borrow: { player_ids: black.player_ids.slice(0, 3) },
+    borrow: { player_ids: borrowed },
   });
   let full = await (await api('/api/sessions/' + s.id)).json();
   assert.equal(sizeOf(full, 'green'), 5, 'green topped up to 5');
-  assert.equal(sizeOf(full, 'black'), 2, 'black lent 3 away');
+  assert.equal(sizeOf(full, 'black'), 2, 'black gave 3 to green');
 
-  // Match 3: green loses -> green benched. Its borrowed players return to black.
-  await post({ session_id: s.id, team_a_id: white.id, team_b_id: black.id, bench_team_id: green.id });
+  // Match 3: green stays (won), white comes on, black benches. Nothing returns —
+  // green keeps its five (including the 3 it took), and no team overfills.
+  await post({ session_id: s.id, team_a_id: green.id, team_b_id: white.id, bench_team_id: black.id });
   full = await (await api('/api/sessions/' + s.id)).json();
-  assert.equal(sizeOf(full, 'black'), 5, 'black got its 3 back when green lost');
-  assert.equal(sizeOf(full, 'green'), 2, 'green back to its originals');
+  assert.equal(sizeOf(full, 'green'), 5, 'the winner keeps its five');
+  assert.equal(sizeOf(full, 'black'), 2, 'the borrowed players do NOT return to black');
+  assert.equal(sizeOf(full, 'white'), 5, 'no team exceeds five');
+  const inGreen = idsOf(full, 'green');
+  for (const pid of borrowed) assert.ok(inGreen.has(pid), 'borrowed players stay with the winner');
 });
 
 test('finished games are frozen: teams/draw/matches locked, admin stat fixes still allowed', async () => {

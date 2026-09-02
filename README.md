@@ -194,5 +194,6 @@ login/session/logout, the public roster hiding `is_admin`, the emergency
 self-service flow (and that PII never leaks), the check-in board (season >
 drop-in > guest priority, the 15/18 cap, toggle-to-clear, admin clear-all),
 guest self-add (public add, dedupe, validation, per-game cap, kill-switch),
-the team-loan borrow/return-on-loss flow, and that bad input returns 400. The
+the top-up-from-losers rotation (winner keeps its side, nothing returns), and
+that bad input returns 400. The
 `balanceTeams` unit tests cover the 10–15 and 16–18 (6/6/6) sizing bands.

@@ -99,26 +99,10 @@ matches.post('/', async (c) => {
   );
 
   const tx = db.transaction(() => {
-    // 1) Return: the team going to the bench gives back everything it borrowed —
-    //    winners keep their borrowed players, the team that steps off returns them.
-    const loans = db
-      .prepare(
-        `SELECT id, player_id, home_team_id FROM team_loans
-          WHERE session_id = ? AND borrower_team_id = ? AND returned_at IS NULL`
-      )
-      .all(body.session_id, body.bench_team_id) as {
-      id: string;
-      player_id: string;
-      home_team_id: string;
-    }[];
-    const closeLoan = db.prepare('UPDATE team_loans SET returned_at = ? WHERE id = ?');
-    for (const loan of loans) {
-      moveToTeam(loan.player_id, loan.home_team_id);
-      closeLoan.run(now, loan.id);
-    }
-
-    // 2) Borrow: top team B up to five from the team going to the bench, but only
-    //    by however much it still needs after the returns above.
+    // The only rule: the winner keeps their side, and nothing is ever returned
+    // to a previous team. If the team coming on (team B) is short of five, top it
+    // up from the team going to the bench (the losers) — those players simply
+    // join team B and stay. team A (the winner) is left exactly as it is.
     if (body.borrow && body.borrow.player_ids.length) {
       let needed = Math.max(0, 5 - (teamCount.get(body.team_b_id) as { c: number }).c);
       const inBench = new Set(
@@ -128,15 +112,10 @@ matches.post('/', async (c) => {
             .all(body.bench_team_id) as { player_id: string }[]
         ).map((r) => r.player_id)
       );
-      const insLoan = db.prepare(
-        `INSERT INTO team_loans (id, session_id, player_id, home_team_id, borrower_team_id, created_at)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      );
       for (const pid of body.borrow.player_ids) {
         if (needed <= 0) break;
         if (!inBench.has(pid)) continue;
         moveToTeam(pid, body.team_b_id);
-        insLoan.run(uid(), body.session_id, pid, body.bench_team_id, body.team_b_id, now);
         needed--;
       }
     }

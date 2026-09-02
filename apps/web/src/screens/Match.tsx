@@ -980,8 +980,8 @@ function PostMatchPanel({
     if (!stayTeam || !outTeam) return;
     // Persist the score-derived result if none was recorded, so standings reflect it.
     if (currentResult === 'pending') setResult.mutate(decided);
-    // The server returns the benched team's borrowed players home, then tops up
-    // the incoming team from the losers by whatever it still needs — all atomic.
+    // The winner keeps its side; the server just tops up the incoming team from
+    // the losers by whatever it still needs. Nothing is returned.
     createMatch.mutate({
       session_id: sessionId,
       team_a_id: stayTeam.id,
