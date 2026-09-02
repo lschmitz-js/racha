@@ -102,6 +102,8 @@ const dict = {
     'home.selectMore': 'Select {n} more',
     'home.startSession': 'Start session →',
     'home.pastSessions': 'Past sessions',
+    'home.thisSeason': 'This season',
+    'home.pastSessionsLink': 'Past games',
 
     // who is here
     'lineup.title': 'Who is here?',
@@ -523,6 +525,8 @@ const dict = {
     'home.selectMore': 'Selecione mais {n}',
     'home.startSession': 'Iniciar sessão →',
     'home.pastSessions': 'Sessões anteriores',
+    'home.thisSeason': 'Esta temporada',
+    'home.pastSessionsLink': 'Jogos anteriores',
 
     // who is here
     'lineup.title': 'Quem veio?',

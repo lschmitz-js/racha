@@ -3,7 +3,7 @@ import { useLocation } from 'wouter';
 import { api } from '../lib/api.js';
 import { useI18n, useT } from '../lib/i18n.js';
 import { useCanEdit } from '../lib/auth.js';
-import { nextGameDateISO } from '../lib/schedule.js';
+import { nextGameDateISO, SEASON_START, SEASON_END } from '../lib/schedule.js';
 
 function ClockIcon() {
   return (
@@ -33,6 +33,11 @@ export function Home() {
 
   const locale = lang === 'pt' ? 'pt-BR' : 'en-US';
   const nextIso = nextGameDateISO();
+
+  // Home only lists this season's games; older sessions live on the Stats page.
+  const seasonSessions = ((sessionsQ.data ?? []) as any[]).filter(
+    (s) => s.date >= SEASON_START && s.date <= SEASON_END
+  );
   const nextLabel = nextIso
     ? new Date(nextIso + 'T12:00:00').toLocaleDateString(locale, {
         weekday: 'long',
@@ -87,13 +92,19 @@ export function Home() {
         )}
       </div>
 
-      {sessionsQ.data && sessionsQ.data.length > 0 ? (
+      {seasonSessions.length > 0 ? (
         <section>
-          <div className="section-head">
-            <h2 className="font-semibold">{t('home.pastSessions')}</h2>
+          <div className="section-head flex items-center justify-between">
+            <h2 className="font-semibold">{t('home.thisSeason')}</h2>
+            <button
+              className="text-xs text-muted hover:text-fg"
+              onClick={() => setLocation('/recap')}
+            >
+              {t('home.pastSessionsLink')} →
+            </button>
           </div>
           <div className="space-y-2">
-            {sessionsQ.data.slice(0, 8).map((s: any) => {
+            {seasonSessions.slice(0, 8).map((s: any) => {
               const d = new Date(s.date);
               const mon = isNaN(d.getTime())
                 ? ''
