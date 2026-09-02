@@ -46,12 +46,26 @@ interface Toast {
 
 type SessionTeam = { id: string; vest: Vest; player_ids: string[] };
 
+// Test hook: add ?clock=<seconds> to the match URL to shorten the countdown for
+// this tab only (e.g. ?clock=10). Lets you rehearse the end-of-match alarm and
+// flash without waiting the full 5–6 min. Not saved, not shared, ignored when
+// out of range.
+function testClockSeconds(): number {
+  try {
+    const v = Number(new URLSearchParams(window.location.search).get('clock'));
+    return Number.isFinite(v) && v >= 3 && v <= 3600 ? v : 0;
+  } catch {
+    return 0;
+  }
+}
+
 export function Match({ params }: { params: { id: string } }) {
   const matchId = params.id;
   const [, setLocation] = useLocation();
   const qc = useQueryClient();
   const t = useT();
   const canEdit = useCanEdit();
+  const testClock = testClockSeconds();
 
   const matchQ = useQuery({
     queryKey: ['match', matchId],
@@ -129,7 +143,8 @@ export function Match({ params }: { params: { id: string } }) {
       setAlarmDismissed(false);
       return;
     }
-    if (!buzzedRef.current && liveClock >= targetMsFor(sessionQ.data?.teams)) {
+    const tgt = testClock ? testClock * 1000 : targetMsFor(sessionQ.data?.teams);
+    if (!buzzedRef.current && liveClock >= tgt) {
       buzzedRef.current = true;
       try {
         // Long insistent pattern — a single 200ms buzz is easy to miss pitchside.
@@ -184,7 +199,7 @@ export function Match({ params }: { params: { id: string } }) {
     (sessionData.session.status === 'done' || sessionData.session.date < todayISO());
 
   // Countdown from 5:00 → 0:00, then count how far into overtime we are.
-  const targetMs = targetMsFor(teams);
+  const targetMs = testClock ? testClock * 1000 : targetMsFor(teams);
   const remainingMs = Math.max(0, targetMs - liveClock);
   const overtimeMs = Math.max(0, liveClock - targetMs);
   const isOvertime = overtimeMs > 0;
@@ -390,6 +405,11 @@ export function Match({ params }: { params: { id: string } }) {
           {t('session.matchN', { n: m.ordinal })}
           {sessionMatches.length ? (
             <span className="text-muted font-normal"> · {matchIdx + 1}/{sessionMatches.length}</span>
+          ) : null}
+          {testClock ? (
+            <span className="ml-2 text-[10px] font-bold uppercase text-amber-500 border border-amber-500/50 rounded px-1.5 py-0.5">
+              test {testClock}s
+            </span>
           ) : null}
         </div>
         <div className="flex items-center gap-1">
