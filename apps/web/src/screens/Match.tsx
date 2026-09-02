@@ -517,7 +517,7 @@ export function Match({ params }: { params: { id: string } }) {
         </div>
       ) : null}
 
-      {isOver && canEdit && !frozen ? (
+      {isOver && canEdit && !frozen && !nextMatch ? (
         <PostMatchPanel
           matchId={matchId}
           teamA={teamA!}
@@ -530,6 +530,18 @@ export function Match({ params }: { params: { id: string } }) {
           goalsB={goalsB}
           challengerTeamId={challengerTeamId}
         />
+      ) : isOver && nextMatch ? (
+        // This match already led to the next one — don't offer "start next"
+        // again (that would pile up duplicate matches). Point to it instead.
+        <div className="border-t border-border bg-bg2 p-4 text-center space-y-2">
+          <div className="text-sm text-muted">{t('match.nextStarted')}</div>
+          <button
+            className="btn-primary w-full"
+            onClick={() => setLocation(`/matches/${nextMatch.id}`)}
+          >
+            {t('session.matchN', { n: nextMatch.ordinal })} →
+          </button>
+        </div>
       ) : null}
 
       {benchOpen && teamA && teamB && benchTeam ? (

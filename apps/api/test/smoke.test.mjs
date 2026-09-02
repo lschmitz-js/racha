@@ -404,6 +404,11 @@ test("the day's code runs the live game; opening/closing/deleting stays admin", 
   assert.equal(match.status, 201, 'the code can create a match');
   const mj = await match.json();
   assert.equal((await api('/api/matches/' + mj.id + '/start', { method: 'POST', headers: C })).status, 200, 'the code can start the clock');
+  // Can't pile up a new match while one is on the clock (running/paused).
+  assert.equal(
+    (await api('/api/matches', { method: 'POST', headers: C, body: JSON.stringify({ session_id: s, team_a_id: white.id, team_b_id: green.id, bench_team_id: black.id }) })).status,
+    409, 'no new match while one is in progress'
+  );
   assert.equal(
     (await api('/api/sessions/' + s + '/teams/' + green.id + '/players', { method: 'POST', headers: C, body: JSON.stringify({ player_id: ids[0] }) })).status,
     200, 'the code can move a player'

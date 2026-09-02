@@ -60,6 +60,13 @@ matches.post('/', async (c) => {
   if (isFrozen(session.status, session.date)) {
     return c.json({ error: 'this game is finished — no new matches' }, 409);
   }
+  // One live match at a time: don't start a new one while another is still on
+  // the clock. Stops duplicate matches piling up if someone taps "start next"
+  // again from an already-finished match.
+  const playing = db
+    .prepare("SELECT id FROM matches WHERE session_id = ? AND status IN ('running','paused') LIMIT 1")
+    .get(body.session_id);
+  if (playing) return c.json({ error: 'finish the current match before starting a new one' }, 409);
 
   const id = uid();
   const max = db
