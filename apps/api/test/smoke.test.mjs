@@ -369,9 +369,50 @@ test('delete match: tidy-up removes it and renumbers the rest; frozen locks it',
   assert.equal(full.matches[0].id, m2.id);
   assert.equal(full.matches[0].ordinal, 1, 'remaining match renumbered to 1');
 
-  // Freeze the session -> deleting a match is locked.
+  // Finish match 2, then freeze the session -> a FINISHED match can't be deleted.
+  await api('/api/matches/' + m2.id + '/end', { method: 'POST', headers: M, body: '{}' });
   await api('/api/sessions/' + s.id + '/end', { method: 'POST', headers: M });
-  assert.equal((await api('/api/matches/' + m2.id, { method: 'DELETE', headers: M })).status, 409);
+  assert.equal((await api('/api/matches/' + m2.id, { method: 'DELETE', headers: M })).status, 409, 'finished match locked when frozen');
+});
+
+test('session end drops an empty pending match; a non-finished match stays deletable even when frozen', async () => {
+  const active = await (await api('/api/sessions/active')).json();
+  if (active && active.id) await api('/api/sessions/' + active.id + '/end', { method: 'POST', headers: M });
+  const ids = [];
+  for (let i = 0; i < 12; i++) {
+    const p = await (
+      await api('/api/players', { method: 'POST', headers: M, body: JSON.stringify(newPlayer({ name: 'Str' + i, type: 'season' })) })
+    ).json();
+    ids.push(p.id);
+  }
+  const mk = (sid, drawn) => {
+    const team = (v) => drawn.teams.find((t) => t.vest === v);
+    return api('/api/matches', {
+      method: 'POST', headers: M,
+      body: JSON.stringify({ session_id: sid, team_a_id: team('white').id, team_b_id: team('black').id, bench_team_id: team('green').id }),
+    });
+  };
+
+  // Session A: an empty pending match is dropped when the session ends.
+  const a = await (await api('/api/sessions', { method: 'POST', headers: M, body: JSON.stringify({ player_ids: ids }) })).json();
+  const drawnA = await (await api('/api/sessions/' + a.id + '/draw', { method: 'POST', headers: M, body: '{}' })).json();
+  await mk(a.id, drawnA);
+  await api('/api/sessions/' + a.id + '/end', { method: 'POST', headers: M });
+  const fa = await (await api('/api/sessions/' + a.id)).json();
+  assert.equal(fa.matches.length, 0, 'empty pending match removed on end');
+  await api('/api/sessions/' + a.id, { method: 'DELETE', headers: M });
+
+  // Session B: a pending match with an event survives end, but is still deletable
+  // while frozen (it isn't finished).
+  const b = await (await api('/api/sessions', { method: 'POST', headers: M, body: JSON.stringify({ player_ids: ids }) })).json();
+  const drawnB = await (await api('/api/sessions/' + b.id + '/draw', { method: 'POST', headers: M, body: '{}' })).json();
+  const mB = await (await mk(b.id, drawnB)).json();
+  await api('/api/events', { method: 'POST', headers: M, body: JSON.stringify({ id: 'strev' + Date.now(), match_id: mB.id, type: 'goal', player_id: ids[0], team_id: mB.team_a_id }) });
+  await api('/api/sessions/' + b.id + '/end', { method: 'POST', headers: M });
+  const fb = await (await api('/api/sessions/' + b.id)).json();
+  assert.equal(fb.matches.length, 1, 'a match with an event survives end');
+  assert.equal((await api('/api/matches/' + mB.id, { method: 'DELETE', headers: M })).status, 200, 'a pending match is deletable even when frozen');
+  await api('/api/sessions/' + b.id, { method: 'DELETE', headers: M });
 });
 
 test("the day's code runs the live game; opening/closing/deleting stays admin", async () => {

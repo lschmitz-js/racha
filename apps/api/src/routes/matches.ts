@@ -286,15 +286,17 @@ matches.post('/:id/reopen', (c) => {
 
 // Delete a single match (admin tidy-up: a mis-created or test match). Its events
 // and player snapshots cascade away; the remaining matches are renumbered so the
-// "Match N" titles stay contiguous. Locked once the game day is over.
+// "Match N" titles stay contiguous. A FINISHED match is locked once the game day
+// is over (its stats are history); a not-yet-finished (pending/running/paused)
+// match — a stray or mistake — can always be removed.
 matches.delete('/:id', (c) => {
   const db = getDb();
   const id = c.req.param('id');
-  const m = db.prepare('SELECT session_id FROM matches WHERE id = ?').get(id) as
-    | { session_id: string }
+  const m = db.prepare('SELECT session_id, status FROM matches WHERE id = ?').get(id) as
+    | { session_id: string; status: string }
     | undefined;
   if (!m) return c.json({ error: 'not found' }, 404);
-  if (matchFrozen(id)) return c.json(FROZEN, 409);
+  if (m.status === 'done' && matchFrozen(id)) return c.json(FROZEN, 409);
 
   const tx = db.transaction(() => {
     db.prepare('DELETE FROM matches WHERE id = ?').run(id); // cascades events + match_players

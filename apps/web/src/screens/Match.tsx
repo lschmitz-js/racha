@@ -532,7 +532,7 @@ export function Match({ params }: { params: { id: string } }) {
           ) : null}
         </div>
         <div className="flex items-center gap-1">
-          {isAdmin && !frozen ? (
+          {isAdmin && (!frozen || m.status !== 'done') ? (
             <button
               className="text-sm px-2 py-1 rounded-md text-muted hover:text-red-400"
               title={t('match.deleteMatch')}

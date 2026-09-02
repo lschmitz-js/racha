@@ -234,6 +234,13 @@ sessions.post('/:id/start', (c) => {
 sessions.post('/:id/end', (c) => {
   const id = c.req.param('id');
   const db = getDb();
+  // Drop any never-started, empty pending match so the ended (soon-frozen)
+  // session doesn't keep a stray that can no longer be deleted.
+  db.prepare(
+    `DELETE FROM matches
+      WHERE session_id = ? AND status = 'pending' AND started_at IS NULL
+        AND id NOT IN (SELECT match_id FROM match_events)`
+  ).run(id);
   const res = db
     .prepare(`UPDATE sessions SET status='done', ended_at=? WHERE id = ?`)
     .run(Date.now(), id);
