@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, type CheckinBoard, type CheckinEntry } from '../lib/api.js';
 import { useI18n, useT } from '../lib/i18n.js';
-import { useCanEdit } from '../lib/auth.js';
+import { useCanEdit, useIsAdmin } from '../lib/auth.js';
 import { useContact } from '../lib/contact.js';
 import { Avatar } from '../lib/avatar.js';
 import { reminderTemplate } from './rules-content.js';
@@ -30,6 +30,7 @@ export function CheckIn() {
   const t = useT();
   const { lang } = useI18n();
   const canEdit = useCanEdit();
+  const isAdmin = useIsAdmin();
   const qc = useQueryClient();
 
   const boardQ = useQuery({ queryKey: ['checkin'], queryFn: api.checkin.get });
@@ -229,7 +230,7 @@ export function CheckIn() {
                     {t('checkin.fullTeamsLine')}
                   </div>
                 ) : null}
-                <Entry entry={e} rank={i + 1} canEdit={canEdit} onSet={set.mutate} onRemoveGuest={removeGuest.mutate} />
+                <Entry entry={e} rank={i + 1} canEdit={canEdit} isAdmin={isAdmin} onSet={set.mutate} onRemoveGuest={removeGuest.mutate} />
               </li>
             ))}
           </ol>
@@ -247,7 +248,7 @@ export function CheckIn() {
           <ol className="space-y-1.5">
             {board.waitlist.map((e, i) => (
               <li key={e.id}>
-                <Entry entry={e} rank={board.confirmed.length + i + 1} canEdit={canEdit} onSet={set.mutate} onRemoveGuest={removeGuest.mutate} />
+                <Entry entry={e} rank={board.confirmed.length + i + 1} canEdit={canEdit} isAdmin={isAdmin} onSet={set.mutate} onRemoveGuest={removeGuest.mutate} />
               </li>
             ))}
           </ol>
@@ -311,20 +312,22 @@ function Entry({
   entry,
   rank,
   canEdit,
+  isAdmin,
   onSet,
   onRemoveGuest,
 }: {
   entry: CheckinEntry;
   rank: number;
   canEdit: boolean;
+  isAdmin: boolean;
   onSet: (v: { id: string; status: 'in' | 'out' | 'none' }) => void;
   onRemoveGuest: (id: string) => void;
 }) {
   const t = useT();
   const isGuest = entry.type === 'guest';
-  // A guest can remove themselves (no login needed) — guest add is public, so is
-  // leaving. Real players are only removable by an admin/operator.
-  const showRemove = isGuest || canEdit;
+  // Guest removal is creator-or-admin: the device that added the guest sees the
+  // ✕ (entry.mine), and so does an admin. Real players stay admin/operator-only.
+  const showRemove = isGuest ? isAdmin || !!entry.mine : canEdit;
   return (
     <div className="card flex items-center gap-3 py-2">
       <span className="w-5 text-center text-sm font-semibold text-muted tabular-nums shrink-0">{rank}</span>

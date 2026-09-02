@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS players (
   emergency_token TEXT,
   is_admin        INTEGER NOT NULL DEFAULT 0,
   password_hash   TEXT,
+  added_by_device TEXT, -- for guests: anonymous device tag of whoever added them
   created_at      INTEGER NOT NULL
 );
 

@@ -1,9 +1,15 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { randomBytes } from 'node:crypto';
+import type { Context } from 'hono';
 import { uid, nextGameDateISO, CONFIRMED_CAP, SEASON_CAP, GUEST_CAP } from '@racha/shared';
 import { getDb } from '../db/index.js';
 import { getCancelledDates } from './cancellations.js';
+import { isRealAdmin, type AppVariables } from '../auth.js';
+
+// A stable, anonymous per-device tag the web app sends. It's not identity — it
+// just lets the phone that added a guest (or an admin) be the one to remove it.
+const deviceOf = (c: Context) => c.req.header('x-racha-device') ?? null;
 
 // The upcoming game date, rolling past both listed holidays and any admin
 // cancellations so check-ins land on the game we'll actually play.
@@ -36,7 +42,7 @@ function guestSelfAddAllowed(db: ReturnType<typeof getDb>): boolean {
 // anyone via the same endpoint. The confirmed/waitlist split follows the rules:
 // season players are always confirmed (up to SEASON_CAP), then drop-ins by
 // check-in time fill the rest up to CONFIRMED_CAP.
-export const checkin = new Hono();
+export const checkin = new Hono<{ Variables: AppVariables }>();
 
 const CheckinInput = z.object({
   player_id: z.string().min(1),
@@ -51,12 +57,21 @@ type Row = {
   type: PlayerType;
   status: 'in' | 'out';
   checked_in_at: number | null;
+  added_by_device: string | null;
 };
-type Entry = { id: string; name: string; type: PlayerType; checked_in_at: number | null };
+type Entry = {
+  id: string;
+  name: string;
+  type: PlayerType;
+  checked_in_at: number | null;
+  // For guests only: true when the requesting device added this guest, so the UI
+  // shows the remove (✕) only to the person who added them (or an admin).
+  mine?: boolean;
+};
 
 // Compute the whole board for a game date: season-first then drop-ins by time,
 // split at the cap into confirmed vs waitlist, plus the explicit opt-outs.
-function readBoard(gameDate: string | null) {
+function readBoard(gameDate: string | null, deviceId: string | null = null) {
   const db = getDb();
   const guestsAllowed = guestSelfAddAllowed(db);
   if (!gameDate) {
@@ -76,7 +91,7 @@ function readBoard(gameDate: string | null) {
   // then guests, each tier by check-in time.
   const rows = db
     .prepare(
-      `SELECT c.player_id, p.name, p.type, c.status, c.checked_in_at
+      `SELECT c.player_id, p.name, p.type, c.status, c.checked_in_at, p.added_by_device
          FROM checkins c
          JOIN players p ON p.id = c.player_id AND p.active = 1
         WHERE c.game_date = ?`
@@ -88,6 +103,9 @@ function readBoard(gameDate: string | null) {
     name: r.name,
     type: r.type,
     checked_in_at: r.checked_in_at,
+    ...(r.type === 'guest'
+      ? { mine: !!deviceId && r.added_by_device === deviceId }
+      : {}),
   });
 
   // Order in by tier (season → drop-in → guest), then by check-in time.
@@ -126,7 +144,7 @@ function readBoard(gameDate: string | null) {
   };
 }
 
-checkin.get('/', (c) => c.json(readBoard(upcomingGameDate())));
+checkin.get('/', (c) => c.json(readBoard(upcomingGameDate(), deviceOf(c))));
 
 // Admin-only reset: wipe every check-in for the upcoming game. This lives on a
 // sub-path (not the public `/api/checkin`), so the fail-closed write gate
@@ -135,7 +153,7 @@ checkin.delete('/all', (c) => {
   const gameDate = upcomingGameDate();
   if (!gameDate) return c.json({ error: 'no upcoming game' }, 400);
   getDb().prepare('DELETE FROM checkins WHERE game_date = ?').run(gameDate);
-  return c.json(readBoard(gameDate));
+  return c.json(readBoard(gameDate, deviceOf(c)));
 });
 
 // Public guest add: anyone can add a one-off external drop-in by name and it is
@@ -172,32 +190,54 @@ checkin.post('/guest', async (c) => {
 
   const id = uid();
   const now = Date.now();
+  const device = deviceOf(c);
   db.prepare(
-    `INSERT INTO players (id, name, type, role, skills_json, active, emergency_token, is_admin, password_hash, created_at)
-     VALUES (?, ?, 'guest', 'player', ?, 1, ?, 0, NULL, ?)`
-  ).run(id, name, JSON.stringify([3, 3, 3, 3, 3, 3, 3, 3]), randomBytes(18).toString('base64url'), now);
+    `INSERT INTO players (id, name, type, role, skills_json, active, emergency_token, is_admin, password_hash, added_by_device, created_at)
+     VALUES (?, ?, 'guest', 'player', ?, 1, ?, 0, NULL, ?, ?)`
+  ).run(id, name, JSON.stringify([3, 3, 3, 3, 3, 3, 3, 3]), randomBytes(18).toString('base64url'), device, now);
   db.prepare(
     `INSERT INTO checkins (id, game_date, player_id, status, checked_in_at, updated_at)
      VALUES (?, ?, ?, 'in', ?, ?)`
   ).run(uid(), gameDate, id, now, now);
 
-  return c.json(readBoard(gameDate));
+  return c.json(readBoard(gameDate, device));
 });
 
 // Public: remove a guest (a guest changed their mind, or someone tidies up).
 // Guests are throwaway players with no login, so — like adding one — this is
 // public. Restricted to type='guest' so it can never delete a real player;
-// deleting the player cascades their check-in row away.
+// deleting the player cascades their check-in row away. Only the device that
+// added the guest, or a real admin, may remove it (not just any viewer).
 checkin.delete('/guest/:id', (c) => {
   const id = c.req.param('id');
   const db = getDb();
-  const p = db.prepare('SELECT id, type FROM players WHERE id = ? AND active = 1').get(id) as
-    | { id: string; type: string }
-    | undefined;
+  const p = db
+    .prepare('SELECT id, type, added_by_device FROM players WHERE id = ? AND active = 1')
+    .get(id) as { id: string; type: string; added_by_device: string | null } | undefined;
   if (!p) return c.json({ error: 'unknown player' }, 404);
   if (p.type !== 'guest') return c.json({ error: 'only guests can be removed here' }, 403);
+  // Creator-or-admin: an admin can remove anyone; otherwise the requesting device
+  // must be the one that added this guest.
+  const admin = isRealAdmin(c.get('user'));
+  const device = deviceOf(c);
+  if (!admin && (!p.added_by_device || p.added_by_device !== device)) {
+    return c.json({ error: 'only the person who added this guest (or an admin) can remove them' }, 403);
+  }
+  // Only a guest who is still just on the check-in list (no draw, no match) can be
+  // removed here — once they're in a session/team/match the row is referenced by
+  // FKs (no cascade), so an admin handles it. This keeps the public path to a
+  // clean 409 instead of a foreign-key 500, and never orphans stats.
+  const inPlay = db
+    .prepare(
+      `SELECT 1 FROM session_players WHERE player_id = ?
+       UNION ALL SELECT 1 FROM session_team_players WHERE player_id = ?
+       UNION ALL SELECT 1 FROM match_players WHERE player_id = ?
+       UNION ALL SELECT 1 FROM match_events WHERE player_id = ? LIMIT 1`
+    )
+    .get(id, id, id, id);
+  if (inPlay) return c.json({ error: 'this guest is already in a game — ask an admin to remove them' }, 409);
   db.prepare('DELETE FROM players WHERE id = ?').run(id); // cascades checkins
-  return c.json(readBoard(upcomingGameDate()));
+  return c.json(readBoard(upcomingGameDate(), device));
 });
 
 checkin.post('/', async (c) => {
@@ -213,7 +253,7 @@ checkin.post('/', async (c) => {
 
   if (status === 'none') {
     db.prepare('DELETE FROM checkins WHERE game_date = ? AND player_id = ?').run(gameDate, player_id);
-    return c.json(readBoard(gameDate));
+    return c.json(readBoard(gameDate, deviceOf(c)));
   }
 
   const now = Date.now();
@@ -240,5 +280,5 @@ checkin.post('/', async (c) => {
        updated_at    = excluded.updated_at`
   ).run({ id: uid(), gd: gameDate, pid: player_id, st: status, cia: checkedInAt, ts: now });
 
-  return c.json(readBoard(gameDate));
+  return c.json(readBoard(gameDate, deviceOf(c)));
 });

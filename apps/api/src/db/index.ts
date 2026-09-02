@@ -42,6 +42,7 @@ export function getDb(): DB {
   migrateAuth(db);
   migratePlayerTypeCheck(db); // after the column-adding migrations above
   migrateGameCancellations(db);
+  migrateGuestDevice(db);
 
   // Exit cleanly on both signals. SIGTERM is what `docker stop` and most
   // process managers send — previously we only closed the DB without exiting,
@@ -146,6 +147,15 @@ function migrateSessionPlayersArrived(db: DB) {
 }
 
 // Per-session operator code (lets non-admins run the live game). Additive.
+// Guest ownership: the anonymous device tag of whoever added a guest, so only
+// that device (or an admin) can remove them. Additive; a no-op once applied.
+function migrateGuestDevice(db: DB) {
+  const cols = db.prepare('PRAGMA table_info(players)').all() as Array<{ name: string }>;
+  if (!cols.some((c) => c.name === 'added_by_device')) {
+    db.exec('ALTER TABLE players ADD COLUMN added_by_device TEXT');
+  }
+}
+
 // One-off game cancellations the admin calls (a Monday that isn't a listed
 // holiday). Additive — a no-op once the table exists.
 function migrateGameCancellations(db: DB) {

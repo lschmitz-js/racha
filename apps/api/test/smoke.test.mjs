@@ -227,17 +227,30 @@ test('guests: public self-add, dedupe, validation, lowest priority, cap, kill-sw
   assert.equal((await api('/api/checkin/guest', { method: 'POST', body: JSON.stringify({ name: 'GuestBlocked' }) })).status, 403);
   await api('/api/settings', { method: 'PUT', headers: M, body: JSON.stringify({ guests: { selfAdd: true } }) });
 
-  // A guest can remove themselves (public, no auth) -> the guest is gone and the
-  // name frees up. A real player can't be deleted through this path.
-  const guestId = b1.confirmed.find((e) => e.name === 'Guest One').id;
-  const removed = await api('/api/checkin/guest/' + guestId, { method: 'DELETE' });
-  assert.equal(removed.status, 200, 'guest self-removal is public');
-  const b3 = await removed.json();
-  assert.ok(!b3.confirmed.some((e) => e.name === 'Guest One'), 'guest left the board');
-  // Name is free again (the guest player was deleted, not just un-checked-in).
-  assert.equal((await api('/api/checkin/guest', { method: 'POST', body: JSON.stringify({ name: 'Guest One' }) })).status, 200);
-  // The same endpoint refuses a real (non-guest) player.
-  assert.equal((await api('/api/checkin/guest/' + sea.id, { method: 'DELETE' })).status, 403, 'real players are protected');
+  // --- Creator-or-admin guest removal ---
+  await api('/api/checkin/all', { method: 'DELETE', headers: M }); // clean slate
+  const devA = { 'x-racha-device': 'devA' };
+  const devB = { 'x-racha-device': 'devB' };
+  const added = await (
+    await api('/api/checkin/guest', { method: 'POST', headers: devA, body: JSON.stringify({ name: 'GuestLeaver' }) })
+  ).json();
+  const gEntry = added.confirmed.find((e) => e.name === 'GuestLeaver');
+  const gid = gEntry.id;
+  assert.equal(gEntry.mine, true, 'the board marks the guest as mine for the adding device');
+  // A different device cannot remove it; the creating device can.
+  assert.equal((await api('/api/checkin/guest/' + gid, { method: 'DELETE', headers: devB })).status, 403, 'another device cannot remove');
+  assert.equal((await api('/api/checkin/guest/' + gid, { method: 'DELETE', headers: devA })).status, 200, 'the adder can remove');
+
+  // An admin can remove any guest regardless of device; the name then frees up.
+  const g2 = await (
+    await api('/api/checkin/guest', { method: 'POST', headers: devA, body: JSON.stringify({ name: 'GuestLeaver2' }) })
+  ).json();
+  const gid2 = g2.confirmed.find((e) => e.name === 'GuestLeaver2').id;
+  assert.equal((await api('/api/checkin/guest/' + gid2, { method: 'DELETE', headers: M })).status, 200, 'admin removes any guest');
+  assert.equal((await api('/api/checkin/guest', { method: 'POST', headers: devA, body: JSON.stringify({ name: 'GuestLeaver2' }) })).status, 200, 'name freed after delete');
+
+  // A real (non-guest) player is never deletable via this path, even by an admin.
+  assert.equal((await api('/api/checkin/guest/' + sea.id, { method: 'DELETE', headers: M })).status, 403, 'real players are protected');
 });
 
 test('short team tops up from the losers; the winner keeps its side (nothing returns)', async () => {

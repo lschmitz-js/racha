@@ -30,6 +30,8 @@ export interface CheckinEntry {
   name: string;
   type: 'season' | 'dropin' | 'guest';
   checked_in_at: number | null;
+  // Guests only: true when this device added the guest (so it may remove them).
+  mine?: boolean;
 }
 export interface CheckinBoard {
   game_date: string | null;
@@ -52,6 +54,26 @@ type PlayerWrite = Omit<Player, 'id' | 'active' | 'is_admin'> & {
 
 const ADMIN_TOKEN_KEY = 'racha.adminToken';
 const SESSION_CODE_KEY = 'racha.code';
+const DEVICE_KEY = 'racha.device';
+
+// A stable, anonymous per-device id (not identity). Lets the phone that added a
+// guest be the one allowed to remove it. Created once and kept in localStorage.
+export function getDeviceId(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    let d = window.localStorage.getItem(DEVICE_KEY);
+    if (!d) {
+      d =
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : String(Date.now()) + Math.random().toString(36).slice(2);
+      window.localStorage.setItem(DEVICE_KEY, d);
+    }
+    return d;
+  } catch {
+    return '';
+  }
+}
 
 // The synthetic user id the server returns for a caller authorized by the day's
 // session code (not an admin login).
@@ -82,12 +104,14 @@ export function setSessionCode(code: string | null) {
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getAdminToken();
   const code = getSessionCode();
+  const device = getDeviceId();
   const res = await fetch(path, {
     ...init,
     headers: {
       'content-type': 'application/json',
       ...(token ? { 'x-racha-token': token } : {}),
       ...(code ? { 'x-racha-code': code } : {}),
+      ...(device ? { 'x-racha-device': device } : {}),
       ...(init.headers ?? {}),
     },
   });
