@@ -123,7 +123,10 @@ export function Match({ params }: { params: { id: string } }) {
   const [benchOpen, setBenchOpen] = useState(false);
   const [soundOn, setSoundOn] = useState(isSoundEnabled);
   const [alarmDismissed, setAlarmDismissed] = useState(false);
-  const [rotateAlert, setRotateAlert] = useState(false);
+  // Half-time rotation break (full house): when set, the clock is paused and a
+  // 20s countdown runs before the second half starts.
+  const [breakEndsAt, setBreakEndsAt] = useState<number | null>(null);
+  const [breakRemaining, setBreakRemaining] = useState(0);
   const buzzedRef = useRef(false);
   const rotatedRef = useRef(false);
 
@@ -132,30 +135,36 @@ export function Match({ params }: { params: { id: string } }) {
 
   const liveClock = useClock(matchQ.data?.match);
 
+  // Reset the one-shot alarm state when a different match loads (each match gets
+  // its own rotation break + end alarm).
+  useEffect(() => {
+    buzzedRef.current = false;
+    rotatedRef.current = false;
+    setAlarmDismissed(false);
+    setBreakEndsAt(null);
+  }, [matchId]);
+
   useEffect(() => {
     if (!matchQ.data?.match) return;
     const m = matchQ.data.match;
-    if (m.status !== 'running') {
-      buzzedRef.current = false;
-      rotatedRef.current = false;
-      setAlarmDismissed(false);
-      setRotateAlert(false);
-      return;
-    }
+    // The one-shot alarm flags reset per match (below), not on pause — so a
+    // manual pause or the half-time break doesn't re-fire the alarms on resume.
+    if (m.status !== 'running') return;
     const teams = (sessionQ.data?.teams ?? []) as SessionTeam[];
     const a = teams.find((t) => t.id === m.team_a_id);
     const b = teams.find((t) => t.id === m.team_b_id);
     const hasSix = (a?.player_ids.length ?? 0) > 5 || (b?.player_ids.length ?? 0) > 5;
     const tgt = testClock ? testClock * 1000 : (hasSix ? 6 : 5) * 60 * 1000;
-    // A match with a team of six plays two halves: at the mid-point the +1 sub
-    // rotates once.
+    // At the half of a six-player match: sound the alarm, pause the clock, and
+    // open a 20s rotation break before the second half.
     if (hasSix && !rotatedRef.current && liveClock >= tgt / 2 && liveClock < tgt) {
       rotatedRef.current = true;
       try {
         navigator.vibrate?.([500, 250, 500, 250, 900, 250, 900]);
       } catch {}
       playTimeUp();
-      setRotateAlert(true);
+      setBreakEndsAt(Date.now() + 20000);
+      if (canEdit) pause.mutate();
     }
     if (!buzzedRef.current && liveClock >= tgt) {
       buzzedRef.current = true;
@@ -167,12 +176,23 @@ export function Match({ params }: { params: { id: string } }) {
     }
   }, [liveClock, matchQ.data?.match?.status]);
 
-  // Auto-hide the rotation cue after a few seconds (the alarm already fired).
+  // Half-time break countdown: tick the remaining seconds and auto-start the
+  // second half when it hits zero.
   useEffect(() => {
-    if (!rotateAlert) return;
-    const id = setTimeout(() => setRotateAlert(false), 6000);
-    return () => clearTimeout(id);
-  }, [rotateAlert]);
+    if (breakEndsAt == null) return;
+    const tick = () => {
+      const rem = Math.max(0, Math.ceil((breakEndsAt - Date.now()) / 1000));
+      setBreakRemaining(rem);
+      if (rem <= 0) {
+        setBreakEndsAt(null);
+        if (canEdit) resume.mutate();
+      }
+    };
+    tick();
+    const id = setInterval(tick, 250);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [breakEndsAt]);
 
   useEffect(() => {
     if (!toast) return;
@@ -336,9 +356,9 @@ export function Match({ params }: { params: { id: string } }) {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {rotateAlert && isRunning && !showTimeUp ? (
+      {breakEndsAt != null && !showTimeUp ? (
         <div
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 motion-safe:animate-pulse text-center p-6"
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 motion-safe:animate-pulse text-center p-6"
           style={{ background: rotateBg }}
         >
           <div className="text-6xl" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,.45))' }}>
@@ -363,11 +383,20 @@ export function Match({ params }: { params: { id: string } }) {
               ))}
             </div>
           ) : null}
-          <button
-            className="mt-3 px-6 py-3 rounded-xl bg-black/70 text-white font-bold text-lg"
-            onClick={() => setRotateAlert(false)}
+          <div
+            className="text-white text-2xl font-mono tabular-nums font-bold mt-1"
+            style={{ textShadow: '0 2px 8px rgba(0,0,0,.55)' }}
           >
-            {t('match.dismiss')}
+            {t('match.secondHalfIn', { n: breakRemaining })}
+          </div>
+          <button
+            className="mt-2 px-6 py-3 rounded-xl bg-black/75 text-white font-bold text-lg"
+            onClick={() => {
+              setBreakEndsAt(null);
+              if (canEdit) resume.mutate();
+            }}
+          >
+            {t('match.startSecondHalf')}
           </button>
         </div>
       ) : null}
