@@ -51,6 +51,12 @@ export function Home() {
       ? s
       : d.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' });
   };
+  const fmtFull = (s: string) => {
+    const d = new Date(s + 'T12:00:00');
+    return isNaN(d.getTime())
+      ? s
+      : d.toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  };
   const active = activeQ.data;
 
   return (
@@ -122,7 +128,7 @@ export function Home() {
                     <span className="text-base font-bold">{day}</span>
                   </div>
                   <div className="flex-1 text-left min-w-0">
-                    <div className="font-medium truncate capitalize">{fmtDate(s.date)}</div>
+                    <div className="font-medium truncate capitalize">{fmtFull(s.date)}</div>
                     <div className="text-xs text-muted">
                       {t(`status.${s.status as 'draft' | 'live' | 'done'}`)}
                     </div>

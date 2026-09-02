@@ -151,7 +151,17 @@ export function Recap() {
 
 function WeekCard({ week }: { week: WeekRow }) {
   const t = useT();
+  const { lang } = useI18n();
   const bests = bestOfEachCategory(week.leaderboard);
+  const [y, m, d] = week.date.split('-').map(Number);
+  const fullDate = Number.isFinite(y)
+    ? new Date(y ?? 2026, (m ?? 1) - 1, d ?? 1).toLocaleDateString(lang === 'pt' ? 'pt-BR' : 'en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    : week.date;
   return (
     <div className="card space-y-2">
       <Link
@@ -159,7 +169,7 @@ function WeekCard({ week }: { week: WeekRow }) {
         className="flex items-center justify-between hover:text-accent no-underline text-fg"
       >
         <div>
-          <div className="font-medium">{week.date}</div>
+          <div className="font-medium capitalize">{fullDate}</div>
           <div className="text-xs text-muted">
             {t(`status.${week.status as 'draft' | 'live' | 'done'}`)}
           </div>
