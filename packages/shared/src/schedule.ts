@@ -65,14 +65,53 @@ export function isNoGameDate(iso: string): boolean {
 }
 
 // The next date we actually play (this/next Monday within the season, skipping
-// no-game Mondays), as YYYY-MM-DD — or null once the season is over.
-export function nextGameDateISO(now: Date = new Date()): string | null {
+// no-game Mondays), as YYYY-MM-DD — or null once the season is over. `cancelled`
+// carries the admin's one-off cancellations (Mondays not in NO_GAME_DATES), so a
+// called-off game rolls forward to the next one just like a holiday does.
+export function nextGameDateISO(
+  now: Date = new Date(),
+  cancelled: readonly string[] = []
+): string | null {
+  const off = new Set(cancelled);
   let d = todayISO(now);
   d = addDaysISO(d, (1 - isoWeekday(d) + 7) % 7); // advance to Monday (today if Mon)
   if (d < SEASON_START) d = SEASON_START;
   while (d <= SEASON_END) {
-    if (!isNoGameDate(d)) return d;
+    if (!isNoGameDate(d) && !off.has(d)) return d;
     d = addDaysISO(d, 7);
   }
   return null;
+}
+
+// The Monday of the current game-week — today if it's Monday, else the coming
+// Monday — as YYYY-MM-DD, ignoring season bounds and holidays. The Home banner
+// uses it to ask "is this coming Monday on or off?".
+export function upcomingMondayISO(now: Date = new Date()): string {
+  const d = todayISO(now);
+  return addDaysISO(d, (1 - isoWeekday(d) + 7) % 7);
+}
+
+// Every Monday we're scheduled to play, from `from` (default season start)
+// through the end of the season — YYYY-MM-DD strings, holidays excluded. Used to
+// offer the admin a cancellable-games list and to lay out the calendar.
+export function seasonMondays(from: string = SEASON_START): string[] {
+  let d = from < SEASON_START ? SEASON_START : from;
+  d = addDaysISO(d, (1 - isoWeekday(d) + 7) % 7);
+  const out: string[] = [];
+  while (d <= SEASON_END) {
+    if (!isNoGameDate(d)) out.push(d);
+    d = addDaysISO(d, 7);
+  }
+  return out;
+}
+
+// True when `iso` is a Monday the season actually plays on (in season, not a
+// listed holiday). The calendar uses it to decide which days are game days.
+export function isGameMonday(iso: string): boolean {
+  return (
+    iso >= SEASON_START &&
+    iso <= SEASON_END &&
+    isoWeekday(iso) === 1 &&
+    !isNoGameDate(iso)
+  );
 }

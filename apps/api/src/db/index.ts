@@ -41,6 +41,7 @@ export function getDb(): DB {
   migratePlayerEmergency(db);
   migrateAuth(db);
   migratePlayerTypeCheck(db); // after the column-adding migrations above
+  migrateGameCancellations(db);
 
   // Exit cleanly on both signals. SIGTERM is what `docker stop` and most
   // process managers send — previously we only closed the DB without exiting,
@@ -145,6 +146,16 @@ function migrateSessionPlayersArrived(db: DB) {
 }
 
 // Per-session operator code (lets non-admins run the live game). Additive.
+// One-off game cancellations the admin calls (a Monday that isn't a listed
+// holiday). Additive — a no-op once the table exists.
+function migrateGameCancellations(db: DB) {
+  db.exec(`CREATE TABLE IF NOT EXISTS game_cancellations (
+    date TEXT PRIMARY KEY,
+    reason TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL
+  )`);
+}
+
 function migrateSessionCode(db: DB) {
   const cols = db.prepare('PRAGMA table_info(sessions)').all() as Array<{ name: string }>;
   if (!cols.some((c) => c.name === 'code')) {

@@ -327,4 +327,16 @@ export const api = {
         body: JSON.stringify({ name }),
       }),
   },
+  cancellations: {
+    list: () => request<Cancellation[]>(`/api/cancellations`),
+    add: (date: string, reason: string) =>
+      request<{ ok: true }>(`/api/cancellations`, {
+        method: 'POST',
+        body: JSON.stringify({ date, reason }),
+      }),
+    remove: (date: string) =>
+      request<{ ok: true }>(`/api/cancellations/${date}`, { method: 'DELETE' }),
+  },
 };
+
+export type Cancellation = { date: string; reason: string; created_at: number };

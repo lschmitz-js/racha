@@ -17,6 +17,7 @@ import { auth as authRoutes } from './routes/auth.js';
 import { audit as auditRoutes } from './routes/audit.js';
 import { settings as settingsRoutes } from './routes/settings.js';
 import { checkin } from './routes/checkin.js';
+import { cancellations } from './routes/cancellations.js';
 import {
   sessionUser,
   logAudit,
@@ -332,6 +333,7 @@ app.route('/api/matches', matches);
 app.route('/api/events', events);
 app.route('/api/stats', stats);
 app.route('/api/checkin', checkin);
+app.route('/api/cancellations', cancellations);
 
 // Static SPA fallback. Looks at apps/web/dist next to the api dist (production
 // container layout) and falls back to apps/web/dist via repo root for dev.

@@ -2,8 +2,17 @@ import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { api } from '../lib/api.js';
 import { useI18n, useT } from '../lib/i18n.js';
-import { useCanEdit } from '../lib/auth.js';
-import { nextGameDateISO, SEASON_START, SEASON_END } from '../lib/schedule.js';
+import { useCanEdit, useIsAdmin } from '../lib/auth.js';
+import { GameCalendar } from '../components/GameCalendar.js';
+import {
+  nextGameDateISO,
+  SEASON_START,
+  SEASON_END,
+  isNoGameDate,
+  isGameMonday,
+  upcomingMondayISO,
+  NO_GAME_DATES,
+} from '../lib/schedule.js';
 
 function ClockIcon() {
   return (
@@ -27,37 +36,49 @@ export function Home() {
   const t = useT();
   const { lang } = useI18n();
   const canEdit = useCanEdit();
+  const isAdmin = useIsAdmin();
 
   const activeQ = useQuery({ queryKey: ['session', 'active'], queryFn: api.sessions.active });
   const sessionsQ = useQuery({ queryKey: ['sessions'], queryFn: api.sessions.list });
+  const cancellationsQ = useQuery({ queryKey: ['cancellations'], queryFn: api.cancellations.list });
 
   const locale = lang === 'pt' ? 'pt-BR' : 'en-US';
-  const nextIso = nextGameDateISO();
+  const cancels = cancellationsQ.data ?? [];
+  const cancelledSet = new Set(cancels.map((c) => c.date));
+  const cancelReasons = new Map(cancels.map((c) => [c.date, c.reason]));
+  const nextIso = nextGameDateISO(new Date(), Array.from(cancelledSet));
+
+  const holidayName = (iso: string) => {
+    const h = NO_GAME_DATES.find((d) => d.date === iso);
+    return h ? (lang === 'pt' ? h.pt : h.en) : null;
+  };
+  const offReason = (iso: string) => holidayName(iso) ?? cancelReasons.get(iso) ?? '';
+
+  const fmtLong = (iso: string | null) =>
+    iso
+      ? new Date(iso + 'T12:00:00').toLocaleDateString(locale, { weekday: 'long', month: 'short', day: 'numeric' })
+      : t('home.seasonOver');
+  const fmtShort = (s: string) => {
+    const d = new Date(s + 'T12:00:00');
+    return isNaN(d.getTime()) ? s : d.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' });
+  };
+  const fmtFull = (s: string) => {
+    const d = new Date(s + 'T12:00:00');
+    return isNaN(d.getTime()) ? s : d.toLocaleDateString(locale, { month: 'long', day: 'numeric', year: 'numeric' });
+  };
 
   // Home only lists this season's games; older sessions live on the Stats page.
   const seasonSessions = ((sessionsQ.data ?? []) as any[]).filter(
     (s) => s.date >= SEASON_START && s.date <= SEASON_END
   );
-  const nextLabel = nextIso
-    ? new Date(nextIso + 'T12:00:00').toLocaleDateString(locale, {
-        weekday: 'long',
-        month: 'short',
-        day: 'numeric',
-      })
-    : t('home.seasonOver');
-  const fmtDate = (s: string) => {
-    const d = new Date(s);
-    return isNaN(d.getTime())
-      ? s
-      : d.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' });
-  };
-  const fmtFull = (s: string) => {
-    const d = new Date(s + 'T12:00:00');
-    return isNaN(d.getTime())
-      ? s
-      : d.toLocaleDateString(locale, { month: 'long', day: 'numeric', year: 'numeric' });
-  };
+  const nextLabel = fmtLong(nextIso);
   const active = activeQ.data;
+
+  // Banner state for the coming Monday.
+  const upcomingMon = upcomingMondayISO();
+  const upcomingInSeason = upcomingMon >= SEASON_START && upcomingMon <= SEASON_END;
+  const upcomingOff = upcomingInSeason && (isNoGameDate(upcomingMon) || cancelledSet.has(upcomingMon));
+  const upcomingOn = isGameMonday(upcomingMon) && !cancelledSet.has(upcomingMon);
 
   return (
     <div className="p-4 pb-28 space-y-5">
@@ -71,7 +92,9 @@ export function Home() {
         <div className="tile-label text-accent">
           {active ? t('home.activeSession') : t('home.nextRacha')}
         </div>
-        <div className="text-2xl font-bold capitalize">{active ? fmtDate(active.date) : nextLabel}</div>
+        <div className="text-2xl font-bold capitalize">
+          {active ? fmtShort(active.date) : nextLabel}
+        </div>
         <div className="text-sm text-muted space-y-1">
           <div className="flex items-center gap-1.5">
             <ClockIcon /> {t('home.time')}
@@ -98,14 +121,39 @@ export function Home() {
         )}
       </div>
 
+      {/* Weekly status banner */}
+      {!active && nextIso && upcomingOff ? (
+        <div className="rounded-2xl border border-red-500/40 bg-red-500/10 text-red-300 p-3 flex items-start gap-2.5">
+          <span className="text-lg leading-none">✕</span>
+          <div className="text-sm">
+            <div className="font-semibold">{t('home.noGameMonday')}</div>
+            <div className="opacity-90">
+              {offReason(upcomingMon)} · {t('home.nextRachaShort', { date: nextLabel })}
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {!active && nextIso && upcomingOn ? (
+        <div className="rounded-2xl border border-accent/40 bg-accent/10 text-accent p-3 flex items-center gap-2.5">
+          <span className="text-lg leading-none">✓</span>
+          <div className="text-sm font-semibold">{t('home.gameOnMonday')}</div>
+        </div>
+      ) : null}
+
+      {/* Month calendar + admin cancel */}
+      <GameCalendar
+        locale={locale}
+        startIso={nextIso}
+        cancelledSet={cancelledSet}
+        offReason={offReason}
+        isAdmin={isAdmin}
+      />
+
       {seasonSessions.length > 0 ? (
         <section>
           <div className="section-head flex items-center justify-between">
             <h2 className="font-semibold">{t('home.thisSeason')}</h2>
-            <button
-              className="text-xs text-muted hover:text-fg"
-              onClick={() => setLocation('/recap')}
-            >
+            <button className="text-xs text-muted hover:text-fg" onClick={() => setLocation('/recap')}>
               {t('home.pastSessionsLink')} →
             </button>
           </div>
@@ -135,9 +183,7 @@ export function Home() {
                   </div>
                   <span
                     className={`text-[11px] px-2 py-0.5 rounded-full border ${
-                      done
-                        ? 'text-accent border-accent/40 bg-accent/10'
-                        : 'text-muted border-border'
+                      done ? 'text-accent border-accent/40 bg-accent/10' : 'text-muted border-border'
                     }`}
                   >
                     {t(`status.${s.status as 'draft' | 'live' | 'done'}`)}

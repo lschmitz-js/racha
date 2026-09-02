@@ -157,3 +157,12 @@ CREATE TABLE IF NOT EXISTS team_loans (
   returned_at      INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_loans_active ON team_loans(session_id, borrower_team_id) WHERE returned_at IS NULL;
+
+-- One-off game cancellations the admin calls for a Monday that isn't a listed
+-- holiday (gym unavailable, weather, low numbers...). The reason is shown to
+-- everyone on Home; nextGameDateISO() rolls past these like it does holidays.
+CREATE TABLE IF NOT EXISTS game_cancellations (
+  date       TEXT PRIMARY KEY,   -- YYYY-MM-DD (a Monday)
+  reason     TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL
+);

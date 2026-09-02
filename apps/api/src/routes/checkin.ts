@@ -3,6 +3,13 @@ import { z } from 'zod';
 import { randomBytes } from 'node:crypto';
 import { uid, nextGameDateISO, CONFIRMED_CAP, SEASON_CAP, GUEST_CAP } from '@racha/shared';
 import { getDb } from '../db/index.js';
+import { getCancelledDates } from './cancellations.js';
+
+// The upcoming game date, rolling past both listed holidays and any admin
+// cancellations so check-ins land on the game we'll actually play.
+function upcomingGameDate(): string | null {
+  return nextGameDateISO(new Date(), getCancelledDates(getDb()));
+}
 
 type PlayerType = 'season' | 'dropin' | 'guest';
 // Priority for a confirmed spot: season first, then drop-ins, then guests last.
@@ -119,13 +126,13 @@ function readBoard(gameDate: string | null) {
   };
 }
 
-checkin.get('/', (c) => c.json(readBoard(nextGameDateISO())));
+checkin.get('/', (c) => c.json(readBoard(upcomingGameDate())));
 
 // Admin-only reset: wipe every check-in for the upcoming game. This lives on a
 // sub-path (not the public `/api/checkin`), so the fail-closed write gate
 // requires an authenticated admin and the action is audited.
 checkin.delete('/all', (c) => {
-  const gameDate = nextGameDateISO();
+  const gameDate = upcomingGameDate();
   if (!gameDate) return c.json({ error: 'no upcoming game' }, 400);
   getDb().prepare('DELETE FROM checkins WHERE game_date = ?').run(gameDate);
   return c.json(readBoard(gameDate));
@@ -139,7 +146,7 @@ checkin.delete('/all', (c) => {
 const GuestInput = z.object({ name: z.string().trim().min(2).max(40) });
 
 checkin.post('/guest', async (c) => {
-  const gameDate = nextGameDateISO();
+  const gameDate = upcomingGameDate();
   if (!gameDate) return c.json({ error: 'no upcoming game' }, 400);
 
   const db = getDb();
@@ -179,7 +186,7 @@ checkin.post('/guest', async (c) => {
 
 checkin.post('/', async (c) => {
   const { player_id, status } = CheckinInput.parse(await c.req.json());
-  const gameDate = nextGameDateISO();
+  const gameDate = upcomingGameDate();
   if (!gameDate) return c.json({ error: 'no upcoming game' }, 400);
 
   const db = getDb();

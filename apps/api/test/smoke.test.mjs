@@ -516,3 +516,30 @@ test('invalid input -> 400 (not 500)', async () => {
     400
   );
 });
+
+test('game cancellations: public read, admin-only write, validation, and check-in rolls past a cancelled Monday', async () => {
+  // Public read is open; writing needs an admin.
+  assert.equal((await api('/api/cancellations')).status, 200);
+  assert.notEqual(
+    (await api('/api/cancellations', { method: 'POST', body: JSON.stringify({ date: '2026-09-14' }) })).status,
+    200,
+    'non-admin cannot cancel'
+  );
+
+  // Only a real game Monday can be cancelled.
+  assert.equal((await api('/api/cancellations', { method: 'POST', headers: M, body: JSON.stringify({ date: '2026-10-12' }) })).status, 400, 'holiday rejected');
+  assert.equal((await api('/api/cancellations', { method: 'POST', headers: M, body: JSON.stringify({ date: '2026-09-15' }) })).status, 400, 'non-Monday rejected');
+  assert.equal((await api('/api/cancellations', { method: 'POST', headers: M, body: JSON.stringify({ date: '2030-01-07' }) })).status, 400, 'out of season rejected');
+
+  // Cancel the opener -> it shows publicly and check-in rolls to the next Monday.
+  assert.equal((await api('/api/cancellations', { method: 'POST', headers: M, body: JSON.stringify({ date: '2026-09-14', reason: 'Gym unavailable' }) })).status, 200);
+  const list = await (await api('/api/cancellations')).json();
+  assert.ok(list.find((c) => c.date === '2026-09-14' && c.reason === 'Gym unavailable'), 'cancellation is listed');
+  const board = await (await api('/api/checkin')).json();
+  assert.equal(board.game_date, '2026-09-21', 'check-in rolls past the cancelled Monday');
+
+  // Un-cancel -> back on.
+  assert.equal((await api('/api/cancellations/2026-09-14', { method: 'DELETE', headers: M })).status, 200);
+  const board2 = await (await api('/api/checkin')).json();
+  assert.equal(board2.game_date, '2026-09-14', 'check-in returns to the opener once un-cancelled');
+});
