@@ -68,7 +68,9 @@ a full bilingual (Português / English) rulebook.
   `node:crypto` (no external auth dependency).
 - **Shipping** — one Docker image (the API serves the built SPA) plus a Caddy
   reverse proxy, behind Cloudflare in production. Schema migrations run
-  automatically on boot and are additive.
+  automatically on boot; most add columns/tables, and a couple rebuild a table
+  in place to widen a `CHECK` constraint (SQLite can't `ALTER` one), copying
+  rows by name — each is a no-op once applied.
 
 ## Auth & security model
 
@@ -88,8 +90,9 @@ for local/dev (the server logs a warning and leaves the API open); in production
   synthetic `master` user even if the players DB is empty/unusable. Bootstrap the
   first admins with it. The token is compared in constant time.
 - **Abuse protection** — a per-IP rate limit (keyed on Cloudflare's
-  `CF-Connecting-IP`, which a client can't forge) plus a stricter limit on the
-  login route.
+  `CF-Connecting-IP`, which a client can't forge) plus stricter limits on the
+  login route and on public guest self-add. Guest self-add is further bounded by
+  a per-game cap, name validation + dedupe, and an admin kill-switch.
 - **Hardening** — the API sends `Strict-Transport-Security` (HSTS),
   `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and
   `Referrer-Policy: no-referrer`. Login runs in constant time (so a valid admin
@@ -109,6 +112,7 @@ token resolves to; `GET /api/health` is a liveness probe.
 | `DB_PATH` | `./data/racha.db` | SQLite file location. |
 | `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW_MS` | `300` / `10000` | General per-IP API limit (`0` disables). |
 | `LOGIN_RATE_MAX` / `LOGIN_RATE_WINDOW_MS` | `10` / `60000` | Stricter login throttle. |
+| `GUEST_RATE_MAX` / `GUEST_RATE_WINDOW_MS` | `6` / `3600000` | Per-IP throttle on public guest self-add (`0` disables). |
 
 ## Development
 
@@ -187,4 +191,8 @@ npm test          # all workspaces: the balanceTeams unit tests + API smoke test
 
 The API smoke tests spin up the built server and cover the auth gate,
 login/session/logout, the public roster hiding `is_admin`, the emergency
-self-service flow, that PII never leaks, and that bad input returns 400.
+self-service flow (and that PII never leaks), the check-in board (season >
+drop-in > guest priority, the 15/18 cap, toggle-to-clear, admin clear-all),
+guest self-add (public add, dedupe, validation, per-game cap, kill-switch),
+the team-loan borrow/return-on-loss flow, and that bad input returns 400. The
+`balanceTeams` unit tests cover the 10–15 and 16–18 (6/6/6) sizing bands.
