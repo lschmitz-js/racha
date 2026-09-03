@@ -65,6 +65,19 @@ export function CheckIn() {
     onError: (e: any) => alert(String(e?.message ?? e)),
   });
 
+  // Who still has no emergency contact on file. The endpoint is admin-only (it
+  // reveals a gap about a person), so only fetch it for an admin — everyone else
+  // sees the board exactly as before.
+  const emergencyQ = useQuery({
+    queryKey: ['emergency-status'],
+    queryFn: api.players.emergencyStatus,
+    enabled: isAdmin,
+  });
+  // Guests never have an emergency contact by design (they play at their own
+  // risk), so flagging them would be permanent noise — only real players count.
+  const needsEmergency = (e: CheckinEntry) =>
+    isAdmin && !!emergencyQ.data && e.type !== 'guest' && !emergencyQ.data[e.id];
+
   const board = (boardQ.data ?? {
     game_date: null,
     cap: 15,
@@ -219,6 +232,11 @@ export function CheckIn() {
           </h2>
           <span className="text-xs text-muted">{t('checkin.spotsLeft', { n: spotsLeft })}</span>
         </div>
+        {board.confirmed.filter(needsEmergency).length > 0 ? (
+          <div className="mb-2 text-[11px] text-red-400 flex items-center gap-1.5">
+            ⚠️ {t('checkin.missingEmergencyCount', { n: board.confirmed.filter(needsEmergency).length })}
+          </div>
+        ) : null}
         {board.confirmed.length === 0 ? (
           <div className="text-sm text-muted">{t('checkin.nobodyYet')}</div>
         ) : (
@@ -230,7 +248,7 @@ export function CheckIn() {
                     {t('checkin.fullTeamsLine')}
                   </div>
                 ) : null}
-                <Entry entry={e} rank={i + 1} canEdit={canEdit} isAdmin={isAdmin} onSet={set.mutate} onRemoveGuest={removeGuest.mutate} />
+                <Entry entry={e} rank={i + 1} canEdit={canEdit} isAdmin={isAdmin} onSet={set.mutate} onRemoveGuest={removeGuest.mutate} flagEmergency={needsEmergency(e)} />
               </li>
             ))}
           </ol>
@@ -248,7 +266,7 @@ export function CheckIn() {
           <ol className="space-y-1.5">
             {board.waitlist.map((e, i) => (
               <li key={e.id}>
-                <Entry entry={e} rank={board.confirmed.length + i + 1} canEdit={canEdit} isAdmin={isAdmin} onSet={set.mutate} onRemoveGuest={removeGuest.mutate} />
+                <Entry entry={e} rank={board.confirmed.length + i + 1} canEdit={canEdit} isAdmin={isAdmin} onSet={set.mutate} onRemoveGuest={removeGuest.mutate} flagEmergency={needsEmergency(e)} />
               </li>
             ))}
           </ol>
@@ -315,6 +333,7 @@ function Entry({
   isAdmin,
   onSet,
   onRemoveGuest,
+  flagEmergency = false,
 }: {
   entry: CheckinEntry;
   rank: number;
@@ -322,6 +341,7 @@ function Entry({
   isAdmin: boolean;
   onSet: (v: { id: string; status: 'in' | 'out' | 'none' }) => void;
   onRemoveGuest: (id: string) => void;
+  flagEmergency?: boolean;
 }) {
   const t = useT();
   const isGuest = entry.type === 'guest';
@@ -334,6 +354,9 @@ function Entry({
       <Avatar playerId={entry.id} name={entry.name} size={30} />
       <div className="flex-1 min-w-0">
         <div className="font-medium truncate">{entry.name}</div>
+        {flagEmergency ? (
+          <div className="text-[11px] text-red-400 truncate">⚠️ {t('checkin.noEmergency')}</div>
+        ) : null}
       </div>
       {isGuest ? (
         <span className="text-[10px] text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/50">
