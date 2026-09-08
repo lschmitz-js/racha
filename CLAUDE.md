@@ -63,8 +63,14 @@ emergency contacts, and a bilingual (PT/EN) rulebook.
   operator's private notes/`.env` — never in source, fixtures, or these docs.
 - **Back up the production DB before any schema/data-changing deploy**; code-only
   deploys don't need it.
-- Deploy is a code pull + container rebuild on the operator's host (details in
-  private notes, not here).
+- Deploy is a code pull + container rebuild on the operator's host. The full
+  procedure lives in a **machine-local Claude skill (`/racha-deploy`)**, not in
+  this repo, because it names the host, cloud project and paths. If you are a
+  session on the maintainer's machine, invoke that skill rather than improvising
+  a deploy. Nothing in this repo should ever name those identifiers.
+- `.claude/settings.json` here pre-approves read-only git and the test/build
+  gates. Pushing, committing and deploying are deliberately left to prompt —
+  that checkpoint is intentional, don't automate it away.
 - Bilingual: every user-facing string has EN + PT in `apps/web/src/lib/i18n.tsx`.
 
 ## Planned / in discussion

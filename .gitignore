@@ -21,3 +21,6 @@ backups/
 
 # TypeScript incremental build info
 *.tsbuildinfo
+
+# Claude Code: per-machine overrides stay local; the rest of .claude/ is shared.
+.claude/settings.local.json
