@@ -366,7 +366,11 @@ function Entry({
         <span className="text-[10px] text-muted px-1.5 py-0.5 rounded border border-border">
           {t('checkin.dropin')}
         </span>
-      ) : null}
+      ) : (
+        <span className="text-[10px] text-accent px-1.5 py-0.5 rounded border border-accent/50">
+          {t('checkin.seasonTag')}
+        </span>
+      )}
       {showRemove ? (
         <button
           className="text-xs text-muted hover:text-red-400 px-1"
