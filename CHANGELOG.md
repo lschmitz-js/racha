@@ -3,6 +3,15 @@
 A timeline of notable changes to Racha de Segunda. Newest first. Dates are the
 day the change landed on `main`.
 
+## 2026-09-08
+
+- **Phone numbers in one format** — emergency contact numbers are normalized to
+  `+1 123-456-7891` as they're typed, on save, in the admin sheet and in the CSV
+  export (`formatPhone` in `@racha/shared`). International numbers and anything
+  that isn't a 10-digit NANP number are kept exactly as typed. Contacts saved
+  before this are rewritten once on boot; the admin sheet's numbers are now
+  tap-to-dial.
+
 ## 2026-09-02
 
 - **Home game calendar** — a month view marking each Monday green ✓ (game) or

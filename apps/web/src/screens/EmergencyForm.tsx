@@ -1,3 +1,4 @@
+import { formatPhone, formatPhoneInput } from '@racha/shared';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { api, type EmergencyContact } from '../lib/api.js';
@@ -22,9 +23,9 @@ const EMPTY: Fields = {
 function fromContact(c: EmergencyContact | null): Fields {
   if (!c) return { ...EMPTY };
   return {
-    player_phone: c.player_phone ?? '',
+    player_phone: formatPhone(c.player_phone),
     contact_name: c.contact_name ?? '',
-    contact_phone: c.contact_phone ?? '',
+    contact_phone: formatPhone(c.contact_phone),
     relationship: c.relationship ?? '',
     medical_notes: c.medical_notes ?? '',
   };
@@ -74,6 +75,13 @@ export function EmergencyForm({ params }: { params: { token: string } }) {
     setFields((f) => ({ ...f, [k]: e.target.value }));
   };
 
+  // Phone fields render as `+1 123-456-7891` while they're being typed.
+  const setPhone = (k: 'player_phone' | 'contact_phone') => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSaved(false);
+    const next = formatPhoneInput(e.target.value);
+    setFields((f) => ({ ...f, [k]: next }));
+  };
+
   if (q.isLoading) {
     return <div className="p-6 text-muted text-center">{t('common.loading')}</div>;
   }
@@ -103,7 +111,8 @@ export function EmergencyForm({ params }: { params: { token: string } }) {
             type="tel"
             className="input"
             value={fields.player_phone}
-            onChange={set('player_phone')}
+            onChange={setPhone('player_phone')}
+            placeholder="+1 123-456-7891"
             autoComplete="tel"
           />
         </Field>
@@ -115,7 +124,8 @@ export function EmergencyForm({ params }: { params: { token: string } }) {
             type="tel"
             className="input"
             value={fields.contact_phone}
-            onChange={set('contact_phone')}
+            onChange={setPhone('contact_phone')}
+            placeholder="+1 123-456-7891"
           />
         </Field>
         <Field label={t('emergency.relationship')}>

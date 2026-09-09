@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { ImportEnvelope, Player, uid } from '@racha/shared';
+import { ImportEnvelope, Player, formatPhone, uid } from '@racha/shared';
 import { z } from 'zod';
 import { randomBytes } from 'node:crypto';
 import {
@@ -164,9 +164,9 @@ players.get('/emergency-export', (c) => {
     lines.push(
       [
         r.name,
-        r.player_phone,
+        formatPhone(r.player_phone),
         r.contact_name,
-        r.contact_phone,
+        formatPhone(r.contact_phone),
         r.relationship,
         r.medical_notes,
         submitted ? 'yes' : 'no',

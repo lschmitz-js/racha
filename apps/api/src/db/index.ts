@@ -1,3 +1,4 @@
+import { formatPhone } from '@racha/shared';
 import Database from 'better-sqlite3';
 import { randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -43,6 +44,7 @@ export function getDb(): DB {
   migratePlayerTypeCheck(db); // after the column-adding migrations above
   migrateGameCancellations(db);
   migrateGuestDevice(db);
+  migrateEmergencyPhoneFormat(db);
 
   // Exit cleanly on both signals. SIGTERM is what `docker stop` and most
   // process managers send — previously we only closed the DB without exiting,
@@ -209,4 +211,33 @@ function migrateAuth(db: DB) {
   }
   // The goalkeeper role was removed; normalize any existing 'gk' to 'player'.
   db.exec("UPDATE players SET role = 'player' WHERE role = 'gk'");
+}
+
+// Phone numbers are stored in one canonical shape (`+1 123-456-7891`) as of the
+// phone-formatting change; contacts saved before it kept whatever the player
+// typed. Rewrite those in place so the admin sheet and the CSV export match the
+// form. Idempotent — formatPhone is stable, and rows already canonical (or not
+// NANP numbers, which it deliberately leaves alone) compare equal and are
+// skipped. The table holds one row per player, so the scan is trivial.
+function migrateEmergencyPhoneFormat(db: DB) {
+  const rows = db
+    .prepare(
+      `SELECT player_id, player_phone, contact_phone FROM player_emergency
+       WHERE player_phone IS NOT NULL OR contact_phone IS NOT NULL`
+    )
+    .all() as Array<{ player_id: string; player_phone: string | null; contact_phone: string | null }>;
+  // NULL stays NULL — only the text of a stored number changes.
+  const norm = (v: string | null) => (v === null ? null : formatPhone(v));
+  const stale = rows.filter(
+    (r) => norm(r.player_phone) !== r.player_phone || norm(r.contact_phone) !== r.contact_phone
+  );
+  if (!stale.length) return;
+  const upd = db.prepare(
+    'UPDATE player_emergency SET player_phone = ?, contact_phone = ? WHERE player_id = ?'
+  );
+  db.transaction(() => {
+    for (const r of stale) {
+      upd.run(norm(r.player_phone), norm(r.contact_phone), r.player_id);
+    }
+  })();
 }

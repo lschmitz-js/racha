@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { SKILLS, type Player, ImportEnvelope } from '@racha/shared';
+import { SKILLS, formatPhone, phoneHref, type Player, ImportEnvelope } from '@racha/shared';
 import { useState } from 'react';
 import { Link } from 'wouter';
 import { QRCodeSVG } from 'qrcode.react';
@@ -347,14 +347,15 @@ function EmergencyPanel({ player, onClose }: { player: Player; onClose: () => vo
   }
 
   const c = q.data?.contact ?? null;
-  const rows: Array<[string, string | null | undefined]> = [
-    [t('emergency.playerPhone'), c?.player_phone],
-    [t('emergency.contactName'), c?.contact_name],
-    [t('emergency.contactPhone'), c?.contact_phone],
-    [t('emergency.relationship'), c?.relationship],
-    [t('emergency.medicalNotes'), c?.medical_notes],
+  // `tel` marks the phone rows — an admin reading this at the field taps to dial.
+  const rows: Array<{ k: string; v: string | null | undefined; tel?: boolean }> = [
+    { k: t('emergency.playerPhone'), v: formatPhone(c?.player_phone), tel: true },
+    { k: t('emergency.contactName'), v: c?.contact_name },
+    { k: t('emergency.contactPhone'), v: formatPhone(c?.contact_phone), tel: true },
+    { k: t('emergency.relationship'), v: c?.relationship },
+    { k: t('emergency.medicalNotes'), v: c?.medical_notes },
   ];
-  const hasDetails = rows.some(([, v]) => v && String(v).trim());
+  const hasDetails = rows.some(({ v }) => v && String(v).trim());
 
   return (
     <div className="fixed inset-0 bg-black/70 z-40 flex items-end sm:items-center justify-center">
@@ -413,11 +414,19 @@ function EmergencyPanel({ player, onClose }: { player: Player; onClose: () => vo
               </div>
               {hasDetails ? (
                 <dl className="space-y-1.5">
-                  {rows.map(([k, v]) =>
+                  {rows.map(({ k, v, tel }) =>
                     v && String(v).trim() ? (
                       <div key={k} className="flex gap-3 text-sm">
                         <dt className="w-28 shrink-0 text-muted">{k}</dt>
-                        <dd className="font-medium text-fg whitespace-pre-wrap">{v}</dd>
+                        <dd className="font-medium text-fg whitespace-pre-wrap">
+                          {tel ? (
+                            <a href={phoneHref(v)} className="text-accent no-underline">
+                              {v}
+                            </a>
+                          ) : (
+                            v
+                          )}
+                        </dd>
                       </div>
                     ) : null
                   )}

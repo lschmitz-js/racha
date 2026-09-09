@@ -1,3 +1,4 @@
+import { formatPhone } from '@racha/shared';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { getDb } from '../db/index.js';
@@ -11,9 +12,11 @@ import { getDb } from '../db/index.js';
 export const emergency = new Hono();
 
 const EmergencyInput = z.object({
-  player_phone: z.string().trim().max(40).optional().default(''),
+  // Phones are normalized to `+1 123-456-7891` on the way in, so the stored
+  // value is the same no matter which client or year it was typed in.
+  player_phone: z.string().trim().max(40).optional().default('').transform(formatPhone),
   contact_name: z.string().trim().max(120).optional().default(''),
-  contact_phone: z.string().trim().max(40).optional().default(''),
+  contact_phone: z.string().trim().max(40).optional().default('').transform(formatPhone),
   relationship: z.string().trim().max(60).optional().default(''),
   medical_notes: z.string().trim().max(1000).optional().default(''),
 });

@@ -125,6 +125,18 @@ test('emergency self-service flow + PII never leaks', async () => {
     (await api(`/api/emergency/${admin.token}`, { method: 'PUT', body: JSON.stringify({ contact_name: 'Mom', contact_phone: '1' }) })).status,
     200
   );
+
+  // Phones are normalized to `+1 123-456-7891` on write; non-NANP input is kept as typed.
+  await api(`/api/emergency/${admin.token}`, {
+    method: 'PUT',
+    body: JSON.stringify({ contact_name: 'Mom', contact_phone: '(123) 456 7891', player_phone: '+55 11 91234-5678' }),
+  });
+  const saved = await (await api(`/api/emergency/${admin.token}`)).json();
+  assert.equal(saved.contact.contact_phone, '+1 123-456-7891');
+  assert.equal(saved.contact.player_phone, '+55 11 91234-5678');
+
+  const csv = await (await api('/api/players/emergency-export', { headers: M })).text();
+  assert.ok(csv.includes('+1 123-456-7891'), 'CSV export carries the formatted number');
   assert.equal((await api('/api/emergency/bogus-token')).status, 404);
   assert.equal((await api(`/api/players/${p.id}/emergency`)).status, 401, 'admin PII read must be gated');
 
