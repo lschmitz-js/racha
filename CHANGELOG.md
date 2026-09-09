@@ -5,11 +5,15 @@ day the change landed on `main`.
 
 ## 2026-09-08
 
-- **Phone numbers in one format** — emergency contact numbers are normalized to
-  `+1 123-456-7891` as they're typed, on save, in the admin sheet and in the CSV
-  export (`formatPhone` in `@racha/shared`). International numbers and anything
-  that isn't a 10-digit NANP number are kept exactly as typed. Contacts saved
-  before this are rewritten once on boot; the admin sheet's numbers are now
+- **Phone numbers in one format, from any country** — emergency contact numbers
+  are normalized as they're typed, on save, in the admin sheet and in the CSV
+  export (`formatPhone` in `@racha/shared`, backed by `libphonenumber-js`).
+  North American numbers render as `+1 604-555-1234`; a number from anywhere else
+  keeps its own plan's grouping (`+55 11 91234 5678`, `+61 2 1234 5678`) as long
+  as it starts with `+` and its country code. A number that can't be verified is
+  stored exactly as typed — never relabelled `+1`, which digit-counting alone
+  would have done to a São Paulo mobile. Extensions are kept. Contacts saved
+  before this are rewritten once on boot; the admin sheet's numbers are
   tap-to-dial.
 
 ## 2026-09-02

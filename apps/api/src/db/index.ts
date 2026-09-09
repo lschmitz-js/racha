@@ -213,11 +213,11 @@ function migrateAuth(db: DB) {
   db.exec("UPDATE players SET role = 'player' WHERE role = 'gk'");
 }
 
-// Phone numbers are stored in one canonical shape (`+1 123-456-7891`) as of the
-// phone-formatting change; contacts saved before it kept whatever the player
-// typed. Rewrite those in place so the admin sheet and the CSV export match the
-// form. Idempotent — formatPhone is stable, and rows already canonical (or not
-// NANP numbers, which it deliberately leaves alone) compare equal and are
+// Phone numbers are stored in one canonical shape as of the phone-formatting
+// change; contacts saved before it kept whatever the player typed. Rewrite those
+// in place so the admin sheet and the CSV export match the form. Idempotent —
+// formatPhone is stable, and a row already canonical (or one it can't verify as
+// a real number, which it deliberately leaves as typed) compares equal and is
 // skipped. The table holds one row per player, so the scan is trivial.
 function migrateEmergencyPhoneFormat(db: DB) {
   const rows = db

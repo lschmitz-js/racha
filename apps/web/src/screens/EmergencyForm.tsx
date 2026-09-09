@@ -112,7 +112,7 @@ export function EmergencyForm({ params }: { params: { token: string } }) {
             className="input"
             value={fields.player_phone}
             onChange={setPhone('player_phone')}
-            placeholder="+1 123-456-7891"
+            placeholder="+1 604-555-1234"
             autoComplete="tel"
           />
         </Field>
@@ -125,9 +125,10 @@ export function EmergencyForm({ params }: { params: { token: string } }) {
             className="input"
             value={fields.contact_phone}
             onChange={setPhone('contact_phone')}
-            placeholder="+1 123-456-7891"
+            placeholder="+1 604-555-1234"
           />
         </Field>
+        <p className="text-xs text-muted -mt-1">🌎 {t('emergency.phoneHint')}</p>
         <Field label={t('emergency.relationship')}>
           <input className="input" value={fields.relationship} onChange={set('relationship')} />
         </Field>

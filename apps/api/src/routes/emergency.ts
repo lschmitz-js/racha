@@ -12,11 +12,13 @@ import { getDb } from '../db/index.js';
 export const emergency = new Hono();
 
 const EmergencyInput = z.object({
-  // Phones are normalized to `+1 123-456-7891` on the way in, so the stored
-  // value is the same no matter which client or year it was typed in.
-  player_phone: z.string().trim().max(40).optional().default('').transform(formatPhone),
+  // Phones are normalized on the way in, so the stored value is the same no
+  // matter which client typed it. Wrapped rather than passed by reference: Zod
+  // hands transforms a second argument, which would land in formatPhone's
+  // `region` parameter.
+  player_phone: z.string().trim().max(40).optional().default('').transform((v) => formatPhone(v)),
   contact_name: z.string().trim().max(120).optional().default(''),
-  contact_phone: z.string().trim().max(40).optional().default('').transform(formatPhone),
+  contact_phone: z.string().trim().max(40).optional().default('').transform((v) => formatPhone(v)),
   relationship: z.string().trim().max(60).optional().default(''),
   medical_notes: z.string().trim().max(1000).optional().default(''),
 });

@@ -338,6 +338,8 @@ const dict = {
     'emergency.playerPhone': 'Your mobile phone',
     'emergency.contactName': 'Emergency contact name',
     'emergency.contactPhone': 'Emergency contact phone',
+    'emergency.phoneHint':
+      'A number without a country code is read as Canadian. For a number abroad, start with + and the country code — e.g. +55 for Brazil, +61 for Australia.',
     'emergency.relationship': 'Relationship (e.g. spouse, parent, friend)',
     'emergency.medicalNotes': 'Allergies / medical notes / blood type (optional)',
     'emergency.saveBtn': 'Save my info',
@@ -796,6 +798,8 @@ const dict = {
     'emergency.playerPhone': 'Seu celular',
     'emergency.contactName': 'Nome do contato de emergência',
     'emergency.contactPhone': 'Telefone do contato de emergência',
+    'emergency.phoneHint':
+      'Número sem código de país é lido como canadense. Para um número no exterior, comece com + e o DDI — ex: +55 para o Brasil, +61 para a Austrália.',
     'emergency.relationship': 'Parentesco (ex: cônjuge, pai/mãe, amigo)',
     'emergency.medicalNotes': 'Alergias / observações médicas / tipo sanguíneo (opcional)',
     'emergency.saveBtn': 'Salvar meus dados',
