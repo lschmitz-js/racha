@@ -12,7 +12,7 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { getDb } from '../db/index.js';
-import { hashPassword, destroyUserSessions, type AppVariables } from '../auth.js';
+import { hashPassword, destroyUserSessions, isRealAdmin, type AppVariables } from '../auth.js';
 
 const AVATAR_DIR =
   process.env.AVATAR_DIR ||
@@ -64,9 +64,11 @@ type PlayerRow = {
   created_at: number;
 };
 
-// `includeAdmin` gates the is_admin flag: only authenticated admins see who is
-// an admin, so an unauthenticated caller of GET /players can't enumerate admin
-// accounts to target for login. Write handlers (admin-only) pass the default.
+// `includeAdmin` gates the is_admin flag: only real admins see who is an admin,
+// so a caller of GET /players can't enumerate admin accounts to target for
+// login. "Real" excludes the day's operator code, which is shared with whoever
+// is running the game and is not a trusted identity. Write handlers (admin-only)
+// pass the default.
 function rowToPlayer(r: PlayerRow, includeAdmin = true): Player {
   return {
     id: r.id,
@@ -100,7 +102,7 @@ export const players = new Hono<{ Variables: AppVariables }>();
 players.get('/', (c) => {
   const db = getDb();
   const rows = db.prepare('SELECT * FROM players ORDER BY name').all() as PlayerRow[];
-  const isAdmin = !!c.get('user');
+  const isAdmin = isRealAdmin(c.get('user'));
   return c.json(rows.map((r) => rowToPlayer(r, isAdmin)));
 });
 

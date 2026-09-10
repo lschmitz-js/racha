@@ -506,6 +506,16 @@ test("the day's code runs the live game; opening/closing/deleting stays admin", 
     200, 'the code can move a player'
   );
 
+  // The operator is not a trusted identity: it must not learn who the admins are
+  // (that would turn a blind login guess into a targeted one). Regression test —
+  // this gate read `!!c.get('user')` until the operator tier made that true for
+  // the code as well.
+  const rosterByCode = await (await api('/api/players', { headers: C })).json();
+  assert.equal(
+    rosterByCode.some((p) => p.is_admin), false,
+    'the day\'s code must not reveal is_admin'
+  );
+
   // The code can't delete a match or the session — that stays a real admin.
   assert.equal((await api('/api/matches/' + mj.id, { method: 'DELETE', headers: C })).status, 401, 'code cannot delete a match');
   assert.equal((await api('/api/matches/' + mj.id, { method: 'DELETE', headers: M })).status, 200);

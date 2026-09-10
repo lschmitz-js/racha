@@ -60,6 +60,23 @@ device). Anything personal — your own payment status, your own skill profile,
   SSO instead of adding another token to retire.
 - Admin login (name + password) stays as-is, or an admin flag rides on the linked
   player record — decide before building.
+- **SSO also retires the day's 4-digit operator code.** Once everyone running the
+  game is logged in, the shared code has nothing left to do — the operational
+  write tier can key off a real account instead. Two known weaknesses are
+  deliberately parked until then rather than hardened, because the mechanism is
+  going away (raised in the 2026-09-10 security review):
+  - The code is 4 digits from `Math.random()` and only the generic per-IP limit
+    guards it, so the whole keyspace is reachable in minutes; `GET /api/auth/check`
+    will confirm a guess. Impact is bounded — a stranger could meddle with the
+    live game's stats, and the code is deliberately shared with whoever is at the
+    gym anyway. If SSO slips a season, revisit: `randomInt` + 6 digits + a
+    failed-attempt bucket.
+  - **Operational writes are not audited at all** (`server.ts`, the audit
+    middleware skips `isOperationalWrite`), including `PUT`/`DELETE /api/events/:id`.
+    So the tier with the weakest credential is the only one with no
+    accountability — an erased or invented goal leaves no trace. SSO fixes this
+    by construction: every operational write will carry a real identity, so turn
+    the audit back on for this tier as part of that work.
 
 **Open questions:**
 1. Google only, magic-link only, or both?

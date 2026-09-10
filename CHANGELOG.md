@@ -3,6 +3,19 @@
 A timeline of notable changes to Racha de Segunda. Newest first. Dates are the
 day the change landed on `main`.
 
+## 2026-09-10
+
+- **The day's code no longer reveals who the admins are** — `GET /api/players`
+  gated the `is_admin` flag on "is there any authenticated caller", which quietly
+  started including the operator once the 4-digit code became an identity. The
+  code is handed to whoever is running the game, so that let a non-admin list the
+  admin accounts — enough to turn a blind login guess into a targeted one. It now
+  uses `isRealAdmin`, like every other admin check. Found in a security review of
+  everything since the last OWASP pass; the rest of that review came back clean
+  (the operator tier and the frozen-session guard both hold, no PII path, no SQL
+  injection). The two parked items ride on
+  [SSO](docs/feature-requests.md#sso--real-accounts).
+
 ## 2026-09-08
 
 - **Green "season" tag on the check-in board** — drop-ins and guests already
