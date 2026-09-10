@@ -75,5 +75,7 @@ emergency contacts, and a bilingual (PT/EN) rulebook.
 
 ## Planned / in discussion
 
+- **Feature backlog** — parked ideas with enough context to pick up later:
+  [docs/feature-requests.md](docs/feature-requests.md). Add new requests there.
 - **Payments & finance** (SSO login, drop-in/season payment tracking, a finance
   tab, unpaid reminders) — see [docs/plan-payments.md](docs/plan-payments.md).
