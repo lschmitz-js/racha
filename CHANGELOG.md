@@ -5,6 +5,9 @@ day the change landed on `main`.
 
 ## 2026-09-08
 
+- **Green "season" tag on the check-in board** — drop-ins and guests already
+  carried a tag, so a season regular was the only row readable by the _absence_ of
+  a badge. They now get their own pill in the accent green.
 - **Phone numbers in one format, from any country** — emergency contact numbers
   are normalized as they're typed, on save, in the admin sheet and in the CSV
   export (`formatPhone` in `@racha/shared`, backed by `libphonenumber-js`).
@@ -30,15 +33,32 @@ day the change landed on `main`.
   stay automatic (in `NO_GAME_DATES`). `nextGameDateISO` and check-in roll past a
   cancelled Monday like a holiday. New `game_cancellations` table + public GET /
   admin write at `/api/cancellations`.
-- **Guests can remove themselves** from the check-in (public, no login), matching
-  public guest-add. Guarded so it only ever deletes a guest, never a real player.
+- **Guest removal is creator-or-admin** — adding a guest stamps an anonymous
+  per-device tag (`players.added_by_device`, additive migration); removing one
+  needs that same tag or a real admin, so a passing viewer can't clear someone
+  else's guest. Still public and login-free for the person who added them, and
+  guarded so it only ever deletes a guest, never a real player; a guest already
+  drawn into a session/team/match returns a clean 409 instead of orphaning stats.
+  Honor-system by design — the tag lives in `localStorage`, a soft owner check
+  until there's a login.
+- **Missing emergency contacts flagged on check-in** — a red "No emergency
+  contact" line under any confirmed or waitlisted player who hasn't filled theirs
+  in, plus a count above the list. Admin-only (the endpoint reveals a gap about a
+  person, so the query never runs for anyone else); guests are excluded, since
+  they never have one by design. Pairs with the "Copy WhatsApp message" button for
+  chasing them.
+- **Admin "Finish the night"** — end the session straight from the post-match
+  panel, so the last game doesn't need a trip back to the session's danger zone.
+  Tucked below "Back to session" behind a divider, well away from "Start next
+  game", and it confirms first.
 - **Emergency "Copy WhatsApp message"** — copies a ready-to-forward note with the
   player's personal form link and context.
 - **Match cleanup** — ending a session drops an empty, never-started pending
   match; strays on frozen sessions are deletable; no more duplicate matches.
 - **UI/polish** — brand moved into the top bar to reclaim vertical space; bigger
   match countdown; past sessions show "Month D, YYYY"; "Weeks" → "Past sessions";
-  Home lists only the current season (older games live on Stats).
+  Home lists only the current season (older games live on Stats); read-only team
+  cards no longer show an edit affordance; roster icon → 📋.
 - **Rotation & timer** — winner keeps their exact side (the borrow/return rule
   was removed entirely); full-house (6-a-side) runs a 3+3 timer with a loud,
   full-screen rotation alarm that blinks the color of the team that must rotate,

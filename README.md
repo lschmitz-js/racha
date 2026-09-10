@@ -13,14 +13,22 @@ a full bilingual (Português / English) rulebook.
   no poll to open. The confirmed list + waitlist follow the rules: season players
   are always confirmed (they can stretch the cap up to 18), then drop-ins fill by
   check-in time up to the normal cap of 15 — anyone past that waits. Admins can
-  set, toggle, or clear anyone's check-in from the Manage list. WhatsApp is only a
-  reminder — there's a "copy reminder" button.
+  set, toggle, or clear anyone's check-in from the Manage list. Every row carries
+  its own tag — green *season*, *drop-in*, *guest* — so the make-up of the night is
+  readable at a glance. For admins only, a confirmed or waitlisted player with no
+  emergency contact on file is flagged in red, with a count above the list (guests
+  are exempt — they never have one by design). WhatsApp is only a reminder —
+  there's a "copy reminder" button.
 - **Guests** — a one-off external player anyone can add by name on the Check-in
   screen (no login). Guests are a distinct `type`, rank lowest for a spot, are
   capped per game and rate-limited, and play at their own risk (no emergency
-  contact). Admins can toggle self-add off (`settings.guests.selfAdd`). A guest
-  can also remove themselves from the board (public, like adding one). After a
-  session, an admin can promote a guest to a regular drop-in (keeps their stats).
+  contact). Admins can toggle self-add off (`settings.guests.selfAdd`). Whoever
+  added a guest can remove them again without logging in — adding stamps an
+  anonymous per-device tag (`players.added_by_device`) and removal requires that
+  same tag or a real admin, so a passing viewer can't clear someone else's guest.
+  A guest already drawn into a session/team/match returns a clean 409 instead of
+  being deleted. After a session, an admin can promote a guest to a regular
+  drop-in (keeps their stats).
 - **Team draws & match play** — a racha needs at least 10 present to start
   (`MIN_PLAYERS`, shared). Starting pre-selects whoever confirmed on the check-in
   board. `balanceTeams` splits players by skill: **standard (10–15)** gives
@@ -31,6 +39,8 @@ a full bilingual (Português / English) rulebook.
   documented tie rules (first game: odds-or-evens; later games: the challenger
   stays). When the team coming on is short of five, the post-match panel tops it up
   from the team that just left. Teams can also be hand-tweaked by dragging players.
+  An admin can end the whole night straight from the post-match panel ("Finish the
+  night"), without a trip back to the session screen.
 - **Live stats** — goals, assists, beautiful plays, howlers, saves, nutmegs
   (*canetas*), and open misses (*quase-gols*) are logged per player, per match.
   There is no fixed goalkeeper role — whoever is in net still gets credited with
@@ -53,7 +63,11 @@ a full bilingual (Português / English) rulebook.
   link to fill in their emergency details in-app (replacing the old Google
   Sheet). Contact info is viewable only by admins, exportable to CSV, and each
   link can be shown as a QR code. The link token is kept out of logs and the
-  `Referer` header.
+  `Referer` header. Phone numbers are normalized to one format on the way in and
+  on the way out (`formatPhone` in `@racha/shared`): North American numbers as
+  `+1 604-555-1234`, anything else in its own plan's grouping when it carries a
+  `+` and a country code, and stored exactly as typed when it can't be verified —
+  never relabelled. Admins get tap-to-dial numbers.
 - **Accounts, admin & audit** — admins sign in with their player name + password;
   a server-side session then authorizes writes. State-changing admin actions and
   login attempts are recorded in an audit log, viewable on the History screen.
@@ -84,11 +98,26 @@ Authentication is **on whenever `RACHA_TOKEN` is set**. It may be left unset onl
 for local/dev (the server logs a warning and leaves the API open); in production
 (`NODE_ENV=production`) the server **refuses to start** without it.
 
-- **Reads are public** — except sensitive ones (emergency PII, the emergency
-  export, and the audit log), which require an admin.
-- **Writes are fail-closed** — every state-changing request requires an
-  authenticated admin, with two deliberate exceptions: the player emergency
-  self-service submit (`/api/emergency/*`) and the login route itself.
+- **Reads are public** — except sensitive ones (emergency PII, the per-player
+  emergency status, the emergency export, and the audit log), which require an
+  admin.
+- **Writes are fail-closed**, in three tiers:
+  - **Public self-service** (no login, no code): the emergency form
+    (`/api/emergency/*`), the weekly check-in, and guest add/remove.
+  - **Operational** — drawing and adjusting teams, the match clock, results and
+    stat logging for the one open session. These accept **either** an admin
+    **or** the day's 4-digit operator code, so whoever is at the gym can run the
+    night without an admin login.
+  - **Admin-only** — everything else: opening/closing/deleting a session,
+    deleting a match, editing a finished game, the roster, settings and
+    cancellations.
+- **The day's operator code** — the admin opens a session, which mints a 4-digit
+  code shown only to admins. Presenting it as `X-Racha-Code` authenticates a
+  synthetic `operator` user, valid only while that session is still
+  draft/live — it expires by itself when the night is ended. Codes are compared
+  in constant time over their digests.
+- **Sessions freeze** — once a session is finished (or its date has passed),
+  structural writes are locked for everyone; an admin can still correct stats.
 - **Admins** log in with their player name + password; the server returns a
   session token (sent back as the `X-Racha-Token` header) that lasts 30 days and
   is stored only as a hash.
@@ -200,6 +229,10 @@ login/session/logout, the public roster hiding `is_admin`, the emergency
 self-service flow (and that PII never leaks), the check-in board (season >
 drop-in > guest priority, the 15/18 cap, toggle-to-clear, admin clear-all),
 guest self-add (public add, dedupe, validation, per-game cap, kill-switch),
-the top-up-from-losers rotation (winner keeps its side, nothing returns), and
-that bad input returns 400. The
-`balanceTeams` unit tests cover the 10–15 and 16–18 (6/6/6) sizing bands.
+the top-up-from-losers rotation (winner keeps its side, nothing returns),
+the day's operator code (runs the live game; opening/closing/deleting stays
+admin), frozen sessions (structural writes locked, admin stat fixes allowed),
+match tidy-up and `reopen`, game cancellations (public read, admin write,
+check-in rolling past a cancelled Monday), and that bad input returns 400.
+The `packages/shared` unit tests cover `balanceTeams` (the 10–15 and 16–18
+(6/6/6) sizing bands), the season schedule, and phone normalization.

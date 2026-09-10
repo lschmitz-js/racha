@@ -251,7 +251,7 @@
 
 <h2>Yes, there's a database — here's the schema</h2>
 
-<p>SQLite, ~75 KB on disk for an empty install. Eight tables, all keyed on text IDs (compatible with the legacy app's <code>mo7…</code> format). Times stored as Unix milliseconds.</p>
+<p>SQLite, well under a megabyte for a full season. Fifteen tables, all keyed on text IDs (compatible with the legacy app's <code>mo7…</code> format). Times stored as Unix milliseconds; game and session dates are <code>YYYY-MM-DD</code> strings on the America/Vancouver day, never UTC.</p>
 
 <table>
   <thead>
@@ -261,12 +261,12 @@
     <tr>
       <td><code>players</code></td>
       <td>Master roster (season + drop-ins)</td>
-      <td><code>type</code> (season/dropin), <code>role</code> (player/gk), <code>skills_json</code> (8 ratings 1–5)</td>
+      <td><code>type</code> (season/dropin/guest), <code>skills_json</code> (8 ratings 1–5), <code>is_admin</code>, <code>password_hash</code>, <code>emergency_token</code>, <code>added_by_device</code> (which device added a guest). <code>role</code> survives only for legacy imports — the fixed GK role is gone.</td>
     </tr>
     <tr>
       <td><code>sessions</code></td>
       <td>One Monday night</td>
-      <td><code>date</code>, <code>status</code> (draft/live/done)</td>
+      <td><code>date</code>, <code>status</code> (draft/live/done), <code>code</code> (the day's 4-digit operator code)</td>
     </tr>
     <tr>
       <td><code>session_players</code></td>
@@ -285,7 +285,7 @@
     </tr>
     <tr>
       <td><code>matches</code></td>
-      <td>One 5-minute game inside a session</td>
+      <td>One game inside a session (5 min standard, 6 min in a 16–18 full house)</td>
       <td><code>elapsed_ms</code> (canonical clock), <code>status</code>, <code>result</code>, <code>winner_team_id</code></td>
     </tr>
     <tr>
@@ -297,6 +297,41 @@
       <td><code>match_events</code></td>
       <td>The event log — every goal, assist, sub, etc.</td>
       <td><code>type</code>, <code>clock_ms</code>, <code>link_id</code> (pairs goal↔assist and sub_in↔sub_out)</td>
+    </tr>
+    <tr>
+      <td><code>checkins</code></td>
+      <td>The weekly RSVP board</td>
+      <td><code>game_date</code> (from the shared schedule, so each week is independent and rolls over on its own), <code>status</code>, <code>checked_in_at</code> (the waitlist tiebreaker)</td>
+    </tr>
+    <tr>
+      <td><code>game_cancellations</code></td>
+      <td>One-off Mondays called off by an admin</td>
+      <td><code>date</code>, <code>reason</code> — shown on Home; the next-game math rolls past these like a holiday</td>
+    </tr>
+    <tr>
+      <td><code>player_emergency</code></td>
+      <td>Emergency contacts (PII)</td>
+      <td>Deliberately a separate table, so it can never fall into the public <code>GET /api/players</code> response by accident</td>
+    </tr>
+    <tr>
+      <td><code>auth_sessions</code></td>
+      <td>Server-side login sessions</td>
+      <td>Only the SHA-256 of the bearer token is stored, so a DB leak can't be replayed</td>
+    </tr>
+    <tr>
+      <td><code>audit_log</code></td>
+      <td>Append-only trail of admin actions</td>
+      <td>who / what / when, written by one middleware after each state-changing request; drives the History screen</td>
+    </tr>
+    <tr>
+      <td><code>settings</code></td>
+      <td>Admin-editable app config</td>
+      <td>vest colours, the Rules screen's contact/payment copy — so they live with the deployment, not in source</td>
+    </tr>
+    <tr>
+      <td><code>team_loans</code></td>
+      <td><em>Vestigial.</em> Recorded borrowed players under the old borrow/return rotation</td>
+      <td>No code reads or writes it — the winner now simply keeps its side and a short team tops up permanently from the losers</td>
     </tr>
   </tbody>
 </table>
@@ -313,6 +348,35 @@
   <li><strong>Trivially portable to Proxmox.</strong> Just move the <code>data/</code> folder. No DB migration.</li>
 </ul>
 
+<h2>Who is allowed to write</h2>
+
+<p>Reads are public — except emergency PII and the audit log, which are admin-only. Writes fall into three tiers:</p>
+
+<table>
+  <thead>
+    <tr><th>Tier</th><th>Who</th><th>What</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Public self-service</td>
+      <td>Anyone, no login</td>
+      <td>The emergency form (reached by a private, unguessable link), the weekly check-in, adding a guest — and removing one, if you are the device that added them.</td>
+    </tr>
+    <tr>
+      <td>Operational</td>
+      <td>The day's 4-digit code <em>or</em> an admin</td>
+      <td>Running the open session: draw and adjust teams, the clock, results, stat logging. The code is minted when an admin opens the session, shown only to admins, and stops working by itself once that session ends.</td>
+    </tr>
+    <tr>
+      <td>Admin</td>
+      <td>Name + password login</td>
+      <td>Everything else: opening/closing/deleting a session, deleting a match, editing a finished game, the roster, settings, cancellations.</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>A finished or past-dated session is <strong>frozen</strong> — structural writes are locked for everyone, though an admin can still correct stats. <code>RACHA_TOKEN</code> is the break-glass master identity used to bootstrap the first admin; with <code>NODE_ENV=production</code> the server refuses to start without it.</p>
+
 <h2>What happens when you tap "Goal"</h2>
 <ol>
   <li>SPA generates a UUID client-side and POSTs to <code>/api/events</code> with <code>{ id, match_id, type: 'goal', player_id, team_id, link_id }</code>.</li>
@@ -328,7 +392,7 @@
 │   ├── api/        # Hono backend, REST routes, SQLite layer
 │   └── web/        # Vite + React SPA
 ├── packages/
-│   └── shared/     # Zod schemas, ported balanceTeams algorithm
+│   └── shared/     # Zod schemas, balanceTeams, the season schedule, phone formatting
 ├── Dockerfile      # Multi-stage build: shared → web → api → runtime
 ├── docker-compose.yml
 ├── Caddyfile       # Reverse proxy + TLS config
@@ -353,7 +417,7 @@
 
 <h2>What's deliberately not in the picture (yet)</h2>
 <ul>
-  <li><span class="pill">Auth</span> No login. Obscure URL only. Add a <code>RACHA_TOKEN</code> env var if you ever want to gate writes.</li>
+  <li><span class="pill">Accounts for players</span> Only admins log in. Check-in and guest handling are honor-system and device-tagged — good enough for one WhatsApp group, but SSO is the prerequisite for anything money-related.</li>
   <li><span class="pill">CDN</span> Caddy serves assets directly. The free-tier VM handles this fine for &lt; 100 users; revisit if traffic explodes.</li>
   <li><span class="pill">Continuous backup</span> <code>litestream.yml</code> is committed but not running. When you self-host on Proxmox, point it at a NAS share.</li>
   <li><span class="pill">CI/CD</span> No GitHub Actions yet. A workflow that builds and pushes to GHCR on every <code>main</code> commit would shrink VM rebuild time from 4 minutes to 10 seconds.</li>

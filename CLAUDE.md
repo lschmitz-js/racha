@@ -58,6 +58,14 @@ emergency contacts, and a bilingual (PT/EN) rulebook.
 ## Conventions
 
 - **Ask before committing/pushing/deploying.** Recap what changed and why first.
+- **Docs ship with the change.** Any behaviour change updates the docs in the same
+  batch, before the deploy — not "later": [CHANGELOG.md](CHANGELOG.md) always (an
+  entry dated the day it lands on `main`), plus [README.md](README.md) when a
+  feature, env var, auth rule or test changes, [docs/architecture.html](docs/architecture.html)
+  when the schema/deployment/access model changes, and this file when the domain
+  logic or conventions move. Deleting a shipped idea from
+  [docs/feature-requests.md](docs/feature-requests.md) counts too. If a deploy
+  turns out to have shipped undocumented, the fix is a docs pass, not a note.
 - **Keep the public repo clean of live-env identifiers**: the production domain,
   deploy host/path, API tokens, payment address, and real player names live in the
   operator's private notes/`.env` — never in source, fixtures, or these docs.
